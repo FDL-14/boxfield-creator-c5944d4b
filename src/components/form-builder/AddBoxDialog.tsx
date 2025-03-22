@@ -47,7 +47,7 @@ export default function AddBoxDialog({ open, onClose, onAdd, isLoading }) {
             <Button 
               type="submit" 
               disabled={!title.trim() || isLoading}
-              className="transition-all duration-300 bg-blue-600 hover:bg-blue-700"
+              className="transition-all duration-300 bg-orange-600 hover:bg-orange-700"
             >
               {isLoading ? (
                 <>
