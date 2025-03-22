@@ -2,16 +2,19 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Edit2, Save, X, Loader2 } from "lucide-react";
+import { Trash2, Edit2, Save, X, Loader2, Flag, Type, Pencil } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 const fieldTypeLabels = {
   short_text: "Texto Curto",
   long_text: "Texto Longo",
   checkbox: "Caixa de Seleção",
-  checkbox_with_text: "Caixa de Seleção com Texto",
+  flag: "FLAG (Seleção Múltipla)",
+  flag_with_text: "FLAG + Texto",
   date: "Data",
   time: "Hora",
   signature: "Assinatura"
@@ -21,8 +24,33 @@ export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedField, setEditedField] = useState(field);
 
+  const handleAddOption = () => {
+    setEditedField({
+      ...editedField,
+      options: [...(editedField.options || []), {text: ""}]
+    });
+  };
+  
+  const handleRemoveOption = (index) => {
+    const newOptions = [...(editedField.options || [])];
+    newOptions.splice(index, 1);
+    setEditedField({
+      ...editedField,
+      options: newOptions
+    });
+  };
+  
+  const handleOptionChange = (index, value) => {
+    const newOptions = [...(editedField.options || [])];
+    newOptions[index].text = value;
+    setEditedField({
+      ...editedField,
+      options: newOptions
+    });
+  };
+
   const handleSave = () => {
-    onEdit(editedField);
+    onEdit(field.id, editedField);
     setIsEditing(false);
   };
 
@@ -34,11 +62,33 @@ export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
         return <Textarea disabled placeholder="Campo de texto longo" className="transition-all duration-300" />;
       case "checkbox":
         return <Checkbox disabled className="transition-all duration-300" />;
-      case "checkbox_with_text":
+      case "flag":
         return (
-          <div className="flex items-center gap-2">
-            <Checkbox disabled className="transition-all duration-300" />
-            <Input disabled className="w-48 transition-all duration-300" placeholder="Texto adicional" />
+          <div className="space-y-2 transition-all duration-300">
+            <RadioGroup disabled>
+              {(field.options || [{text: "Opção 1"}]).map((option, index) => (
+                <div key={index} className="flex items-center space-x-2">
+                  <RadioGroupItem value={`option-${index}`} id={`option-${index}`} disabled />
+                  <Label htmlFor={`option-${index}`} className="text-sm">{option.text}</Label>
+                </div>
+              ))}
+            </RadioGroup>
+          </div>
+        );
+      case "flag_with_text":
+        return (
+          <div className="space-y-3 transition-all duration-300">
+            {(field.options || [{text: "Opção 1"}]).map((option, index) => (
+              <div key={index} className="flex items-start gap-2">
+                <div className="flex items-center h-6">
+                  <Checkbox disabled className="mt-1" />
+                </div>
+                <div className="flex-1">
+                  <Label className="text-sm mb-1 block">{option.text}</Label>
+                  <Input disabled className="w-full" placeholder="Texto adicional" />
+                </div>
+              </div>
+            ))}
           </div>
         );
       case "date":
@@ -47,8 +97,19 @@ export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
         return <Input type="time" disabled className="transition-all duration-300" />;
       case "signature":
         return (
-          <div className="border-2 border-dashed rounded p-4 text-center text-gray-500 transition-all duration-300">
-            Área para Assinatura
+          <div className="space-y-2 transition-all duration-300">
+            <div className="border-2 border-dashed rounded p-4 text-center text-gray-500">
+              <Pencil className="mx-auto h-6 w-6 mb-2 opacity-50" />
+              <p>Área para Assinatura</p>
+            </div>
+            {field.signature_label && (
+              <Input 
+                value={field.signature_label} 
+                disabled 
+                className="text-center" 
+                placeholder="Nome/Cargo" 
+              />
+            )}
           </div>
         );
       default:
@@ -67,15 +128,60 @@ export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
             disabled={isLoading}
             className="transition-all duration-300"
           />
-          {field.type === "checkbox_with_text" && (
+          
+          {(editedField.type === "flag" || editedField.type === "flag_with_text") && (
+            <div className="space-y-3 p-3 border rounded-lg animate-fade-in">
+              <h4 className="font-medium text-sm">Opções de Seleção</h4>
+              
+              {(editedField.options || [{text: ""}]).map((option, index) => (
+                <div key={index} className="flex items-center gap-2">
+                  <Input
+                    value={option.text}
+                    onChange={(e) => handleOptionChange(index, e.target.value)}
+                    placeholder={`Opção ${index + 1}`}
+                    disabled={isLoading}
+                    className="flex-1"
+                  />
+                  
+                  {(editedField.options || []).length > 1 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => handleRemoveOption(index)}
+                      disabled={isLoading}
+                      className="h-8 w-8 text-red-600 hover:text-red-700"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  )}
+                </div>
+              ))}
+              
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleAddOption}
+                disabled={isLoading}
+                className="w-full mt-2"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Opção
+              </Button>
+            </div>
+          )}
+          
+          {editedField.type === "signature" && (
             <Input
-              value={editedField.extra_text || ""}
-              onChange={(e) => setEditedField({ ...editedField, extra_text: e.target.value })}
-              placeholder="Texto adicional"
+              value={editedField.signature_label || ""}
+              onChange={(e) => setEditedField({ ...editedField, signature_label: e.target.value })}
+              placeholder="Nome/Cargo de quem irá assinar"
               disabled={isLoading}
               className="transition-all duration-300"
             />
           )}
+          
           <div className="flex justify-end gap-2">
             <Button
               variant="ghost"
@@ -91,7 +197,9 @@ export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
               size="sm"
               onClick={handleSave}
               className="bg-green-600 hover:bg-green-700 transition-all duration-300"
-              disabled={isLoading}
+              disabled={isLoading || 
+                ((editedField.type === "flag" || editedField.type === "flag_with_text") && 
+                (editedField.options || []).some(opt => !opt.text.trim()))}
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
               Salvar
@@ -125,7 +233,7 @@ export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
             variant="ghost"
             size="icon"
             className="text-red-600 hover:text-red-700 transition-all duration-300"
-            onClick={onDelete}
+            onClick={() => onDelete(field.id)}
             disabled={isLoading}
           >
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}

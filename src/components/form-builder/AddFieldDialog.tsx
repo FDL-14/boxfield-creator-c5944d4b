@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import {
   Dialog,
   DialogContent,
@@ -15,34 +15,74 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Plus, Loader2 } from "lucide-react";
+import { Plus, Loader2, Trash2 } from "lucide-react";
 
 const fieldTypes = [
   { value: "short_text", label: "Texto Curto" },
   { value: "long_text", label: "Texto Longo" },
   { value: "checkbox", label: "Caixa de Seleção" },
-  { value: "checkbox_with_text", label: "Caixa de Seleção com Texto" },
+  { value: "flag", label: "FLAG (Seleção Múltipla)" },
+  { value: "flag_with_text", label: "FLAG + Texto" },
   { value: "date", label: "Data" },
   { value: "time", label: "Hora" },
   { value: "signature", label: "Assinatura" }
 ];
 
 export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
-  const [field, setField] = React.useState({
+  const [field, setField] = useState({
     label: "",
     type: "",
-    extra_text: ""
+    extra_text: "",
+    options: [{text: ""}],
+    signature_label: ""
   });
+
+  const handleAddOption = () => {
+    setField({
+      ...field,
+      options: [...field.options, {text: ""}]
+    });
+  };
+  
+  const handleRemoveOption = (index) => {
+    const newOptions = [...field.options];
+    newOptions.splice(index, 1);
+    setField({
+      ...field,
+      options: newOptions
+    });
+  };
+  
+  const handleOptionChange = (index, value) => {
+    const newOptions = [...field.options];
+    newOptions[index].text = value;
+    setField({
+      ...field,
+      options: newOptions
+    });
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onAdd(field);
-    setField({ label: "", type: "", extra_text: "" });
+    setField({ 
+      label: "", 
+      type: "", 
+      extra_text: "", 
+      options: [{text: ""}],
+      signature_label: ""
+    });
   };
 
   const handleClose = () => {
     if (!isLoading) {
-      setField({ label: "", type: "", extra_text: "" });
+      setField({ 
+        label: "", 
+        type: "", 
+        extra_text: "", 
+        options: [{text: ""}],
+        signature_label: ""
+      });
       onClose();
     }
   };
@@ -81,11 +121,54 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
               </SelectContent>
             </Select>
 
-            {field.type === "checkbox_with_text" && (
+            {(field.type === "flag" || field.type === "flag_with_text") && (
+              <div className="space-y-3 p-3 border rounded-lg animate-fade-in">
+                <h4 className="font-medium text-sm">Opções de Seleção</h4>
+                
+                {field.options.map((option, index) => (
+                  <div key={index} className="flex items-center gap-2">
+                    <Input
+                      value={option.text}
+                      onChange={(e) => handleOptionChange(index, e.target.value)}
+                      placeholder={`Opção ${index + 1}`}
+                      disabled={isLoading}
+                      className="flex-1"
+                    />
+                    
+                    {field.options.length > 1 && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleRemoveOption(index)}
+                        disabled={isLoading}
+                        className="h-8 w-8 text-red-600 hover:text-red-700"
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                ))}
+                
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddOption}
+                  disabled={isLoading}
+                  className="w-full mt-2"
+                >
+                  <Plus className="h-4 w-4 mr-2" />
+                  Adicionar Opção
+                </Button>
+              </div>
+            )}
+
+            {field.type === "signature" && (
               <Input
-                value={field.extra_text}
-                onChange={(e) => setField({ ...field, extra_text: e.target.value })}
-                placeholder="Texto adicional para o checkbox"
+                value={field.signature_label}
+                onChange={(e) => setField({ ...field, signature_label: e.target.value })}
+                placeholder="Nome/Cargo de quem irá assinar"
                 disabled={isLoading}
                 className="transition-all duration-300 animate-fade-in"
               />
@@ -95,7 +178,9 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
           <div className="flex justify-end">
             <Button 
               type="submit" 
-              disabled={!field.label.trim() || !field.type || isLoading}
+              disabled={!field.label.trim() || !field.type || isLoading ||
+                ((field.type === "flag" || field.type === "flag_with_text") && 
+                field.options.some(opt => !opt.text.trim()))}
               className="bg-blue-600 hover:bg-blue-700 transition-all duration-300"
             >
               {isLoading ? (
