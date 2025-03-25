@@ -1,8 +1,9 @@
+
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -10,82 +11,180 @@ import { ArrowLeft, Download, FileSpreadsheet, Filter } from "lucide-react";
 import { getSavedForms } from "@/utils/formUtils";
 import { exportToExcel, generatePDF } from "@/utils/pdfUtils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
-import { Checkbox } from "@/components/ui/checkbox";
-import { format, parse, isValid } from "date-fns";
-import { ptBR } from "date-fns/locale";
+import { Label } from "@/components/ui/label";
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#FF5722'];
+// Tipo para os dados do formulário
+interface FormData {
+  id: number;
+  name: string;
+  date: string;
+  data: {
+    atividade: string;
+    local: string;
+    departamento: string;
+    responsavel: string;
+    data: string;
+    riscos: {
+      queda: boolean;
+      prensamento: boolean;
+      eletrico: boolean;
+      queimaduras: boolean;
+      ergonomico: boolean;
+      outros: boolean;
+      outrosTexto: string;
+    };
+    epi: {
+      capacete: boolean;
+      luvas: boolean;
+      oculos: boolean;
+      protetor: boolean;
+      calcado: boolean;
+      cinto: boolean;
+      outros: boolean;
+      outrosTexto: string;
+    };
+    medidas: string;
+  };
+}
 
-const RelatoriosAnaliseRisco = () => {
+// Tipo para os dados de gráfico
+interface ChartData {
+  name: string;
+  value: number;
+}
+
+export default function RelatoriosAnaliseRisco() {
   const navigate = useNavigate();
-  const [forms, setForms] = useState([]);
+  const [savedForms, setSavedForms] = useState<FormData[]>([]);
+  const [filteredForms, setFilteredForms] = useState<FormData[]>([]);
   const [filters, setFilters] = useState({
-    dateFrom: "",
-    dateTo: "",
-    activity: "",
-    hasImages: false,
-    sortBy: "date-desc",
+    startDate: "",
+    endDate: "",
+    local: "",
+    departamento: "",
+    riscos: {
+      queda: false,
+      prensamento: false,
+      eletrico: false,
+      queimaduras: false,
+      ergonomico: false,
+      outros: false
+    }
   });
-  const [reportRef, setReportRef] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
   useEffect(() => {
-    // Load saved forms
-    const savedForms = getSavedForms("analise-risco");
-    setForms(savedForms);
+    const forms = getSavedForms("analise-risco");
+    console.log("Loaded forms:", forms);
+    setSavedForms(forms);
+    setFilteredForms(forms);
   }, []);
 
-  const handleFilterChange = (key, value) => {
-    setFilters({ ...filters, [key]: value });
-  };
-
-  const filteredForms = useMemo(() => {
-    return forms.filter(form => {
-      // Date filter
-      if (filters.dateFrom || filters.dateTo) {
+  // Aplicar filtros
+  useEffect(() => {
+    if (savedForms.length === 0) return;
+    
+    let filtered = [...savedForms];
+    
+    // Filtro por data
+    if (filters.startDate) {
+      filtered = filtered.filter(form => {
         const formDate = new Date(form.date);
-        
-        if (filters.dateFrom) {
-          const fromDate = new Date(filters.dateFrom);
-          if (formDate < fromDate) return false;
-        }
-        
-        if (filters.dateTo) {
-          const toDate = new Date(filters.dateTo);
-          toDate.setHours(23, 59, 59);
-          if (formDate > toDate) return false;
-        }
-      }
-      
-      // Activity filter
-      if (filters.activity && !form.data.atividade.toLowerCase().includes(filters.activity.toLowerCase())) {
-        return false;
-      }
-      
-      // Has images filter
-      if (filters.hasImages && (!form.data.imagens || form.data.imagens.length === 0)) {
-        return false;
-      }
-      
-      return true;
-    }).sort((a, b) => {
-      if (filters.sortBy === "date-asc") {
-        return new Date(a.date) - new Date(b.date);
-      } else if (filters.sortBy === "date-desc") {
-        return new Date(b.date) - new Date(a.date);
-      } else if (filters.sortBy === "name-asc") {
-        return a.name.localeCompare(b.name);
-      } else if (filters.sortBy === "name-desc") {
-        return b.name.localeCompare(a.name);
-      }
-      return 0;
-    });
-  }, [forms, filters]);
+        const startDate = new Date(filters.startDate);
+        return formDate >= startDate;
+      });
+    }
+    
+    if (filters.endDate) {
+      filtered = filtered.filter(form => {
+        const formDate = new Date(form.date);
+        const endDate = new Date(filters.endDate);
+        endDate.setHours(23, 59, 59);
+        return formDate <= endDate;
+      });
+    }
+    
+    // Filtro por local
+    if (filters.local) {
+      filtered = filtered.filter(form => 
+        form.data.local.toLowerCase().includes(filters.local.toLowerCase())
+      );
+    }
+    
+    // Filtro por departamento
+    if (filters.departamento) {
+      filtered = filtered.filter(form => 
+        form.data.departamento.toLowerCase().includes(filters.departamento.toLowerCase())
+      );
+    }
+    
+    // Filtro por riscos
+    const riscosKeys = Object.keys(filters.riscos) as Array<keyof typeof filters.riscos>;
+    const riscosAtivos = riscosKeys.filter(risco => filters.riscos[risco]);
+    
+    if (riscosAtivos.length > 0) {
+      filtered = filtered.filter(form => {
+        return riscosAtivos.some(risco => {
+          if (risco === 'outros') {
+            return form.data.riscos.outros;
+          }
+          return form.data.riscos[risco as keyof typeof form.data.riscos];
+        });
+      });
+    }
+    
+    setFilteredForms(filtered);
+  }, [filters, savedForms]);
 
-  // Data for charts
-  const activityData = useMemo(() => {
-    const activityCounts = {};
+  // Gráfico de riscos por frequência
+  const riskFrequencyData = useMemo(() => {
+    const riskCounts: Record<string, number> = {
+      'Queda': 0,
+      'Prensamento': 0,
+      'Choque Elétrico': 0,
+      'Queimaduras': 0,
+      'Ergonômico': 0,
+      'Outros': 0
+    };
+    
     filteredForms.forEach(form => {
-      const activity = form.data.atividade || "Sem atividade";
+      if (form.data.riscos.queda) riskCounts['Queda']++;
+      if (form.data.riscos.prensamento) riskCounts['Prensamento']++;
+      if (form.data.riscos.eletrico) riskCounts['Choque Elétrico']++;
+      if (form.data.riscos.queimaduras) riskCounts['Queimaduras']++;
+      if (form.data.riscos.ergonomico) riskCounts['Ergonômico']++;
+      if (form.data.riscos.outros) riskCounts['Outros']++;
+    });
+    
+    return Object.entries(riskCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5); // Top 5 risks
+  }, [filteredForms]);
+
+  // Gráfico de locais por frequência
+  const activityByLocationData = useMemo(() => {
+    const locationCounts: Record<string, number> = {};
+    
+    filteredForms.forEach(form => {
+      const local = form.data.local || 'Não especificado';
+      locationCounts[local] = (locationCounts[local] || 0) + 1;
+    });
+    
+    return Object.entries(locationCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5); // Top 5 locations
+  }, [filteredForms]);
+
+  // Gráfico de atividades por frequência
+  const topActivitiesData = useMemo(() => {
+    const activityCounts: Record<string, number> = {};
+    
+    filteredForms.forEach(form => {
+      const activity = form.data.atividade || 'Não especificado';
       activityCounts[activity] = (activityCounts[activity] || 0) + 1;
     });
     
@@ -95,386 +194,476 @@ const RelatoriosAnaliseRisco = () => {
       .slice(0, 5); // Top 5 activities
   }, [filteredForms]);
 
-  const dateData = useMemo(() => {
-    const dateCounts = {};
-    filteredForms.forEach(form => {
-      // Format to YYYY-MM-DD
-      const date = format(new Date(form.date), "yyyy-MM-dd");
-      dateCounts[date] = (dateCounts[date] || 0) + 1;
-    });
-    
-    return Object.entries(dateCounts)
-      .map(([date, count]) => ({
-        date: format(new Date(date), "dd/MM/yy"),
-        count
-      }))
-      .sort((a, b) => {
-        const dateA = parse(a.date, "dd/MM/yy", new Date());
-        const dateB = parse(b.date, "dd/MM/yy", new Date());
-        return dateA.getTime() - dateB.getTime();
-      })
-      .slice(-7); // Last 7 days with data
-  }, [filteredForms]);
-
-  const riskData = useMemo(() => {
-    // Extract all risks from forms
-    const risks = [];
+  // Gráfico de departamentos por frequência
+  const departmentData = useMemo(() => {
+    const deptCounts: Record<string, number> = {};
     
     filteredForms.forEach(form => {
-      form.data.analiseRisco.forEach(risk => {
-        if (risk.risco) {
-          risks.push(risk.risco);
-        }
-      });
+      const dept = form.data.departamento || 'Não especificado';
+      deptCounts[dept] = (deptCounts[dept] || 0) + 1;
     });
     
-    // Count risk occurrences
-    const riskCounts = {};
-    risks.forEach(risk => {
-      riskCounts[risk] = (riskCounts[risk] || 0) + 1;
-    });
-    
-    return Object.entries(riskCounts)
+    return Object.entries(deptCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 risks
+      .slice(0, 5); // Top 5 departments
+  }, [filteredForms]);
+
+  // Gráfico de EPIs por frequência
+  const epiFrequencyData = useMemo(() => {
+    const epiCounts: Record<string, number> = {
+      'Capacete': 0,
+      'Luvas': 0,
+      'Óculos': 0,
+      'Protetor Auricular': 0,
+      'Calçado de Segurança': 0,
+      'Cinto de Segurança': 0,
+      'Outros': 0
+    };
+    
+    filteredForms.forEach(form => {
+      if (form.data.epi.capacete) epiCounts['Capacete']++;
+      if (form.data.epi.luvas) epiCounts['Luvas']++;
+      if (form.data.epi.oculos) epiCounts['Óculos']++;
+      if (form.data.epi.protetor) epiCounts['Protetor Auricular']++;
+      if (form.data.epi.calcado) epiCounts['Calçado de Segurança']++;
+      if (form.data.epi.cinto) epiCounts['Cinto de Segurança']++;
+      if (form.data.epi.outros) epiCounts['Outros']++;
+    });
+    
+    return Object.entries(epiCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5); // Top 5 EPIs
   }, [filteredForms]);
 
   const handleExportExcel = () => {
-    // Prepare data for Excel
-    const data = filteredForms.map(form => ({
+    const dataToExport = filteredForms.map(form => ({
       Nome: form.name,
+      Data: new Date(form.date).toLocaleDateString(),
       Atividade: form.data.atividade,
-      'Data Criação': format(new Date(form.date), "dd/MM/yyyy HH:mm", { locale: ptBR }),
-      'Riscos': form.data.analiseRisco.filter(r => r.risco).map(r => r.risco).join(', '),
-      'Imagens': form.data.imagens ? form.data.imagens.length : 0
+      Local: form.data.local,
+      Departamento: form.data.departamento,
+      Responsavel: form.data.responsavel,
+      'Risco: Queda': form.data.riscos.queda ? 'Sim' : 'Não',
+      'Risco: Prensamento': form.data.riscos.prensamento ? 'Sim' : 'Não',
+      'Risco: Eletrico': form.data.riscos.eletrico ? 'Sim' : 'Não',
+      'Risco: Queimaduras': form.data.riscos.queimaduras ? 'Sim' : 'Não',
+      'Risco: Ergonomico': form.data.riscos.ergonomico ? 'Sim' : 'Não',
+      'Risco: Outros': form.data.riscos.outros ? form.data.riscos.outrosTexto : 'Não',
+      Medidas: form.data.medidas
     }));
     
-    exportToExcel(data, "Relatorio_Analise_Risco");
+    exportToExcel(dataToExport, "relatorio-analise-risco");
   };
 
-  const handlePrintReport = () => {
-    if (reportRef) {
-      generatePDF(reportRef, "Relatorio_Analise_Risco");
+  const handleExportPDF = async () => {
+    const reportElement = document.getElementById('report-container');
+    const success = await generatePDF(reportElement, "relatorio-analise-risco");
+    
+    if (success) {
+      console.log("PDF generated successfully");
+    } else {
+      console.error("Failed to generate PDF");
     }
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen">
-      <div className="container mx-auto py-4 px-4">
-        <div className="flex justify-between items-center mb-6">
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div>
-            <h1 className="text-2xl font-bold">Relatórios de Análise de Risco</h1>
-            <p className="text-gray-500">Visualize e exporte relatórios dos formulários de Análise de Risco</p>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/")}
+                className="rounded-full"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-3xl font-bold text-gray-900">Relatórios de Análise de Risco</h1>
+            </div>
+            <p className="text-gray-500 mt-1">
+              Visualize e analise dados de {filteredForms.length} documentos
+            </p>
           </div>
-          <Button
-            variant="outline"
-            onClick={() => navigate("/analise-risco")}
-            className="flex items-center gap-2"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            Voltar
-          </Button>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setShowFilters(!showFilters)}
+              className="gap-2"
+            >
+              <Filter className="h-4 w-4" />
+              {showFilters ? "Ocultar Filtros" : "Mostrar Filtros"}
+            </Button>
+            <Button
+              variant="outline"
+              onClick={handleExportExcel}
+              className="flex items-center gap-2"
+            >
+              <FileSpreadsheet className="h-4 w-4" />
+              Exportar Excel
+            </Button>
+            <Button 
+              variant="outline"
+              onClick={handleExportPDF}
+              className="flex items-center gap-2"
+            >
+              <Download className="h-4 w-4" />
+              Exportar PDF
+            </Button>
+          </div>
         </div>
 
         {/* Filters */}
-        <Card className="mb-6">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Filter className="h-5 w-5" />
-              Filtros
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="dateFrom">Data Inicial</Label>
-                <Input
-                  id="dateFrom"
-                  type="date"
-                  value={filters.dateFrom}
-                  onChange={(e) => handleFilterChange("dateFrom", e.target.value)}
-                />
+        {showFilters && (
+          <Card className="mb-6 animate-slide-down">
+            <CardHeader>
+              <CardTitle className="text-xl">Filtros</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <div>
+                  <Label htmlFor="startDate" className="block mb-2">Data Inicial</Label>
+                  <Input 
+                    id="startDate"
+                    type="date" 
+                    value={filters.startDate}
+                    onChange={e => setFilters({...filters, startDate: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="endDate" className="block mb-2">Data Final</Label>
+                  <Input 
+                    id="endDate"
+                    type="date" 
+                    value={filters.endDate}
+                    onChange={e => setFilters({...filters, endDate: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="local" className="block mb-2">Local</Label>
+                  <Input 
+                    id="local"
+                    placeholder="Filtrar por local" 
+                    value={filters.local}
+                    onChange={e => setFilters({...filters, local: e.target.value})}
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="departamento" className="block mb-2">Departamento</Label>
+                  <Input 
+                    id="departamento"
+                    placeholder="Filtrar por departamento" 
+                    value={filters.departamento}
+                    onChange={e => setFilters({...filters, departamento: e.target.value})}
+                  />
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="dateTo">Data Final</Label>
-                <Input
-                  id="dateTo"
-                  type="date"
-                  value={filters.dateTo}
-                  onChange={(e) => handleFilterChange("dateTo", e.target.value)}
-                />
+              
+              <div className="mt-4">
+                <Label className="block mb-2">Riscos</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="queda"
+                      checked={filters.riscos.queda}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, queda: checked === true}
+                      })}
+                    />
+                    <label htmlFor="queda" className="text-sm">Queda</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="prensamento"
+                      checked={filters.riscos.prensamento}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, prensamento: checked === true}
+                      })}
+                    />
+                    <label htmlFor="prensamento" className="text-sm">Prensamento</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="eletrico"
+                      checked={filters.riscos.eletrico}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, eletrico: checked === true}
+                      })}
+                    />
+                    <label htmlFor="eletrico" className="text-sm">Elétrico</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="queimaduras"
+                      checked={filters.riscos.queimaduras}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, queimaduras: checked === true}
+                      })}
+                    />
+                    <label htmlFor="queimaduras" className="text-sm">Queimaduras</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="ergonomico"
+                      checked={filters.riscos.ergonomico}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, ergonomico: checked === true}
+                      })}
+                    />
+                    <label htmlFor="ergonomico" className="text-sm">Ergonômico</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="outros"
+                      checked={filters.riscos.outros}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, outros: checked === true}
+                      })}
+                    />
+                    <label htmlFor="outros" className="text-sm">Outros</label>
+                  </div>
+                </div>
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="activity">Atividade</Label>
-                <Input
-                  id="activity"
-                  type="text"
-                  placeholder="Buscar por atividade"
-                  value={filters.activity}
-                  onChange={(e) => handleFilterChange("activity", e.target.value)}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="sortBy">Ordenar por</Label>
-                <Select 
-                  value={filters.sortBy}
-                  onValueChange={(value) => handleFilterChange("sortBy", value)}
-                >
-                  <SelectTrigger>
-                    <SelectValue placeholder="Ordenar por" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="date-desc">Data (mais recente)</SelectItem>
-                    <SelectItem value="date-asc">Data (mais antiga)</SelectItem>
-                    <SelectItem value="name-asc">Nome (A-Z)</SelectItem>
-                    <SelectItem value="name-desc">Nome (Z-A)</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="flex items-center space-x-2 pt-8">
-                <Checkbox
-                  id="hasImages"
-                  checked={filters.hasImages}
-                  onCheckedChange={(checked) => handleFilterChange("hasImages", checked)}
-                />
-                <Label htmlFor="hasImages">Apenas com imagens</Label>
-              </div>
-              <div className="flex justify-end pt-6">
-                <Button 
-                  variant="outline" 
-                  className="ml-auto"
-                  onClick={() => setFilters({
-                    dateFrom: "",
-                    dateTo: "",
-                    activity: "",
-                    hasImages: false,
-                    sortBy: "date-desc",
-                  })}
-                >
-                  Limpar Filtros
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
 
-        {/* Export Controls */}
-        <div className="flex justify-end gap-2 mb-6">
-          <Button 
-            variant="outline" 
-            onClick={handleExportExcel}
-            className="flex items-center gap-2"
-          >
-            <FileSpreadsheet className="h-4 w-4" />
-            Exportar Excel
-          </Button>
-          <Button 
-            variant="outline" 
-            onClick={handlePrintReport}
-            className="flex items-center gap-2"
-          >
-            <Download className="h-4 w-4" />
-            Exportar PDF
-          </Button>
-        </div>
-
-        {/* Report Content */}
-        <div
-          ref={(ref) => setReportRef(ref)}
-          className="space-y-6 bg-white p-6 rounded-lg shadow-sm"
-        >
-          {/* Summary */}
+        {/* Main Report */}
+        <div id="report-container" className="space-y-6">
+          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Total de Formulários</CardTitle>
+                <CardTitle className="text-lg text-center">Total de Documentos</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">{filteredForms.length}</p>
+                <p className="text-4xl font-bold text-center text-blue-600">{filteredForms.length}</p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Análises com Imagens</CardTitle>
+                <CardTitle className="text-lg text-center">Departamentos</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">
-                  {filteredForms.filter(form => form.data.imagens && form.data.imagens.length > 0).length}
+                <p className="text-4xl font-bold text-center text-green-600">
+                  {new Set(filteredForms.map(f => f.data.departamento)).size}
                 </p>
               </CardContent>
             </Card>
-            <Card>
+            <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Riscos Identificados</CardTitle>
+                <CardTitle className="text-lg text-center">Locais</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-3xl font-bold">{riskData.length}</p>
+                <p className="text-4xl font-bold text-center text-orange-600">
+                  {new Set(filteredForms.map(f => f.data.local)).size}
+                </p>
               </CardContent>
             </Card>
           </div>
 
           {/* Charts */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Activity Chart */}
-            <Card>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Risk Distribution */}
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Principais Atividades</CardTitle>
+                <CardTitle className="text-xl">Distribuição de Riscos</CardTitle>
               </CardHeader>
               <CardContent className="h-80">
-                {activityData.length > 0 ? (
-                  <ChartContainer 
-                    config={{
-                      activity1: { color: "#0088FE" },
-                      activity2: { color: "#00C49F" },
-                      activity3: { color: "#FFBB28" },
-                      activity4: { color: "#FF8042" },
-                      activity5: { color: "#8884d8" },
-                    }}
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={riskFrequencyData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
                   >
-                    <PieChart>
-                      <Pie
-                        data={activityData}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                        nameKey="name"
-                        label={(entry) => entry.name}
-                      >
-                        {activityData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                        ))}
-                      </Pie>
-                      <ChartTooltip
-                        content={<ChartTooltipContent />}
-                      />
-                    </PieChart>
-                  </ChartContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500">Nenhum dado disponível</p>
-                  </div>
-                )}
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
+                    <YAxis />
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <ChartContainer>
+                              <ChartTooltipContent>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
+                                </div>
+                              </ChartTooltipContent>
+                            </ChartContainer>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Bar dataKey="value" fill="#8884d8" />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            {/* Date Chart */}
-            <Card>
+            {/* Location Distribution */}
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Formulários por Data</CardTitle>
+                <CardTitle className="text-xl">Distribuição por Local</CardTitle>
               </CardHeader>
               <CardContent className="h-80">
-                {dateData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={dateData}
-                      margin={{
-                        top: 5,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
-                      }}
+                <ResponsiveContainer width="100%" height="100%">
+                  <PieChart>
+                    <Pie
+                      data={activityByLocationData}
+                      cx="50%"
+                      cy="50%"
+                      labelLine={false}
+                      outerRadius={80}
+                      fill="#8884d8"
+                      dataKey="value"
+                      label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="date" />
-                      <YAxis />
-                      <ChartTooltip />
-                      <Bar dataKey="count" fill="#8884d8" name="Formulários" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500">Nenhum dado disponível</p>
-                  </div>
-                )}
+                      {activityByLocationData.map((entry, index) => (
+                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                      ))}
+                    </Pie>
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <ChartContainer>
+                              <ChartTooltipContent>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
+                                </div>
+                              </ChartTooltipContent>
+                            </ChartContainer>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
 
-            {/* Risk Chart */}
-            <Card className="lg:col-span-2">
+            {/* Top Activities */}
+            <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle>Principais Riscos Identificados</CardTitle>
+                <CardTitle className="text-xl">Principais Atividades</CardTitle>
               </CardHeader>
               <CardContent className="h-80">
-                {riskData.length > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={riskData}
-                      layout="vertical"
-                      margin={{
-                        top: 5,
-                        right: 30,
-                        left: 20,
-                        bottom: 5,
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={topActivitiesData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={150} />
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <ChartContainer>
+                              <ChartTooltipContent>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
+                                </div>
+                              </ChartTooltipContent>
+                            </ChartContainer>
+                          )
+                        }
+                        return null
                       }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis type="category" dataKey="name" width={150} />
-                      <ChartTooltip />
-                      <Bar dataKey="value" fill="#FF8042" name="Ocorrências" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <div className="flex items-center justify-center h-full">
-                    <p className="text-gray-500">Nenhum dado disponível</p>
-                  </div>
-                )}
+                    />
+                    <Bar dataKey="value" fill="#00C49F" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            {/* EPI Distribution */}
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">EPIs Utilizados</CardTitle>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={epiFrequencyData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
+                    <YAxis />
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <ChartContainer>
+                              <ChartTooltipContent>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
+                                </div>
+                              </ChartTooltipContent>
+                            </ChartContainer>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Bar dataKey="value" fill="#FF8042" />
+                  </BarChart>
+                </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
 
-          {/* Form List */}
-          <Card>
-            <CardHeader>
-              <CardTitle>Lista de Formulários ({filteredForms.length})</CardTitle>
-            </CardHeader>
-            <CardContent>
-              {filteredForms.length > 0 ? (
+          {/* Table of Documents */}
+          {filteredForms.length > 0 && (
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Lista de Documentos</CardTitle>
+              </CardHeader>
+              <CardContent>
                 <div className="overflow-x-auto">
-                  <table className="w-full border-collapse">
-                    <thead>
-                      <tr className="bg-gray-100">
-                        <th className="text-left p-2 border">Nome</th>
-                        <th className="text-left p-2 border">Atividade</th>
-                        <th className="text-left p-2 border">Data</th>
-                        <th className="text-center p-2 border">Riscos</th>
-                        <th className="text-center p-2 border">Imagens</th>
+                  <table className="min-w-full divide-y divide-gray-200">
+                    <thead className="bg-gray-50">
+                      <tr>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Atividade</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
                       </tr>
                     </thead>
-                    <tbody>
-                      {filteredForms.map((form) => (
-                        <tr key={form.id} className="hover:bg-gray-50">
-                          <td className="p-2 border">{form.name}</td>
-                          <td className="p-2 border">{form.data.atividade || "—"}</td>
-                          <td className="p-2 border">
-                            {format(new Date(form.date), "dd/MM/yyyy HH:mm", { locale: ptBR })}
+                    <tbody className="bg-white divide-y divide-gray-200">
+                      {filteredForms.map(form => (
+                        <tr key={form.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{form.name}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                            {new Date(form.date).toLocaleDateString()}
                           </td>
-                          <td className="p-2 border text-center">
-                            {form.data.analiseRisco.filter(r => r.risco).length}
-                          </td>
-                          <td className="p-2 border text-center">
-                            {form.data.imagens ? form.data.imagens.length : 0}
-                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{form.data.atividade}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{form.data.local}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{form.data.departamento}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
                 </div>
-              ) : (
-                <p className="text-center py-4 text-gray-500">
-                  Nenhum formulário encontrado. Tente ajustar os filtros.
-                </p>
-              )}
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          )}
         </div>
       </div>
     </div>
   );
-};
-
-export default RelatoriosAnaliseRisco;
+}

@@ -144,3 +144,43 @@ export class FormField extends Entity {
     return fieldData;
   }
 }
+
+// Document Type entity
+export class DocumentType extends Entity {
+  static async create(data: any) {
+    const typeData = {
+      ...data,
+      id: uuidv4(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    const types = this.getFromLocalStorage();
+    types.push(typeData);
+    this.saveToLocalStorage(types);
+    
+    // Simulate network latency
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return typeData;
+  }
+}
+
+// User Document entity
+export class UserDocument extends Entity {
+  static async create(data: any) {
+    const docData = {
+      ...data,
+      id: uuidv4(),
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    
+    const docs = this.getFromLocalStorage();
+    docs.push(docData);
+    this.saveToLocalStorage(docs);
+    
+    // Simulate network latency
+    await new Promise(resolve => setTimeout(resolve, 500));
+    return docData;
+  }
+}

@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Edit2, Save, X, Loader2, Flag, Type, Pencil, Plus, Image } from "lucide-react";
+import { Trash2, Edit2, Save, X, Loader2, ArrowUp, ArrowDown, Plus, Image } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -21,7 +21,14 @@ const fieldTypeLabels = {
   image: "Foto/Imagem"
 };
 
-export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
+export default function FieldComponent({ 
+  field, 
+  onDelete, 
+  onEdit, 
+  onMoveUp, 
+  onMoveDown, 
+  isLoading 
+}) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedField, setEditedField] = useState(field);
 
@@ -107,7 +114,9 @@ export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
         return (
           <div className="space-y-2 transition-all duration-300">
             <div className="border-2 border-dashed rounded p-4 text-center text-gray-500">
-              <Pencil className="mx-auto h-6 w-6 mb-2 opacity-50" />
+              <svg className="mx-auto h-6 w-6 mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 17h14M5 7h14M13 7v10M7 7v10" />
+              </svg>
               <p>Área para Assinatura</p>
             </div>
             {field.signature_label && (
@@ -228,19 +237,43 @@ export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
           </Badge>
         </div>
         <div className="flex gap-2">
+          {onMoveUp && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onMoveUp}
+              disabled={isLoading}
+              className="h-8 w-8"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {onMoveDown && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onMoveDown}
+              disabled={isLoading}
+              className="h-8 w-8"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+          )}
+          
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setIsEditing(true)}
             disabled={isLoading}
-            className="transition-all duration-300"
+            className="transition-all duration-300 h-8 w-8"
           >
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit2 className="w-4 h-4" />}
           </Button>
           <Button
             variant="ghost"
             size="icon"
-            className="text-red-600 hover:text-red-700 transition-all duration-300"
+            className="text-red-600 hover:text-red-700 transition-all duration-300 h-8 w-8"
             onClick={() => onDelete(field.id)}
             disabled={isLoading}
           >

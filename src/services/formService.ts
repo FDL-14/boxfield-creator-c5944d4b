@@ -159,12 +159,44 @@ export const useFormService = () => {
     }
   };
 
+  const updateBoxOrder = async (boxId, newOrder) => {
+    try {
+      await FormBox.update(boxId, { order: newOrder });
+      return true;
+    } catch (error) {
+      console.error("Erro ao atualizar ordem da seção:", error);
+      toast({
+        title: "Erro ao reordenar",
+        description: "Não foi possível atualizar a ordem das seções",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  const updateFieldOrder = async (fieldId, newOrder) => {
+    try {
+      await FormField.update(fieldId, { order: newOrder });
+      return true;
+    } catch (error) {
+      console.error("Erro ao atualizar ordem do campo:", error);
+      toast({
+        title: "Erro ao reordenar",
+        description: "Não foi possível atualizar a ordem dos campos",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
   return {
     loadData,
     addBox,
     addField,
     deleteBox,
     deleteField,
-    editField
+    editField,
+    updateBoxOrder,
+    updateFieldOrder
   };
 };

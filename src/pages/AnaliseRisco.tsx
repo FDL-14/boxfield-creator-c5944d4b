@@ -1,350 +1,434 @@
 
 import React, { useState, useRef } from "react";
-import { Button } from "@/components/ui/button";
-import { ArrowLeft, Printer, Save, Download, FileImage } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { 
-  FormHeader, 
-  SectionHeader, 
-  FormTable, 
-  FormRow, 
-  FormCell,
-  FormInput,
-  FormSignatureField,
-  FormCheckbox
-} from "@/components/form-templates/FormStyles";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useReactToPrint } from "react-to-print";
-import { generatePDF } from "@/utils/pdfUtils";
+import { ArrowLeft, Save, Printer, Download } from "lucide-react";
 import { saveFormData } from "@/utils/formUtils";
-import { useToast } from "@/components/ui/use-toast";
+import { generatePDF } from "@/utils/pdfUtils";
+import { useToast } from "@/hooks/use-toast";
+import { 
+  FormHeader,
+  SectionHeader,
+  FormTable,
+  FormRow,
+  FormCell,
+  FormCheckbox,
+  FormInput,
+  FormSignatureField
+} from "@/components/form-templates/FormStyles";
 
-const AnaliseRisco = () => {
+export default function AnaliseRisco() {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const printRef = useRef(null);
-  const [formData, setFormData] = useState({
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [documentTitle, setDocumentTitle] = useState("Análise Preliminar de Risco");
+  const [formState, setFormState] = useState({
     atividade: "",
-    analiseRisco: Array(5).fill({ etapa: "", risco: "", barreira: "" }),
-    revalidacao: {
-      data: Array(6).fill(""),
-      hora: Array(6).fill(""),
-      assinaturaExecutante: Array(6).fill(""),
-      assinaturaDonoArea: Array(6).fill(""),
-      assinaturaSSMA: Array(6).fill(""),
-      revalidacaoBloqueio: Array(6).fill(false),
-      brigadistaObrigatorio: Array(6).fill(false)
+    local: "",
+    data: new Date().toISOString().split('T')[0],
+    responsavel: "",
+    departamento: "",
+    riscos: {
+      queda: false,
+      prensamento: false,
+      eletrico: false,
+      queimaduras: false,
+      ergonomico: false,
+      outros: false,
+      outrosTexto: ""
     },
-    imagens: []
-  });
-
-  const handleAnaliseRiscoChange = (index, field, value) => {
-    const newAnaliseRisco = [...formData.analiseRisco];
-    newAnaliseRisco[index] = { ...newAnaliseRisco[index], [field]: value };
-    setFormData({ ...formData, analiseRisco: newAnaliseRisco });
-  };
-
-  const handleRevalidacaoChange = (field, index, value) => {
-    const newRevalidacao = { ...formData.revalidacao };
-    newRevalidacao[field][index] = value;
-    setFormData({ ...formData, revalidacao: newRevalidacao });
-  };
-
-  const handleImageUpload = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      const reader = new FileReader();
-      
-      reader.onloadend = () => {
-        setFormData({
-          ...formData,
-          imagens: [...formData.imagens, { 
-            id: Date.now(), 
-            url: reader.result, 
-            name: file.name 
-          }]
-        });
-      };
-      
-      reader.readAsDataURL(file);
-      toast({
-        title: "Imagem adicionada",
-        description: `${file.name} foi adicionada ao formulário`,
-      });
+    epi: {
+      capacete: false,
+      luvas: false,
+      oculos: false,
+      protetor: false,
+      calcado: false,
+      cinto: false,
+      outros: false,
+      outrosTexto: ""
+    },
+    medidas: "",
+    assinaturas: {
+      responsavel: "",
+      supervisor: "",
+      seguranca: ""
     }
-  };
+  });
+  
+  const formRef = useRef(null);
 
-  const removeImage = (id) => {
-    setFormData({
-      ...formData,
-      imagens: formData.imagens.filter(img => img.id !== id)
-    });
+  const handleInputChange = (section, field, value) => {
+    setFormState(prevState => ({
+      ...prevState,
+      [section]: typeof prevState[section] === 'object' ? 
+        { ...prevState[section], [field]: value } : 
+        value
+    }));
   };
 
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
-    documentTitle: `Análise de Risco - ${formData.atividade || 'Nova'}`,
-    onAfterPrint: () => toast({
-      title: "Impressão concluída",
-      description: "O documento foi enviado para impressão",
-    }),
+    content: () => formRef.current,
+    documentTitle: documentTitle
   });
 
-  const handleSave = () => {
-    const fileName = prompt("Digite um nome para salvar o formulário:", formData.atividade || "Nova Análise de Risco");
-    if (fileName) {
-      saveFormData('analise-risco', fileName, formData);
+  const handleExportPDF = async () => {
+    const success = await generatePDF(formRef.current, documentTitle);
+    
+    if (success) {
       toast({
-        title: "Formulário salvo",
-        description: `O formulário foi salvo como "${fileName}"`,
+        title: "PDF gerado",
+        description: "O documento foi exportado para PDF com sucesso"
+      });
+    } else {
+      toast({
+        title: "Erro ao gerar PDF",
+        description: "Não foi possível gerar o arquivo PDF",
+        variant: "destructive"
       });
     }
   };
 
-  const handleExportPDF = () => {
-    generatePDF(printRef.current, `Análise de Risco - ${formData.atividade || 'Nova'}`);
-    toast({
-      title: "PDF gerado",
-      description: "O PDF foi gerado e baixado com sucesso",
+  const handleSaveDocument = () => {
+    if (!documentTitle.trim()) {
+      toast({
+        title: "Título obrigatório",
+        description: "Por favor, informe um título para o documento",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    const success = saveFormData("analise-risco", documentTitle, {
+      title: documentTitle,
+      data: formState,
+      date: new Date().toISOString()
     });
+    
+    if (success) {
+      toast({
+        title: "Documento salvo",
+        description: "O documento foi salvo com sucesso"
+      });
+      setSaveDialogOpen(false);
+    } else {
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar o documento",
+        variant: "destructive"
+      });
+    }
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen">
-      <div className="container mx-auto py-4 px-4 max-w-6xl">
-        <div className="bg-white shadow-md" ref={printRef}>
-          {/* Cabeçalho do Formulário */}
+    <div className="min-h-screen bg-gray-50 p-6">
+      <div className="max-w-5xl mx-auto">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
+          <div>
+            <div className="flex items-center gap-3">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => navigate("/")}
+                className="rounded-full"
+              >
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <h1 className="text-3xl font-bold text-gray-900">Análise Preliminar de Risco</h1>
+            </div>
+            <p className="text-gray-500 mt-1">
+              Preencha todos os campos e salve ou imprima o documento
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={() => setSaveDialogOpen(true)}
+              className="bg-blue-600 hover:bg-blue-700"
+            >
+              <Save className="h-4 w-4 mr-2" />
+              Salvar Como
+            </Button>
+            <Button
+              onClick={handlePrint}
+              variant="outline"
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Imprimir
+            </Button>
+            <Button
+              onClick={handleExportPDF}
+              variant="outline"
+            >
+              <Download className="h-4 w-4 mr-2" />
+              PDF
+            </Button>
+          </div>
+        </div>
+
+        <div className="border border-gray-200 rounded-md shadow-sm" ref={formRef}>
           <FormHeader 
-            title="ANÁLISE DE RISCO COMPLEMENTAR" 
-            number="0009001" 
-            revision="08" 
+            title="Análise Preliminar de Risco" 
+            number="APR-001" 
+            revision="1"
           />
 
-          {/* Atividade */}
-          <div className="p-2 border-b border-gray-300">
-            <div className="font-bold mb-1">ATIVIDADE:</div>
-            <input 
-              type="text" 
-              className="w-full p-2 border rounded" 
-              value={formData.atividade}
-              onChange={(e) => setFormData({ ...formData, atividade: e.target.value })}
-            />
-          </div>
-
-          {/* Seção 20 - Análise de Risco Complementar */}
-          <div className="mb-4">
-            <SectionHeader title="ANÁLISE DE RISCO COMPLEMENTAR" number="20" />
-            <FormTable>
-              <thead>
-                <FormRow header>
-                  <FormCell header width="60px" align="center">
-                    Nº ETAPA
-                  </FormCell>
-                  <FormCell header width="30%" align="center">
-                    DESCRIÇÃO DA ETAPA
-                  </FormCell>
-                  <FormCell header width="30%" align="center">
-                    RISCO/IMPACTO
-                  </FormCell>
-                  <FormCell header width="30%" align="center">
-                    BARREIRAS/CONTROLE
-                  </FormCell>
-                </FormRow>
-              </thead>
-              <tbody>
-                {[1, 2, 3, 4, 5].map((num, index) => (
-                  <FormRow key={num}>
-                    <FormCell width="60px" align="center">{String(num).padStart(2, '0')}</FormCell>
-                    <FormCell width="30%">
-                      <input 
-                        type="text" 
-                        className="w-full p-1 border rounded" 
-                        value={formData.analiseRisco[index]?.etapa || ""}
-                        onChange={(e) => handleAnaliseRiscoChange(index, 'etapa', e.target.value)}
+          <div className="p-4 space-y-6">
+            {/* Seção 1: Informações Gerais */}
+            <div>
+              <SectionHeader title="INFORMAÇÕES GERAIS" number="1" />
+              <FormTable>
+                <tbody>
+                  <FormRow>
+                    <FormCell width="25%">
+                      <p className="font-semibold mb-1">Atividade:</p>
+                      <FormInput 
+                        placeholder={formState.atividade || "Digite a atividade"}
+                        className={formState.atividade ? "text-black" : "text-gray-500"}
                       />
                     </FormCell>
-                    <FormCell width="30%">
-                      <input 
-                        type="text" 
-                        className="w-full p-1 border rounded" 
-                        value={formData.analiseRisco[index]?.risco || ""}
-                        onChange={(e) => handleAnaliseRiscoChange(index, 'risco', e.target.value)}
+                    <FormCell width="25%">
+                      <p className="font-semibold mb-1">Local:</p>
+                      <FormInput 
+                        placeholder={formState.local || "Digite o local"}
+                        className={formState.local ? "text-black" : "text-gray-500"}
                       />
                     </FormCell>
-                    <FormCell width="30%">
-                      <input 
-                        type="text" 
-                        className="w-full p-1 border rounded" 
-                        value={formData.analiseRisco[index]?.barreira || ""}
-                        onChange={(e) => handleAnaliseRiscoChange(index, 'barreira', e.target.value)}
+                    <FormCell width="25%">
+                      <p className="font-semibold mb-1">Data:</p>
+                      <FormInput 
+                        placeholder={formState.data || "Data"}
+                        className={formState.data ? "text-black" : "text-gray-500"}
+                      />
+                    </FormCell>
+                    <FormCell width="25%">
+                      <p className="font-semibold mb-1">Departamento:</p>
+                      <FormInput 
+                        placeholder={formState.departamento || "Digite o departamento"}
+                        className={formState.departamento ? "text-black" : "text-gray-500"}
                       />
                     </FormCell>
                   </FormRow>
-                ))}
-              </tbody>
-            </FormTable>
-          </div>
-
-          {/* Seção 21 - Revalidação */}
-          <div className="mb-4">
-            <SectionHeader 
-              title="Revalidação da Permissão de Trabalho - Somente caso mantenha o mesmo cenário, não alterando barreiras de controle e os riscos, e as mesmas pessoas envolvidas na atividade." 
-              number="21" 
-            />
-            <FormTable>
-              <thead>
-                <FormRow header>
-                  <FormCell header width="25%">
-                    
-                  </FormCell>
-                  <FormCell header width="12.5%" align="center">
-                    1º DIA
-                  </FormCell>
-                  <FormCell header width="12.5%" align="center">
-                    2º DIA
-                  </FormCell>
-                  <FormCell header width="12.5%" align="center">
-                    3º DIA
-                  </FormCell>
-                  <FormCell header width="12.5%" align="center">
-                    4º DIA
-                  </FormCell>
-                  <FormCell header width="12.5%" align="center">
-                    5º DIA
-                  </FormCell>
-                  <FormCell header width="12.5%" align="center">
-                    6º DIA
-                  </FormCell>
-                </FormRow>
-              </thead>
-              <tbody>
-                {[
-                  { label: "Data:", field: "data" }, 
-                  { label: "Hora:", field: "hora" }, 
-                  { label: "Assinatura Executante da PT:", field: "assinaturaExecutante" }, 
-                  { label: "Assinatura Dono de Área:", field: "assinaturaDonoArea" }, 
-                  { label: "Assinatura SSMA:", field: "assinaturaSSMA" }, 
-                  { label: "Revalidação do Bloqueio:", field: "revalidacaoBloqueio" }, 
-                  { label: "Brigadista obrigatório:", field: "brigadistaObrigatorio" }
-                ].map((row, idx) => (
-                  <FormRow key={idx}>
-                    <FormCell width="25%">{row.label}</FormCell>
-                    {[0, 1, 2, 3, 4, 5].map((day) => (
-                      <FormCell key={day} width="12.5%">
-                        {row.field === "revalidacaoBloqueio" || row.field === "brigadistaObrigatorio" ? (
-                          <input 
-                            type="checkbox" 
-                            checked={formData.revalidacao[row.field][day]}
-                            onChange={(e) => handleRevalidacaoChange(row.field, day, e.target.checked)}
-                            className="w-5 h-5"
-                          />
-                        ) : (
-                          <input 
-                            type="text" 
-                            className="w-full p-1 border rounded" 
-                            value={formData.revalidacao[row.field][day]}
-                            onChange={(e) => handleRevalidacaoChange(row.field, day, e.target.value)}
-                          />
-                        )}
-                      </FormCell>
-                    ))}
+                  <FormRow>
+                    <FormCell width="100%" span={4}>
+                      <p className="font-semibold mb-1">Responsável:</p>
+                      <FormInput 
+                        placeholder={formState.responsavel || "Nome do responsável"}
+                        className={formState.responsavel ? "text-black" : "text-gray-500"}
+                      />
+                    </FormCell>
                   </FormRow>
-                ))}
-              </tbody>
-            </FormTable>
-          </div>
+                </tbody>
+              </FormTable>
+            </div>
 
-          {/* Seção de Imagens */}
-          <div className="mb-4">
-            <SectionHeader title="IMAGENS E FOTOS" number="22" />
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-              {formData.imagens.map((imagem) => (
-                <div key={imagem.id} className="border rounded-lg p-2 relative">
-                  <img 
-                    src={imagem.url} 
-                    alt={imagem.name} 
-                    className="w-full h-48 object-contain" 
-                  />
-                  <p className="mt-2 text-center text-sm">{imagem.name}</p>
-                  <button 
-                    className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 text-xs"
-                    onClick={() => removeImage(imagem.id)}
-                    type="button"
-                  >
-                    X
-                  </button>
-                </div>
-              ))}
-              {formData.imagens.length === 0 && (
-                <div className="flex flex-col items-center justify-center border-2 border-dashed p-8 rounded-lg">
-                  <FileImage className="h-12 w-12 text-gray-400 mb-2" />
-                  <p className="text-gray-500">Nenhuma imagem adicionada</p>
-                </div>
-              )}
+            {/* Seção 2: Riscos Identificados */}
+            <div>
+              <SectionHeader title="RISCOS IDENTIFICADOS" number="2" />
+              <FormTable>
+                <tbody>
+                  <FormRow>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Queda de Altura/Mesmo Nível" 
+                        id="queda"
+                      />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Prensamento/Esmagamento" 
+                        id="prensamento"
+                      />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Choque Elétrico" 
+                        id="eletrico"
+                      />
+                    </FormCell>
+                  </FormRow>
+                  <FormRow>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Queimaduras/Escaldamento" 
+                        id="queimaduras"
+                      />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Ergonômico" 
+                        id="ergonomico"
+                      />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <div className="flex flex-col">
+                        <FormCheckbox 
+                          label="Outros:" 
+                          id="outros"
+                        />
+                        <FormInput 
+                          placeholder={formState.riscos.outrosTexto || "Especifique"}
+                          className={formState.riscos.outrosTexto ? "text-black mt-2" : "text-gray-500 mt-2"}
+                        />
+                      </div>
+                    </FormCell>
+                  </FormRow>
+                </tbody>
+              </FormTable>
+            </div>
+
+            {/* Seção 3: EPIs Necessários */}
+            <div>
+              <SectionHeader title="EQUIPAMENTOS DE PROTEÇÃO INDIVIDUAL" number="3" />
+              <FormTable>
+                <tbody>
+                  <FormRow>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Capacete de Segurança" 
+                        id="capacete"
+                      />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Luvas de Proteção" 
+                        id="luvas"
+                      />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Óculos de Proteção" 
+                        id="oculos"
+                      />
+                    </FormCell>
+                  </FormRow>
+                  <FormRow>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Protetor Auricular" 
+                        id="protetor"
+                      />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Calçado de Segurança" 
+                        id="calcado"
+                      />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <FormCheckbox 
+                        label="Cinto de Segurança" 
+                        id="cinto"
+                      />
+                    </FormCell>
+                  </FormRow>
+                  <FormRow>
+                    <FormCell width="100%" span={3}>
+                      <div className="flex flex-col">
+                        <FormCheckbox 
+                          label="Outros:" 
+                          id="outros_epi"
+                        />
+                        <FormInput 
+                          placeholder={formState.epi.outrosTexto || "Especifique"}
+                          className={formState.epi.outrosTexto ? "text-black mt-2" : "text-gray-500 mt-2"}
+                        />
+                      </div>
+                    </FormCell>
+                  </FormRow>
+                </tbody>
+              </FormTable>
+            </div>
+
+            {/* Seção 4: Medidas de Controle */}
+            <div>
+              <SectionHeader title="MEDIDAS DE CONTROLE" number="4" />
+              <FormTable>
+                <tbody>
+                  <FormRow>
+                    <FormCell width="100%">
+                      <div className="h-24">
+                        <FormInput 
+                          placeholder={formState.medidas || "Descreva as medidas preventivas para controlar os riscos identificados"}
+                          className={formState.medidas ? "text-black" : "text-gray-500"}
+                        />
+                      </div>
+                    </FormCell>
+                  </FormRow>
+                </tbody>
+              </FormTable>
+            </div>
+
+            {/* Seção 5: Assinaturas */}
+            <div>
+              <SectionHeader title="APROVAÇÕES" number="5" />
+              <FormTable>
+                <tbody>
+                  <FormRow>
+                    <FormCell width="33.33%">
+                      <FormSignatureField label="Responsável pela Atividade" />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <FormSignatureField label="Supervisor da Área" />
+                    </FormCell>
+                    <FormCell width="33.33%">
+                      <FormSignatureField label="Técnico de Segurança" />
+                    </FormCell>
+                  </FormRow>
+                </tbody>
+              </FormTable>
             </div>
           </div>
         </div>
 
-        {/* Botões */}
-        <div className="flex flex-wrap justify-between p-4 gap-2 border-t border-gray-300 bg-white shadow-md mt-4">
+        <div className="flex justify-between mt-8">
           <Button 
+            variant="outline" 
             onClick={() => navigate("/")}
-            variant="outline"
-            className="flex gap-2 items-center"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-4 w-4 mr-2" />
             Voltar
           </Button>
-          <div className="flex flex-wrap gap-2">
-            <Button 
-              variant="outline"
-              className="flex gap-2 items-center"
-              onClick={() => {
-                const input = document.createElement('input');
-                input.type = 'file';
-                input.accept = 'image/*';
-                input.onchange = handleImageUpload;
-                input.click();
-              }}
-            >
-              <FileImage className="h-4 w-4" />
-              Adicionar Imagem
-            </Button>
-            <Button 
-              variant="outline"
-              className="flex gap-2 items-center"
-              onClick={handleExportPDF}
-            >
-              <Download className="h-4 w-4" />
-              Gerar PDF
-            </Button>
-            <Button 
-              variant="outline"
-              className="flex gap-2 items-center"
-              onClick={handlePrint}
-            >
-              <Printer className="h-4 w-4" />
-              Imprimir
-            </Button>
-            <Button 
-              className="flex gap-2 items-center bg-orange-600 hover:bg-orange-700"
-              onClick={handleSave}
-            >
-              <Save className="h-4 w-4" />
-              Salvar
-            </Button>
-          </div>
+          <Button 
+            onClick={() => navigate("/document-creator/analise-risco")} 
+            className="bg-green-600 hover:bg-green-700"
+          >
+            Criar Documento Personalizado
+          </Button>
         </div>
 
-        {/* Botão para Relatórios */}
-        <Button
-          className="mt-4 w-full bg-blue-600 hover:bg-blue-700"
-          onClick={() => navigate("/relatorios/analise-risco")}
-        >
-          Ver Relatórios
-        </Button>
+        {/* Save Dialog */}
+        <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Salvar Documento</DialogTitle>
+            </DialogHeader>
+            <div className="py-4">
+              <Label htmlFor="documentTitle" className="block mb-2">Título do Documento</Label>
+              <Input
+                id="documentTitle"
+                value={documentTitle}
+                onChange={(e) => setDocumentTitle(e.target.value)}
+                placeholder="Digite um título para o documento"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+                Cancelar
+              </Button>
+              <Button onClick={handleSaveDocument}>Salvar</Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
-};
-
-export default AnaliseRisco;
+}

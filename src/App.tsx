@@ -10,6 +10,8 @@ import AnaliseRisco from "./pages/AnaliseRisco";
 import PermissaoTrabalho from "./pages/PermissaoTrabalho";
 import RelatoriosAnaliseRisco from "./pages/RelatoriosAnaliseRisco";
 import NotFound from "./pages/NotFound";
+import DocumentCreator from "./pages/DocumentCreator";
+import DocumentTypes from "./pages/DocumentTypes";
 
 const queryClient = new QueryClient();
 
@@ -24,6 +26,9 @@ const App = () => {
             <Route path="/analise-risco" element={<AnaliseRisco />} />
             <Route path="/permissao-trabalho" element={<PermissaoTrabalho />} />
             <Route path="/relatorios/analise-risco" element={<RelatoriosAnaliseRisco />} />
+            <Route path="/document-types" element={<DocumentTypes />} />
+            <Route path="/document-creator" element={<DocumentCreator />} />
+            <Route path="/document-creator/:docType" element={<DocumentCreator />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

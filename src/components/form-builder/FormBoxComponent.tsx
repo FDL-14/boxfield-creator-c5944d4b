@@ -2,7 +2,7 @@
 import React from "react";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Edit2, Loader2 } from "lucide-react";
+import { Plus, Trash2, Edit2, Loader2, ArrowUp, ArrowDown } from "lucide-react";
 import FieldComponent from "./FieldComponent";
 
 export default function FormBoxComponent({
@@ -12,6 +12,9 @@ export default function FormBoxComponent({
   onDeleteBox,
   onDeleteField,
   onEditField,
+  onMoveUp,
+  onMoveDown,
+  onMoveField,
   isLoading
 }) {
   return (
@@ -31,6 +34,31 @@ export default function FormBoxComponent({
             {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
             Adicionar Campo
           </Button>
+          
+          {onMoveUp && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onMoveUp}
+              disabled={isLoading}
+              className="h-9 w-9"
+            >
+              <ArrowUp className="h-4 w-4" />
+            </Button>
+          )}
+          
+          {onMoveDown && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={onMoveDown}
+              disabled={isLoading}
+              className="h-9 w-9"
+            >
+              <ArrowDown className="h-4 w-4" />
+            </Button>
+          )}
+          
           <Button
             variant="ghost"
             size="icon"
@@ -44,12 +72,14 @@ export default function FormBoxComponent({
       </CardHeader>
       <CardContent>
         <div className="space-y-4">
-          {fields.map(field => (
+          {fields.map((field, index) => (
             <FieldComponent
               key={field.id}
               field={field}
               onDelete={() => onDeleteField(field.id)}
               onEdit={(newData) => onEditField(field.id, newData)}
+              onMoveUp={index > 0 && onMoveField ? () => onMoveField(field.id, 'up') : undefined}
+              onMoveDown={index < fields.length - 1 && onMoveField ? () => onMoveField(field.id, 'down') : undefined}
               isLoading={isLoading}
             />
           ))}
