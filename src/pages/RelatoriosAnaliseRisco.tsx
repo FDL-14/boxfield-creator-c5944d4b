@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
-import { ArrowLeft, Download, FileExcel, Filter } from "lucide-react";
+import { ArrowLeft, Download, FileSpreadsheet, Filter } from "lucide-react";
 import { getSavedForms } from "@/utils/formUtils";
 import { exportToExcel, generatePDF } from "@/utils/pdfUtils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
@@ -92,7 +91,7 @@ const RelatoriosAnaliseRisco = () => {
     
     return Object.entries(activityCounts)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => (b.value as number) - (a.value as number))
+      .sort((a, b) => b.value - a.value)
       .slice(0, 5); // Top 5 activities
   }, [filteredForms]);
 
@@ -137,7 +136,7 @@ const RelatoriosAnaliseRisco = () => {
     
     return Object.entries(riskCounts)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => (b.value as number) - (a.value as number))
+      .sort((a, b) => b.value - a.value)
       .slice(0, 5); // Top 5 risks
   }, [filteredForms]);
 
@@ -267,7 +266,7 @@ const RelatoriosAnaliseRisco = () => {
             onClick={handleExportExcel}
             className="flex items-center gap-2"
           >
-            <FileExcel className="h-4 w-4" />
+            <FileSpreadsheet className="h-4 w-4" />
             Exportar Excel
           </Button>
           <Button 
