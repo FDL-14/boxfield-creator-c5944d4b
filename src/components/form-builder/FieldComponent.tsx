@@ -1,7 +1,8 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Edit2, Save, X, Loader2, Flag, Type, Pencil, Plus } from "lucide-react";
+import { Trash2, Edit2, Save, X, Loader2, Flag, Type, Pencil, Plus, Image } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -16,7 +17,8 @@ const fieldTypeLabels = {
   flag_with_text: "FLAG + Texto",
   date: "Data",
   time: "Hora",
-  signature: "Assinatura"
+  signature: "Assinatura",
+  image: "Foto/Imagem"
 };
 
 export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
@@ -94,6 +96,13 @@ export default function FieldComponent({ field, onDelete, onEdit, isLoading }) {
         return <Input type="date" disabled className="transition-all duration-300" />;
       case "time":
         return <Input type="time" disabled className="transition-all duration-300" />;
+      case "image":
+        return (
+          <div className="border-2 border-dashed rounded p-4 text-center text-gray-500 transition-all duration-300">
+            <Image className="mx-auto h-6 w-6 mb-2 opacity-50" />
+            <p>Campo para Upload de Imagem</p>
+          </div>
+        );
       case "signature":
         return (
           <div className="space-y-2 transition-all duration-300">

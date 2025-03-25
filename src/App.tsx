@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import FormBuilder from "./pages/FormBuilder";
 import AnaliseRisco from "./pages/AnaliseRisco";
 import PermissaoTrabalho from "./pages/PermissaoTrabalho";
+import RelatoriosAnaliseRisco from "./pages/RelatoriosAnaliseRisco";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -22,6 +23,7 @@ const App = () => {
             <Route path="/form-builder" element={<FormBuilder />} />
             <Route path="/analise-risco" element={<AnaliseRisco />} />
             <Route path="/permissao-trabalho" element={<PermissaoTrabalho />} />
+            <Route path="/relatorios/analise-risco" element={<RelatoriosAnaliseRisco />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

@@ -25,7 +25,8 @@ const fieldTypes = [
   { value: "flag_with_text", label: "FLAG + Texto" },
   { value: "date", label: "Data" },
   { value: "time", label: "Hora" },
-  { value: "signature", label: "Assinatura" }
+  { value: "signature", label: "Assinatura" },
+  { value: "image", label: "Foto/Imagem" }
 ];
 
 export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
