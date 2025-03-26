@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFormService } from "@/services/formService";
@@ -80,6 +79,16 @@ export default function FormBuilder() {
       if (success) {
         await loadData();
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleEditBox = async (boxId, newData) => {
+    try {
+      setIsLoading(true);
+      await formService.editBox(boxId, newData, boxes);
+      await loadData();
     } finally {
       setIsLoading(false);
     }
@@ -196,6 +205,7 @@ export default function FormBuilder() {
           onDeleteBox={handleDeleteBox}
           onDeleteField={handleDeleteField}
           onEditField={handleEditField}
+          onEditBox={handleEditBox}
           onAddBox={() => setShowAddBox(true)}
           onMoveBox={handleMoveBox}
           onMoveField={handleMoveField}

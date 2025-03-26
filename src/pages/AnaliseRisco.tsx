@@ -37,7 +37,8 @@ export default function AnaliseRisco() {
   const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
-    content: () => printRef.current,
+    documentTitle: documentTitle,
+    contentRef: formRef,
     onAfterPrint: () => {
       toast({
         title: "Documento impresso",

@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -203,7 +202,7 @@ export default function DocumentCreator() {
 
   const handlePrint = useReactToPrint({
     documentTitle: documentTitle,
-    content: () => formRef.current,
+    contentRef: formRef,
     onAfterPrint: () => {
       toast({
         title: "Documento impresso",
@@ -920,7 +919,7 @@ export default function DocumentCreator() {
       {/* Cancel Document Dialog */}
       <CancelDocumentDialog
         open={cancelDialogOpen}
-        onOpenChange={setCancelDialogOpen}
+        onClose={() => setCancelDialogOpen(false)}
         onCancel={handleCancelDocument}
       />
     </div>

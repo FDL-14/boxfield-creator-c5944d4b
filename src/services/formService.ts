@@ -1,4 +1,3 @@
-
 import { FormBox, FormField } from "@/entities/all";
 import { useToast } from "@/hooks/use-toast";
 
@@ -55,6 +54,36 @@ export const useFormService = () => {
       toast({
         title: "Erro ao adicionar campo",
         description: "Não foi possível adicionar o campo",
+        variant: "destructive"
+      });
+      return false;
+    }
+  };
+
+  const editBox = async (boxId, newData, boxes) => {
+    try {
+      // Verificar se a seção existe antes de editar
+      const boxExists = boxes.find(b => b.id === boxId);
+      if (!boxExists) {
+        toast({
+          title: "Seção não encontrada",
+          description: "Esta seção já foi excluída ou não existe mais",
+          variant: "destructive"
+        });
+        return false;
+      }
+
+      await FormBox.update(boxId, newData);
+      toast({
+        title: "Seção atualizada",
+        description: "A seção foi atualizada com sucesso"
+      });
+      return true;
+    } catch (error) {
+      console.error("Erro ao editar seção:", error);
+      toast({
+        title: "Erro ao editar seção",
+        description: "Não foi possível editar a seção",
         variant: "destructive"
       });
       return false;
@@ -196,6 +225,7 @@ export const useFormService = () => {
     deleteBox,
     deleteField,
     editField,
+    editBox,
     updateBoxOrder,
     updateFieldOrder
   };

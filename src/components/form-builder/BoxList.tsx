@@ -10,6 +10,7 @@ interface BoxListProps {
   onDeleteBox: (boxId: string) => void;
   onDeleteField: (fieldId: string) => void;
   onEditField: (fieldId: string, newData: any) => void;
+  onEditBox?: (boxId: string, newData: any) => void;
   onAddBox: () => void;
   onMoveBox?: (boxId: string, direction: 'up' | 'down') => void;
   onMoveField?: (fieldId: string, direction: 'up' | 'down') => void;
@@ -23,6 +24,7 @@ export default function BoxList({
   onDeleteBox,
   onDeleteField,
   onEditField,
+  onEditBox,
   onAddBox,
   onMoveBox,
   onMoveField,
@@ -39,6 +41,7 @@ export default function BoxList({
           onDeleteBox={() => onDeleteBox(box.id)}
           onDeleteField={onDeleteField}
           onEditField={onEditField}
+          onEditBox={onEditBox}
           onMoveUp={index > 0 && onMoveBox ? () => onMoveBox(box.id, 'up') : undefined}
           onMoveDown={index < boxes.length - 1 && onMoveBox ? () => onMoveBox(box.id, 'down') : undefined}
           onMoveField={onMoveField}
