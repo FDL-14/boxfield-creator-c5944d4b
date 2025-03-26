@@ -23,6 +23,7 @@ export const saveFormData = (formType: string, name: string, data: any) => {
         ...data,
         name,
         title: name,
+        formType: formType,
         updated_at: new Date().toISOString()
       };
     } else {
@@ -106,11 +107,10 @@ export const deleteSavedForm = (formType: string, id: number) => {
  * @returns Boolean indicating if the section has a signed field
  */
 export const isSectionLocked = (formValues: any, fieldsInSection: any[]) => {
-  // Find signature fields in the section
-  const signatureFields = fieldsInSection.filter(field => field.type === 'signature');
-  
-  // Check if any signature field has a value (is signed)
-  return signatureFields.some(field => formValues[field.id]);
+  // Check if any signature field in the section has a value (is signed)
+  return fieldsInSection
+    .filter(field => field.type === 'signature')
+    .some(field => formValues[field.id]);
 };
 
 /**

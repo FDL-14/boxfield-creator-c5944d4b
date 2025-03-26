@@ -36,7 +36,10 @@ import {
   Mail,
   FolderOpen,
   AlertTriangle,
-  Lock
+  Lock,
+  Edit,
+  MoreVertical,
+  Plus
 } from "lucide-react";
 import { FormBox, FormField, DocumentType, UserDocument } from "@/entities/all";
 import { 
@@ -55,6 +58,7 @@ import { exportToExcel, exportToWord } from "@/utils/exportUtils";
 import { getLocationData } from "@/utils/geoUtils";
 import EmailDocumentDialog from "@/components/EmailDocumentDialog";
 import SavedDocumentsDialog from "@/components/SavedDocumentsDialog";
+import EditSectionDialog from "@/components/form-builder/EditSectionDialog";
 
 export default function DocumentCreator() {
   const { docType } = useParams();
@@ -93,6 +97,11 @@ export default function DocumentCreator() {
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [savedDocsDialogOpen, setSavedDocsDialogOpen] = useState(false);
   const [showLockWarning, setShowLockWarning] = useState(false);
+  const [editSectionOpen, setEditSectionOpen] = useState(false);
+  const [currentSectionId, setCurrentSectionId] = useState(null);
+  const [isEditingField, setIsEditingField] = useState(false);
+  const [currentField, setCurrentField] = useState(null);
+  const [editMode, setEditMode] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -428,35 +437,125 @@ export default function DocumentCreator() {
     });
   };
 
-  const isSectionLocked = (boxId) => {
+  const checkSectionLocked = (boxId) => {
     return lockedSections.includes(boxId);
   };
 
+  const handleEditSection = (boxId) => {
+    if (checkSectionLocked(boxId)) {
+      toast({
+        title: "Seção bloqueada",
+        description: "Esta seção contém assinaturas e não pode ser editada",
+        variant: "warning"
+      });
+      return;
+    }
+    
+    setCurrentSectionId(boxId);
+    setEditSectionOpen(true);
+  };
+
+  const handleSaveSection = (newData) => {
+    const updatedBoxes = boxes.map(box => 
+      box.id === currentSectionId ? { ...box, name: newData.name || newData.title } : box
+    );
+    
+    setBoxes(updatedBoxes);
+    setEditSectionOpen(false);
+    
+    toast({
+      title: "Seção atualizada",
+      description: "As alterações foram salvas com sucesso"
+    });
+  };
+
+  const handleEditField = (field) => {
+    if (checkSectionLocked(field.box_id)) {
+      toast({
+        title: "Campo bloqueado",
+        description: "Esta seção contém assinaturas e não pode ser editada",
+        variant: "warning"
+      });
+      return;
+    }
+    
+    setCurrentField(field);
+    setIsEditingField(true);
+  };
+
+  const handleSaveField = (fieldId, updatedField) => {
+    const updatedFields = fields.map(field => 
+      field.id === fieldId ? { ...field, ...updatedField } : field
+    );
+    
+    setFields(updatedFields);
+    setIsEditingField(false);
+    setCurrentField(null);
+    
+    toast({
+      title: "Campo atualizado",
+      description: "As alterações foram salvas com sucesso"
+    });
+  };
+
+  const toggleEditMode = () => {
+    setEditMode(!editMode);
+  };
+
   const renderField = (field) => {
+    // If we're in editing mode and this field is being edited
+    if (editMode && isEditingField && currentField && currentField.id === field.id) {
+      return renderFieldEditForm(field);
+    }
+    
     switch (field.type) {
       case "short_text":
         return (
-          <Input
-            id={field.id}
-            value={formValues[field.id] || ""}
-            onChange={(e) => handleInputChange(field.id, e.target.value)}
-            placeholder={field.label}
-            className="w-full"
-          />
+          <div className="relative">
+            <Input
+              id={field.id}
+              value={formValues[field.id] || ""}
+              onChange={(e) => handleInputChange(field.id, e.target.value)}
+              placeholder={field.label}
+              className="w-full"
+            />
+            {editMode && !checkSectionLocked(field.box_id) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         );
       case "long_text":
         return (
-          <textarea
-            id={field.id}
-            value={formValues[field.id] || ""}
-            onChange={(e) => handleInputChange(field.id, e.target.value)}
-            placeholder={field.label}
-            className="w-full min-h-[100px] p-2 border rounded"
-          />
+          <div className="relative">
+            <textarea
+              id={field.id}
+              value={formValues[field.id] || ""}
+              onChange={(e) => handleInputChange(field.id, e.target.value)}
+              placeholder={field.label}
+              className="w-full min-h-[100px] p-2 border rounded"
+            />
+            {editMode && !checkSectionLocked(field.box_id) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute right-2 top-2 text-blue-500"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         );
       case "checkbox":
         return (
-          <div className="flex items-center">
+          <div className="flex items-center relative">
             <input
               type="checkbox"
               id={field.id}
@@ -465,11 +564,21 @@ export default function DocumentCreator() {
               className="mr-2"
             />
             <label htmlFor={field.id}>{field.label}</label>
+            {editMode && !checkSectionLocked(field.box_id) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute right-2 text-blue-500"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         );
       case "flag":
         return (
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             {(field.options || []).map((option, idx) => (
               <div key={idx} className="flex items-center">
                 <input
@@ -483,11 +592,21 @@ export default function DocumentCreator() {
                 <label htmlFor={`${field.id}-${idx}`}>{option.text}</label>
               </div>
             ))}
+            {editMode && !checkSectionLocked(field.box_id) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute right-0 top-0 text-blue-500"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         );
       case "flag_with_text":
         return (
-          <div className="space-y-3">
+          <div className="space-y-3 relative">
             {(field.options || []).map((option, idx) => (
               <div key={idx} className="space-y-1">
                 <div className="flex items-center">
@@ -509,31 +628,65 @@ export default function DocumentCreator() {
                 />
               </div>
             ))}
+            {editMode && !checkSectionLocked(field.box_id) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute right-0 top-0 text-blue-500"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         );
       case "date":
         return (
-          <Input
-            type="date"
-            id={field.id}
-            value={formValues[field.id] || ""}
-            onChange={(e) => handleInputChange(field.id, e.target.value)}
-            className="w-full"
-          />
+          <div className="relative">
+            <Input
+              type="date"
+              id={field.id}
+              value={formValues[field.id] || ""}
+              onChange={(e) => handleInputChange(field.id, e.target.value)}
+              className="w-full"
+            />
+            {editMode && !checkSectionLocked(field.box_id) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         );
       case "time":
         return (
-          <Input
-            type="time"
-            id={field.id}
-            value={formValues[field.id] || ""}
-            onChange={(e) => handleInputChange(field.id, e.target.value)}
-            className="w-full"
-          />
+          <div className="relative">
+            <Input
+              type="time"
+              id={field.id}
+              value={formValues[field.id] || ""}
+              onChange={(e) => handleInputChange(field.id, e.target.value)}
+              className="w-full"
+            />
+            {editMode && !checkSectionLocked(field.box_id) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 text-blue-500"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
         );
       case "signature":
         return (
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <div className="border-2 border-dashed rounded p-4 text-center min-h-[100px] flex items-center justify-center">
               {formValues[field.id] ? (
                 <img src={formValues[field.id]} alt="Assinatura" className="max-h-[100px]" />
@@ -574,11 +727,21 @@ export default function DocumentCreator() {
                 Digital
               </Button>
             </div>
+            {editMode && !checkSectionLocked(field.box_id) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute right-0 top-0 text-blue-500"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         );
       case "image":
         return (
-          <div className="space-y-2">
+          <div className="space-y-2 relative">
             <div className="border-2 border-dashed rounded p-4 text-center min-h-[150px] flex items-center justify-center">
               {formValues[field.id] ? (
                 <img src={formValues[field.id]} alt="Imagem enviada" className="max-h-[150px]" />
@@ -602,11 +765,110 @@ export default function DocumentCreator() {
               }}
               className="w-full"
             />
+            {editMode && !checkSectionLocked(field.box_id) && (
+              <Button
+                size="sm"
+                variant="ghost"
+                className="absolute right-0 top-0 text-blue-500"
+                onClick={() => handleEditField(field)}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
+            )}
           </div>
         );
       default:
         return <p>Tipo de campo não suportado: {field.type}</p>;
     }
+  };
+
+  const renderFieldEditForm = (field) => {
+    return (
+      <div className="border p-4 rounded-lg bg-blue-50 animate-fade-in">
+        <h4 className="font-medium mb-2">Editar Campo</h4>
+        <div className="space-y-3">
+          <div>
+            <Label>Rótulo do Campo</Label>
+            <Input 
+              value={currentField.label || ""} 
+              onChange={(e) => setCurrentField({...currentField, label: e.target.value})}
+              className="mt-1"
+            />
+          </div>
+          
+          {(currentField.type === "flag" || currentField.type === "flag_with_text") && (
+            <div className="space-y-2">
+              <Label>Opções</Label>
+              {(currentField.options || []).map((option, idx) => (
+                <div key={idx} className="flex items-center gap-2">
+                  <Input 
+                    value={option.text || ""}
+                    onChange={(e) => {
+                      const newOptions = [...currentField.options];
+                      newOptions[idx].text = e.target.value;
+                      setCurrentField({...currentField, options: newOptions});
+                    }}
+                    placeholder={`Opção ${idx + 1}`}
+                  />
+                  <Button 
+                    variant="ghost" 
+                    size="icon"
+                    onClick={() => {
+                      const newOptions = currentField.options.filter((_, i) => i !== idx);
+                      setCurrentField({...currentField, options: newOptions});
+                    }}
+                    className="text-red-500"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                </div>
+              ))}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  const newOptions = [...(currentField.options || []), {text: ""}];
+                  setCurrentField({...currentField, options: newOptions});
+                }}
+                className="w-full mt-2"
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Adicionar Opção
+              </Button>
+            </div>
+          )}
+          
+          {currentField.type === "signature" && (
+            <div>
+              <Label>Rótulo de Assinatura</Label>
+              <Input 
+                value={currentField.signature_label || ""} 
+                onChange={(e) => setCurrentField({...currentField, signature_label: e.target.value})}
+                className="mt-1"
+                placeholder="Nome/Cargo"
+              />
+            </div>
+          )}
+          
+          <div className="flex justify-end gap-2 pt-2">
+            <Button
+              variant="outline"
+              onClick={() => {
+                setIsEditingField(false);
+                setCurrentField(null);
+              }}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={() => handleSaveField(currentField.id, currentField)}
+            >
+              Salvar Alterações
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   return (
@@ -643,6 +905,14 @@ export default function DocumentCreator() {
           )}
 
           <div className="flex flex-wrap gap-2">
+            <Button
+              onClick={toggleEditMode}
+              variant={editMode ? "default" : "outline"}
+              className={editMode ? "bg-blue-600 hover:bg-blue-700" : ""}
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              {editMode ? "Modo Edição Ativo" : "Editar Documento"}
+            </Button>
             <Button
               onClick={() => setSaveDialogOpen(true)}
               className="bg-blue-600 hover:bg-blue-700"
@@ -872,17 +1142,29 @@ export default function DocumentCreator() {
             ) : (
               boxes.map((box) => (
                 <div key={box.id} className="mb-6">
-                  <h3 
+                  <div 
                     className={`text-lg font-semibold p-2 mb-3 rounded flex justify-between items-center`} 
                     style={{ backgroundColor: customColors.sectionHeader, color: "#fff" }}
                   >
                     <span>{box.name}</span>
-                    {isSectionLocked(box.id) && (
-                      <span className="text-xs bg-white text-orange-700 px-2 py-1 rounded-full flex items-center">
-                        <Lock className="h-3 w-3 mr-1" /> Seção Bloqueada
-                      </span>
-                    )}
-                  </h3>
+                    <div className="flex items-center gap-2">
+                      {checkSectionLocked(box.id) && (
+                        <span className="text-xs bg-white text-orange-700 px-2 py-1 rounded-full flex items-center">
+                          <Lock className="h-3 w-3 mr-1" /> Seção Bloqueada
+                        </span>
+                      )}
+                      {editMode && !checkSectionLocked(box.id) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleEditSection(box.id)}
+                          className="text-white hover:bg-white/20"
+                        >
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
                     {fields
                       .filter(field => field.box_id === box.id)
@@ -1078,6 +1360,14 @@ export default function DocumentCreator() {
         onClose={() => setSavedDocsDialogOpen(false)}
         docType={docType || "custom"}
         onSelectDocument={handleSelectSavedDocument}
+      />
+      
+      <EditSectionDialog
+        open={editSectionOpen}
+        onClose={() => setEditSectionOpen(false)}
+        onSave={handleSaveSection}
+        section={boxes.find(box => box.id === currentSectionId) || {}}
+        isLoading={false}
       />
     </div>
   );
