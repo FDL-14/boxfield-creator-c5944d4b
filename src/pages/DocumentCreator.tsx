@@ -974,5 +974,19 @@ export default function DocumentCreator() {
         documentData={{
           title: documentTitle,
           values: formValues,
-          colors
-
+          colors: customColors,
+          logo: logoImage,
+          cancelled: isCancelled,
+          cancelInfo: cancelInfo
+        }}
+      />
+      
+      <SavedDocumentsDialog
+        open={savedDocsDialogOpen}
+        onClose={() => setSavedDocsDialogOpen(false)}
+        docType={docType || "custom"}
+        onSelectDocument={handleSelectSavedDocument}
+      />
+    </div>
+  );
+}
