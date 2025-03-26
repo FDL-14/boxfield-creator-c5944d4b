@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -700,5 +701,228 @@ export default function DocumentCreator() {
           </CardContent>
         </Card>
 
-        {
-
+        {loading ? (
+          <div className="flex justify-center p-8">
+            <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+          </div>
+        ) : (
+          <div 
+            ref={formRef}
+            className="bg-white border rounded-lg shadow-sm p-6"
+            style={{ backgroundColor: customColors.background, color: customColors.text }}
+          >
+            {isCancelled && (
+              <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                <div className="absolute inset-0 flex items-center justify-center transform rotate-45 opacity-30">
+                  <span className="text-[8rem] text-red-600 font-bold whitespace-nowrap">
+                    CANCELADO
+                  </span>
+                </div>
+              </div>
+            )}
+            
+            <div className="flex items-center justify-between mb-6 p-4 rounded-t-lg" style={{ backgroundColor: customColors.header, color: "#fff" }}>
+              <h2 className="text-xl font-bold">{documentTitle}</h2>
+              {logoImage && (
+                <div className="h-12 w-24 bg-white rounded flex items-center justify-center p-1">
+                  <img src={logoImage} alt="Logo" className="max-h-10 max-w-20 object-contain" />
+                </div>
+              )}
+            </div>
+            
+            {boxes.length === 0 ? (
+              <div className="text-center p-8 border-2 border-dashed rounded-lg">
+                <p className="text-gray-500">Nenhum campo configurado para este documento</p>
+              </div>
+            ) : (
+              boxes.map((box) => (
+                <div key={box.id} className="mb-6">
+                  <h3 
+                    className="text-lg font-semibold p-2 mb-3 rounded" 
+                    style={{ backgroundColor: customColors.sectionHeader, color: "#fff" }}
+                  >
+                    {box.name}
+                  </h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
+                    {fields
+                      .filter(field => field.box_id === box.id)
+                      .map(field => (
+                        <div key={field.id} className="mb-4">
+                          <Label htmlFor={field.id} className="mb-2 block font-medium">
+                            {field.label}
+                            {field.required && <span className="text-red-500 ml-1">*</span>}
+                          </Label>
+                          {renderField(field)}
+                        </div>
+                      ))}
+                  </div>
+                </div>
+              ))
+            )}
+            
+            <div className="mt-8 border-t pt-4">
+              <h3 className="text-lg font-semibold mb-2">Informações do Documento</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="font-medium">Data e Hora: </span>
+                  {new Date(documentMetadata.created).toLocaleString()}
+                </div>
+                <div>
+                  <span className="font-medium">Localização: </span>
+                  {documentMetadata.location.formatted}
+                </div>
+              </div>
+              
+              {isCancelled && cancelInfo && (
+                <div className="mt-4 border-t pt-4 border-red-300">
+                  <h3 className="text-lg font-semibold text-red-600 mb-2">Documento Cancelado</h3>
+                  <div className="text-sm">
+                    <div className="mb-2">
+                      <span className="font-medium">Data de Cancelamento: </span>
+                      {new Date(cancelInfo.timestamp).toLocaleString()}
+                    </div>
+                    <div className="mb-2">
+                      <span className="font-medium">Motivo: </span>
+                      {cancelInfo.reason}
+                    </div>
+                    <div>
+                      <span className="font-medium">Aprovadores: </span>
+                      <ul className="list-disc ml-5">
+                        {cancelInfo.approvers.map((approver, idx) => (
+                          <li key={idx}>
+                            {approver.name} ({approver.role})
+                            {approver.signature && (
+                              <div className="mt-1 mb-2">
+                                <img 
+                                  src={approver.signature} 
+                                  alt={`Assinatura de ${approver.name}`} 
+                                  className="h-10 ml-2" 
+                                />
+                              </div>
+                            )}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+      </div>
+      
+      {/* Save Dialog */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Salvar Documento</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div>
+              <Label htmlFor="save-title" className="mb-2 block">Título do Documento</Label>
+              <Input
+                id="save-title"
+                value={documentTitle}
+                onChange={(e) => setDocumentTitle(e.target.value)}
+                placeholder="Insira o título do documento"
+              />
+            </div>
+            <div>
+              <Label htmlFor="save-type" className="mb-2 block">Tipo de Documento</Label>
+              <Select
+                value={docType || "custom"}
+                onValueChange={(value) => {
+                  // This would typically update docType, but since it's from URL params
+                  // we'd need to handle this differently in a real app
+                }}
+              >
+                <SelectTrigger id="save-type">
+                  <SelectValue placeholder="Selecione o tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="custom">Personalizado</SelectItem>
+                  {documentTypes.map(type => (
+                    <SelectItem key={type.id} value={type.id}>
+                      {type.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={() => handleSaveDocument(true)}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Color Picker Dialog */}
+      <Dialog open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              {currentColorTarget.type === "header" && "Escolher Cor do Cabeçalho"}
+              {currentColorTarget.type === "sectionHeader" && "Escolher Cor das Seções"}
+              {currentColorTarget.type === "background" && "Escolher Cor de Fundo"}
+              {currentColorTarget.type === "text" && "Escolher Cor do Texto"}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="py-4 flex justify-center">
+            <SketchPicker
+              color={
+                currentColorTarget.type === "header" ? customColors.header :
+                currentColorTarget.type === "sectionHeader" ? customColors.sectionHeader :
+                currentColorTarget.type === "background" ? customColors.background :
+                customColors.text
+              }
+              onChange={handleColorChange}
+            />
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setColorPickerOpen(false)}>
+              Concluído
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Draw Signature Dialog */}
+      <Dialog open={signatureDialogOpen} onOpenChange={setSignatureDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Desenhar Assinatura</DialogTitle>
+          </DialogHeader>
+          <DrawSignature onSave={handleSignatureSave} onCancel={() => setSignatureDialogOpen(false)} />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Biometric Signature Dialog */}
+      <Dialog open={biometricDialogOpen} onOpenChange={setBiometricDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {signatureType === "face" ? "Reconhecimento Facial" : "Impressão Digital"}
+            </DialogTitle>
+          </DialogHeader>
+          <BiometricSignature 
+            onCapture={handleBiometricCapture} 
+            onCancel={() => setBiometricDialogOpen(false)} 
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Cancel Document Dialog */}
+      <CancelDocumentDialog
+        open={cancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        onCancel={handleCancelDocument}
+      />
+    </div>
+  );
+}
