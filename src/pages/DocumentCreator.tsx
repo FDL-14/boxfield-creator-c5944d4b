@@ -156,14 +156,14 @@ export default function DocumentCreator() {
   }, [formValues, boxes, fields]);
 
   const handleInputChange = (fieldId, value) => {
-    setFormValues(prev => ({
-      ...prev,
+    setFormValues(prevState => ({
+      ...prevState,
       [fieldId]: value
     }));
 
     // If this is a signature field that just got a value, show the lock warning
     const field = fields.find(f => f.id === fieldId);
-    if (field?.type === 'signature' && value && !prev[fieldId]) {
+    if (field?.type === 'signature' && value && !formValues[fieldId]) {
       setShowLockWarning(true);
       setTimeout(() => setShowLockWarning(false), 5000); // Hide after 5 seconds
     }
