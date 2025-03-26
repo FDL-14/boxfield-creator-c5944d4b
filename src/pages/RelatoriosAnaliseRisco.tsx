@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -13,7 +12,6 @@ import { exportToExcel, generatePDF } from "@/utils/pdfUtils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Label } from "@/components/ui/label";
 
-// Tipo para os dados do formulário
 interface FormData {
   id: number;
   name: string;
@@ -47,7 +45,6 @@ interface FormData {
   };
 }
 
-// Tipo para os dados de gráfico
 interface ChartData {
   name: string;
   value: number;
@@ -82,13 +79,11 @@ export default function RelatoriosAnaliseRisco() {
     setFilteredForms(forms);
   }, []);
 
-  // Aplicar filtros
   useEffect(() => {
     if (savedForms.length === 0) return;
     
     let filtered = [...savedForms];
     
-    // Filtro por data
     if (filters.startDate) {
       filtered = filtered.filter(form => {
         const formDate = new Date(form.date);
@@ -106,21 +101,18 @@ export default function RelatoriosAnaliseRisco() {
       });
     }
     
-    // Filtro por local
     if (filters.local) {
       filtered = filtered.filter(form => 
         form.data.local.toLowerCase().includes(filters.local.toLowerCase())
       );
     }
     
-    // Filtro por departamento
     if (filters.departamento) {
       filtered = filtered.filter(form => 
         form.data.departamento.toLowerCase().includes(filters.departamento.toLowerCase())
       );
     }
     
-    // Filtro por riscos
     const riscosKeys = Object.keys(filters.riscos) as Array<keyof typeof filters.riscos>;
     const riscosAtivos = riscosKeys.filter(risco => filters.riscos[risco]);
     
@@ -138,7 +130,6 @@ export default function RelatoriosAnaliseRisco() {
     setFilteredForms(filtered);
   }, [filters, savedForms]);
 
-  // Gráfico de riscos por frequência
   const riskFrequencyData = useMemo(() => {
     const riskCounts: Record<string, number> = {
       'Queda': 0,
@@ -161,10 +152,9 @@ export default function RelatoriosAnaliseRisco() {
     return Object.entries(riskCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 risks
+      .slice(0, 5);
   }, [filteredForms]);
 
-  // Gráfico de locais por frequência
   const activityByLocationData = useMemo(() => {
     const locationCounts: Record<string, number> = {};
     
@@ -176,10 +166,9 @@ export default function RelatoriosAnaliseRisco() {
     return Object.entries(locationCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 locations
+      .slice(0, 5);
   }, [filteredForms]);
 
-  // Gráfico de atividades por frequência
   const topActivitiesData = useMemo(() => {
     const activityCounts: Record<string, number> = {};
     
@@ -191,10 +180,9 @@ export default function RelatoriosAnaliseRisco() {
     return Object.entries(activityCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 activities
+      .slice(0, 5);
   }, [filteredForms]);
 
-  // Gráfico de departamentos por frequência
   const departmentData = useMemo(() => {
     const deptCounts: Record<string, number> = {};
     
@@ -206,10 +194,9 @@ export default function RelatoriosAnaliseRisco() {
     return Object.entries(deptCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 departments
+      .slice(0, 5);
   }, [filteredForms]);
 
-  // Gráfico de EPIs por frequência
   const epiFrequencyData = useMemo(() => {
     const epiCounts: Record<string, number> = {
       'Capacete': 0,
@@ -234,7 +221,7 @@ export default function RelatoriosAnaliseRisco() {
     return Object.entries(epiCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5); // Top 5 EPIs
+      .slice(0, 5);
   }, [filteredForms]);
 
   const handleExportExcel = () => {
@@ -249,7 +236,7 @@ export default function RelatoriosAnaliseRisco() {
       'Risco: Prensamento': form.data.riscos.prensamento ? 'Sim' : 'Não',
       'Risco: Eletrico': form.data.riscos.eletrico ? 'Sim' : 'Não',
       'Risco: Queimaduras': form.data.riscos.queimaduras ? 'Sim' : 'Não',
-      'Risco: Ergonomico': form.data.riscos.ergonomico ? 'Sim' : 'Não',
+      'Risco: Ergonômico': form.data.riscos.ergonomico ? 'Sim' : 'Não',
       'Risco: Outros': form.data.riscos.outros ? form.data.riscos.outrosTexto : 'Não',
       Medidas: form.data.medidas
     }));
@@ -316,7 +303,6 @@ export default function RelatoriosAnaliseRisco() {
           </div>
         </div>
 
-        {/* Filters */}
         {showFilters && (
           <Card className="mb-6 animate-slide-down">
             <CardHeader>
@@ -437,9 +423,7 @@ export default function RelatoriosAnaliseRisco() {
           </Card>
         )}
 
-        {/* Main Report */}
         <div id="report-container" className="space-y-6">
-          {/* Summary Cards */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
@@ -471,9 +455,7 @@ export default function RelatoriosAnaliseRisco() {
             </Card>
           </div>
 
-          {/* Charts */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Risk Distribution */}
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-xl">Distribuição de Riscos</CardTitle>
@@ -491,7 +473,7 @@ export default function RelatoriosAnaliseRisco() {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           return (
-                            <ChartContainer>
+                            <ChartContainer config={{}}>
                               <ChartTooltipContent>
                                 <div className="flex flex-col">
                                   <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
@@ -509,7 +491,6 @@ export default function RelatoriosAnaliseRisco() {
               </CardContent>
             </Card>
 
-            {/* Location Distribution */}
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-xl">Distribuição por Local</CardTitle>
@@ -535,7 +516,7 @@ export default function RelatoriosAnaliseRisco() {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           return (
-                            <ChartContainer>
+                            <ChartContainer config={{}}>
                               <ChartTooltipContent>
                                 <div className="flex flex-col">
                                   <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
@@ -552,7 +533,6 @@ export default function RelatoriosAnaliseRisco() {
               </CardContent>
             </Card>
 
-            {/* Top Activities */}
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-xl">Principais Atividades</CardTitle>
@@ -571,7 +551,7 @@ export default function RelatoriosAnaliseRisco() {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           return (
-                            <ChartContainer>
+                            <ChartContainer config={{}}>
                               <ChartTooltipContent>
                                 <div className="flex flex-col">
                                   <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
@@ -589,7 +569,6 @@ export default function RelatoriosAnaliseRisco() {
               </CardContent>
             </Card>
 
-            {/* EPI Distribution */}
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-xl">EPIs Utilizados</CardTitle>
@@ -607,7 +586,7 @@ export default function RelatoriosAnaliseRisco() {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           return (
-                            <ChartContainer>
+                            <ChartContainer config={{}}>
                               <ChartTooltipContent>
                                 <div className="flex flex-col">
                                   <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
@@ -626,7 +605,6 @@ export default function RelatoriosAnaliseRisco() {
             </Card>
           </div>
 
-          {/* Table of Documents */}
           {filteredForms.length > 0 && (
             <Card className="shadow-sm">
               <CardHeader>

@@ -1,3 +1,4 @@
+
 import * as React from "react"
 import * as RechartsPrimitive from "recharts"
 
@@ -35,12 +36,12 @@ function useChart() {
 const ChartContainer = React.forwardRef<
   HTMLDivElement,
   React.ComponentProps<"div"> & {
-    config: ChartConfig
+    config?: ChartConfig
     children: React.ComponentProps<
       typeof RechartsPrimitive.ResponsiveContainer
     >["children"]
   }
->(({ id, className, children, config, ...props }, ref) => {
+>(({ id, className, children, config = {}, ...props }, ref) => {
   const uniqueId = React.useId()
   const chartId = `chart-${id || uniqueId.replace(/:/g, "")}`
 
@@ -66,7 +67,7 @@ const ChartContainer = React.forwardRef<
 ChartContainer.displayName = "Chart"
 
 const ChartStyle = ({ id, config }: { id: string; config: ChartConfig }) => {
-  const colorConfig = Object.entries(config).filter(
+  const colorConfig = Object.entries(config || {}).filter(
     ([_, config]) => config.theme || config.color
   )
 
@@ -88,6 +89,7 @@ ${colorConfig
       itemConfig.color
     return color ? `  --color-${key}: ${color};` : null
   })
+  .filter(Boolean)
   .join("\n")}
 }
 `
