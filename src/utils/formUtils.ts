@@ -11,15 +11,33 @@ export const saveFormData = (formType: string, name: string, data: any) => {
     const savedFormsKey = `saved_forms_${formType}`;
     const savedForms = JSON.parse(localStorage.getItem(savedFormsKey) || '[]');
     
-    // Add new form
-    const newForm = {
-      id: Date.now(),
-      name,
-      data,
-      date: new Date().toISOString(),
-    };
+    // Check if we're updating an existing form
+    const existingIndex = savedForms.findIndex((form: any) => 
+      form.id === data.id || (form.title === name && form.date === data.date)
+    );
     
-    savedForms.push(newForm);
+    if (existingIndex >= 0) {
+      // Update existing form
+      savedForms[existingIndex] = {
+        ...savedForms[existingIndex],
+        ...data,
+        name,
+        title: name,
+        updated_at: new Date().toISOString()
+      };
+    } else {
+      // Add new form
+      const newForm = {
+        id: data.id || Date.now(),
+        name,
+        title: name,
+        data,
+        date: new Date().toISOString(),
+        formType: formType,
+      };
+      
+      savedForms.push(newForm);
+    }
     
     // Save back to localStorage
     localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
@@ -79,4 +97,34 @@ export const deleteSavedForm = (formType: string, id: number) => {
     console.error("Error deleting saved form:", error);
     return false;
   }
+};
+
+/**
+ * Checks if a document section has a signed signature field
+ * @param formValues The form values object
+ * @param fieldsInSection Array of fields in a section
+ * @returns Boolean indicating if the section has a signed field
+ */
+export const isSectionLocked = (formValues: any, fieldsInSection: any[]) => {
+  // Find signature fields in the section
+  const signatureFields = fieldsInSection.filter(field => field.type === 'signature');
+  
+  // Check if any signature field has a value (is signed)
+  return signatureFields.some(field => formValues[field.id]);
+};
+
+/**
+ * Gets all sections that are locked due to signatures
+ * @param formValues The form values object
+ * @param boxes Array of all section boxes
+ * @param fields Array of all fields
+ * @returns Array of locked section IDs
+ */
+export const getLockedSections = (formValues: any, boxes: any[], fields: any[]) => {
+  return boxes
+    .filter(box => {
+      const fieldsInSection = fields.filter(field => field.box_id === box.id);
+      return isSectionLocked(formValues, fieldsInSection);
+    })
+    .map(box => box.id);
 };

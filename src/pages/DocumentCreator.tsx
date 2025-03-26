@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -33,10 +34,18 @@ import {
   Trash2,
   XCircle,
   Mail,
-  FolderOpen
+  FolderOpen,
+  AlertTriangle,
+  Lock
 } from "lucide-react";
 import { FormBox, FormField, DocumentType, UserDocument } from "@/entities/all";
-import { saveFormData, getSavedForms, getSavedFormById } from "@/utils/formUtils";
+import { 
+  saveFormData, 
+  getSavedForms, 
+  getSavedFormById, 
+  getLockedSections, 
+  isSectionLocked 
+} from "@/utils/formUtils";
 import { generatePDF } from "@/utils/pdfUtils";
 import { SketchPicker } from "react-color";
 import DrawSignature from "@/components/DrawSignature";
@@ -78,9 +87,12 @@ export default function DocumentCreator() {
     created: new Date().toISOString(),
     location: { latitude: 0, longitude: 0, formatted: "Localização não disponível" }
   });
+  const [documentId, setDocumentId] = useState(null);
+  const [lockedSections, setLockedSections] = useState([]);
   const formRef = useRef(null);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [savedDocsDialogOpen, setSavedDocsDialogOpen] = useState(false);
+  const [showLockWarning, setShowLockWarning] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -137,11 +149,24 @@ export default function DocumentCreator() {
     fetchData();
   }, [docType, toast]);
 
+  // Effect to update locked sections when formValues changes
+  useEffect(() => {
+    const locked = getLockedSections(formValues, boxes, fields);
+    setLockedSections(locked);
+  }, [formValues, boxes, fields]);
+
   const handleInputChange = (fieldId, value) => {
     setFormValues(prev => ({
       ...prev,
       [fieldId]: value
     }));
+
+    // If this is a signature field that just got a value, show the lock warning
+    const field = fields.find(f => f.id === fieldId);
+    if (field?.type === 'signature' && value && !prev[fieldId]) {
+      setShowLockWarning(true);
+      setTimeout(() => setShowLockWarning(false), 5000); // Hide after 5 seconds
+    }
   };
 
   const handleSaveDocument = async (saveAs = false) => {
@@ -170,17 +195,24 @@ export default function DocumentCreator() {
       }
       
       const documentData = {
+        id: documentId || Date.now(),
         title: documentTitle,
         docType: docType,
         values: formValues,
         colors: customColors,
         logo: logoImage,
-        createdAt: timestamp,
+        createdAt: documentMetadata.created,
         location: locationData,
         cancelled: isCancelled,
         cancelInfo: cancelInfo,
+        lockedSections: lockedSections,
         date: timestamp
       };
+      
+      // If this is the first save, set the document ID
+      if (!documentId) {
+        setDocumentId(documentData.id);
+      }
       
       const success = saveFormData(docType || "custom", documentTitle, documentData);
       
@@ -352,6 +384,10 @@ export default function DocumentCreator() {
   const handleSelectSavedDocument = (title, data) => {
     setDocumentTitle(title);
     
+    if (data.id) {
+      setDocumentId(data.id);
+    }
+    
     if (data.values) {
       setFormValues(data.values);
     }
@@ -368,6 +404,21 @@ export default function DocumentCreator() {
       setIsCancelled(data.cancelled);
       setCancelInfo(data.cancelInfo);
     }
+
+    if (data.lockedSections) {
+      setLockedSections(data.lockedSections);
+    } else if (data.values) {
+      // Compute locked sections based on signature fields
+      const locked = getLockedSections(data.values, boxes, fields);
+      setLockedSections(locked);
+    }
+
+    if (data.createdAt) {
+      setDocumentMetadata(prev => ({
+        ...prev,
+        created: data.createdAt
+      }));
+    }
     
     setSavedDocsDialogOpen(false);
     
@@ -375,6 +426,10 @@ export default function DocumentCreator() {
       title: "Documento carregado",
       description: "O documento foi carregado com sucesso"
     });
+  };
+
+  const isSectionLocked = (boxId) => {
+    return lockedSections.includes(boxId);
   };
 
   const renderField = (field) => {
@@ -568,12 +623,25 @@ export default function DocumentCreator() {
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-3xl font-bold text-gray-900">Criar Documento</h1>
+              <h1 className="text-3xl font-bold text-gray-900">
+                {documentId ? "Editar Documento" : "Criar Documento"}
+              </h1>
             </div>
             <p className="text-gray-500 mt-1">
               Preencha os campos do documento e salve ou exporte
             </p>
           </div>
+
+          {showLockWarning && (
+            <div className="fixed top-4 right-4 bg-yellow-50 border border-yellow-300 text-yellow-800 px-4 py-2 rounded-md shadow-md flex items-center z-50 animate-fade-in">
+              <AlertTriangle className="h-5 w-5 mr-2 text-yellow-600" />
+              <div>
+                <p className="font-medium">Seção bloqueada</p>
+                <p className="text-sm">A seção com campo assinado foi bloqueada para edição</p>
+              </div>
+            </div>
+          )}
+
           <div className="flex flex-wrap gap-2">
             <Button
               onClick={() => setSaveDialogOpen(true)}
@@ -645,6 +713,21 @@ export default function DocumentCreator() {
             )}
           </div>
         </div>
+
+        {lockedSections.length > 0 && (
+          <Card className="mb-4 border-yellow-300 bg-yellow-50">
+            <CardContent className="p-4 flex items-center">
+              <Lock className="h-5 w-5 text-yellow-700 mr-3" />
+              <div>
+                <h3 className="font-medium text-yellow-800">Documento parcialmente bloqueado</h3>
+                <p className="text-sm text-yellow-700">
+                  Algumas seções deste documento foram assinadas e estão bloqueadas para edição. 
+                  Apenas novas seções podem ser modificadas.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="mb-6">
           <CardContent className="p-4">
@@ -790,10 +873,15 @@ export default function DocumentCreator() {
               boxes.map((box) => (
                 <div key={box.id} className="mb-6">
                   <h3 
-                    className="text-lg font-semibold p-2 mb-3 rounded" 
+                    className={`text-lg font-semibold p-2 mb-3 rounded flex justify-between items-center`} 
                     style={{ backgroundColor: customColors.sectionHeader, color: "#fff" }}
                   >
-                    {box.name}
+                    <span>{box.name}</span>
+                    {isSectionLocked(box.id) && (
+                      <span className="text-xs bg-white text-orange-700 px-2 py-1 rounded-full flex items-center">
+                        <Lock className="h-3 w-3 mr-1" /> Seção Bloqueada
+                      </span>
+                    )}
                   </h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
                     {fields
@@ -840,7 +928,7 @@ export default function DocumentCreator() {
                     <div>
                       <span className="font-medium">Aprovadores: </span>
                       <ul className="list-disc ml-5">
-                        {cancelInfo.approvers.map((approver, idx) => (
+                        {cancelInfo.approvers && cancelInfo.approvers.map((approver, idx) => (
                           <li key={idx}>
                             {approver.name} ({approver.role})
                             {approver.signature && (

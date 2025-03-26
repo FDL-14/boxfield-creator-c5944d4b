@@ -1,8 +1,7 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Edit2, Save, X, Loader2, ArrowUp, ArrowDown, Plus, Image } from "lucide-react";
+import { Trash2, Edit2, Save, X, Loader2, ArrowUp, ArrowDown, Plus, Image, Lock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -27,7 +26,8 @@ export default function FieldComponent({
   onEdit, 
   onMoveUp, 
   onMoveDown, 
-  isLoading 
+  isLoading,
+  isLocked = false
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedField, setEditedField] = useState(field);
@@ -134,7 +134,7 @@ export default function FieldComponent({
     }
   };
 
-  if (isEditing) {
+  if (isEditing && !isLocked) {
     return (
       <div className="border p-4 rounded-lg bg-gray-50 animate-slide-up transition-all duration-300">
         <div className="space-y-4">
@@ -232,53 +232,64 @@ export default function FieldComponent({
       <div className="flex items-start justify-between mb-3">
         <div>
           <p className="font-medium mb-1">{field.label}</p>
-          <Badge variant="secondary" className="transition-all duration-300">
-            {fieldTypeLabels[field.type]}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="transition-all duration-300">
+              {fieldTypeLabels[field.type]}
+            </Badge>
+            {isLocked && (
+              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
+                <Lock className="h-3 w-3 mr-1" /> Bloqueado
+              </Badge>
+            )}
+          </div>
         </div>
         <div className="flex gap-2">
-          {onMoveUp && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onMoveUp}
-              disabled={isLoading}
-              className="h-8 w-8"
-            >
-              <ArrowUp className="h-4 w-4" />
-            </Button>
+          {!isLocked && (
+            <>
+              {onMoveUp && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onMoveUp}
+                  disabled={isLoading}
+                  className="h-8 w-8"
+                >
+                  <ArrowUp className="h-4 w-4" />
+                </Button>
+              )}
+              
+              {onMoveDown && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={onMoveDown}
+                  disabled={isLoading}
+                  className="h-8 w-8"
+                >
+                  <ArrowDown className="h-4 w-4" />
+                </Button>
+              )}
+              
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setIsEditing(true)}
+                disabled={isLoading}
+                className="transition-all duration-300 h-8 w-8"
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit2 className="w-4 h-4" />}
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="text-red-600 hover:text-red-700 transition-all duration-300 h-8 w-8"
+                onClick={() => onDelete(field.id)}
+                disabled={isLoading}
+              >
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              </Button>
+            </>
           )}
-          
-          {onMoveDown && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={onMoveDown}
-              disabled={isLoading}
-              className="h-8 w-8"
-            >
-              <ArrowDown className="h-4 w-4" />
-            </Button>
-          )}
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsEditing(true)}
-            disabled={isLoading}
-            className="transition-all duration-300 h-8 w-8"
-          >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit2 className="w-4 h-4" />}
-          </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-red-600 hover:text-red-700 transition-all duration-300 h-8 w-8"
-            onClick={() => onDelete(field.id)}
-            disabled={isLoading}
-          >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
-          </Button>
         </div>
       </div>
       <div className="transition-all duration-300">

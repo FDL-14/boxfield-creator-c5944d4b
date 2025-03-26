@@ -18,6 +18,7 @@ interface FormBoxComponentProps {
   onMoveDown?: () => void;
   onMoveField?: (fieldId: string, direction: 'up' | 'down') => void;
   isLoading: boolean;
+  isLocked?: boolean;
 }
 
 export default function FormBoxComponent({
@@ -31,7 +32,8 @@ export default function FormBoxComponent({
   onMoveUp,
   onMoveDown,
   onMoveField,
-  isLoading
+  isLoading,
+  isLocked = false
 }: FormBoxComponentProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
 
@@ -47,46 +49,55 @@ export default function FormBoxComponent({
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-lg">{box.name}</CardTitle>
         <div className="flex space-x-2">
-          {onMoveUp && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onMoveUp}
-              disabled={isLoading}
-            >
-              <ChevronUp className="h-4 w-4" />
-            </Button>
+          {!isLocked && (
+            <>
+              {onMoveUp && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onMoveUp}
+                  disabled={isLoading}
+                >
+                  <ChevronUp className="h-4 w-4" />
+                </Button>
+              )}
+              {onMoveDown && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={onMoveDown}
+                  disabled={isLoading}
+                >
+                  <ChevronDown className="h-4 w-4" />
+                </Button>
+              )}
+              {onEditBox && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setShowEditDialog(true)}
+                  disabled={isLoading}
+                  className="text-blue-500"
+                >
+                  <Edit className="h-4 w-4" />
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={onDeleteBox}
+                disabled={isLoading}
+                className="text-red-500"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            </>
           )}
-          {onMoveDown && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={onMoveDown}
-              disabled={isLoading}
-            >
-              <ChevronDown className="h-4 w-4" />
-            </Button>
+          {isLocked && (
+            <div className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+              Seção Bloqueada
+            </div>
           )}
-          {onEditBox && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setShowEditDialog(true)}
-              disabled={isLoading}
-              className="text-blue-500"
-            >
-              <Edit className="h-4 w-4" />
-            </Button>
-          )}
-          <Button
-            variant="outline"
-            size="icon"
-            onClick={onDeleteBox}
-            disabled={isLoading}
-            className="text-red-500"
-          >
-            <Trash2 className="h-4 w-4" />
-          </Button>
         </div>
       </CardHeader>
       <CardContent>
@@ -97,9 +108,10 @@ export default function FormBoxComponent({
               field={field}
               onDelete={() => onDeleteField(field.id)}
               onEdit={(newData) => onEditField(field.id, newData)}
-              onMoveUp={index > 0 && onMoveField ? () => onMoveField(field.id, 'up') : undefined}
-              onMoveDown={index < fields.length - 1 && onMoveField ? () => onMoveField(field.id, 'down') : undefined}
+              onMoveUp={index > 0 && onMoveField && !isLocked ? () => onMoveField(field.id, 'up') : undefined}
+              onMoveDown={index < fields.length - 1 && onMoveField && !isLocked ? () => onMoveField(field.id, 'down') : undefined}
               isLoading={isLoading}
+              isLocked={isLocked}
             />
           ))}
 
@@ -111,17 +123,19 @@ export default function FormBoxComponent({
             </div>
           )}
 
-          <div className="pt-2">
-            <Button
-              onClick={onAddField}
-              variant="outline"
-              className="w-full"
-              disabled={isLoading}
-            >
-              <PlusCircle className="h-4 w-4 mr-2" />
-              Adicionar Campo
-            </Button>
-          </div>
+          {!isLocked && (
+            <div className="pt-2">
+              <Button
+                onClick={onAddField}
+                variant="outline"
+                className="w-full"
+                disabled={isLoading}
+              >
+                <PlusCircle className="h-4 w-4 mr-2" />
+                Adicionar Campo
+              </Button>
+            </div>
+          )}
         </div>
       </CardContent>
 
