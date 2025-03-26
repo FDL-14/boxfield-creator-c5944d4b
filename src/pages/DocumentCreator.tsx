@@ -206,7 +206,7 @@ export default function DocumentCreator() {
     }
   };
 
-  const handlePrint = useReactToPrint({
+  const printHandler = useReactToPrint({
     documentTitle: documentTitle,
     contentRef: formRef,
     onAfterPrint: () => {
@@ -216,6 +216,10 @@ export default function DocumentCreator() {
       });
     },
   });
+
+  const handlePrint = () => {
+    printHandler();
+  };
 
   const handleExportPDF = async () => {
     const success = await generatePDF(formRef.current, documentTitle);
