@@ -1,10 +1,24 @@
 
 import React, { useState } from "react";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Edit2, Loader2, ArrowUp, ArrowDown } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChevronDown, ChevronUp, PlusCircle, Trash2, Edit } from "lucide-react";
 import FieldComponent from "./FieldComponent";
-import EditSectionDialog from "./EditSectionDialog";
+import EditSectionDialog from "../form-builder/EditSectionDialog";
+
+interface FormBoxComponentProps {
+  box: any;
+  fields: any[];
+  onAddField: () => void;
+  onDeleteBox: () => void;
+  onDeleteField: (fieldId: string) => void;
+  onEditField: (fieldId: string, newData: any) => void;
+  onEditBox?: (boxId: string, newData: any) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  onMoveField?: (fieldId: string, direction: 'up' | 'down') => void;
+  isLoading: boolean;
+}
 
 export default function FormBoxComponent({
   box,
@@ -13,79 +27,65 @@ export default function FormBoxComponent({
   onDeleteBox,
   onDeleteField,
   onEditField,
+  onEditBox,
   onMoveUp,
   onMoveDown,
   onMoveField,
-  onEditBox,
   isLoading
-}) {
+}: FormBoxComponentProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
 
-  const handleEditBox = (newData) => {
-    onEditBox(box.id, newData);
-    setShowEditDialog(false);
+  const handleEditBox = (newData: any) => {
+    if (onEditBox) {
+      onEditBox(box.id, newData);
+      setShowEditDialog(false);
+    }
   };
 
   return (
-    <Card className="shadow-md animate-fade-in transition-all duration-300 hover:shadow-lg">
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <h2 className="text-xl font-semibold">{box.title || box.name}</h2>
-        </div>
-        <div className="flex gap-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={onAddField}
-            disabled={isLoading}
-            className="transition-all duration-300"
-          >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Plus className="w-4 h-4 mr-1" />}
-            Adicionar Campo
-          </Button>
-          
+    <Card>
+      <CardHeader className="pb-2 flex flex-row items-center justify-between">
+        <CardTitle className="text-lg">{box.name}</CardTitle>
+        <div className="flex space-x-2">
           {onMoveUp && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               onClick={onMoveUp}
               disabled={isLoading}
-              className="h-9 w-9"
             >
-              <ArrowUp className="h-4 w-4" />
+              <ChevronUp className="h-4 w-4" />
             </Button>
           )}
-          
           {onMoveDown && (
             <Button
-              variant="ghost"
+              variant="outline"
               size="icon"
               onClick={onMoveDown}
               disabled={isLoading}
-              className="h-9 w-9"
             >
-              <ArrowDown className="h-4 w-4" />
+              <ChevronDown className="h-4 w-4" />
             </Button>
           )}
-          
+          {onEditBox && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setShowEditDialog(true)}
+              disabled={isLoading}
+              className="text-blue-500"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          )}
           <Button
-            variant="ghost"
+            variant="outline"
             size="icon"
-            onClick={() => setShowEditDialog(true)}
+            onClick={onDeleteBox}
             disabled={isLoading}
-            className="h-9 w-9"
+            className="text-red-500"
           >
-            <Edit2 className="h-4 w-4" />
-          </Button>
-          
-          <Button
-            variant="ghost"
-            size="icon"
-            className="text-red-600 hover:text-red-700 transition-all duration-300"
-            onClick={() => onDeleteBox(box.id)}
-            disabled={isLoading}
-          >
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+            <Trash2 className="h-4 w-4" />
           </Button>
         </div>
       </CardHeader>
@@ -96,27 +96,44 @@ export default function FormBoxComponent({
               key={field.id}
               field={field}
               onDelete={() => onDeleteField(field.id)}
-              onEdit={(fieldId, newData) => onEditField(field.id, newData)}
+              onEdit={(newData) => onEditField(field.id, newData)}
               onMoveUp={index > 0 && onMoveField ? () => onMoveField(field.id, 'up') : undefined}
               onMoveDown={index < fields.length - 1 && onMoveField ? () => onMoveField(field.id, 'down') : undefined}
               isLoading={isLoading}
             />
           ))}
+
           {fields.length === 0 && (
-            <p className="text-center text-gray-500 py-4">
-              Nenhum campo adicionado nesta seção
-            </p>
+            <div className="text-center p-4 border-2 border-dashed rounded-lg">
+              <p className="text-sm text-gray-500">
+                Nenhum campo adicionado a esta seção.
+              </p>
+            </div>
           )}
+
+          <div className="pt-2">
+            <Button
+              onClick={onAddField}
+              variant="outline"
+              className="w-full"
+              disabled={isLoading}
+            >
+              <PlusCircle className="h-4 w-4 mr-2" />
+              Adicionar Campo
+            </Button>
+          </div>
         </div>
       </CardContent>
-      
-      <EditSectionDialog
-        open={showEditDialog}
-        onClose={() => setShowEditDialog(false)}
-        onSave={handleEditBox}
-        section={box}
-        isLoading={isLoading}
-      />
+
+      {showEditDialog && (
+        <EditSectionDialog
+          open={showEditDialog}
+          onClose={() => setShowEditDialog(false)}
+          onSave={handleEditBox}
+          section={box}
+          isLoading={isLoading}
+        />
+      )}
     </Card>
   );
 }

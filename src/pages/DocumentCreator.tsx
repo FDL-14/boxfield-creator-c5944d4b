@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { useReactToPrint } from "react-to-print";
-import { 
+import {
   ArrowLeft, 
   Save, 
   Printer, 
@@ -31,10 +31,12 @@ import {
   FileText,
   Copy,
   Trash2,
-  XCircle 
+  XCircle,
+  Mail,
+  FolderOpen
 } from "lucide-react";
 import { FormBox, FormField, DocumentType, UserDocument } from "@/entities/all";
-import { saveFormData } from "@/utils/formUtils";
+import { saveFormData, getSavedForms, getSavedFormById } from "@/utils/formUtils";
 import { generatePDF } from "@/utils/pdfUtils";
 import { SketchPicker } from "react-color";
 import DrawSignature from "@/components/DrawSignature";
@@ -42,6 +44,8 @@ import CancelDocumentDialog from "@/components/CancelDocumentDialog";
 import BiometricSignature from "@/components/BiometricSignature";
 import { exportToExcel, exportToWord } from "@/utils/exportUtils";
 import { getLocationData } from "@/utils/geoUtils";
+import EmailDocumentDialog from "@/components/EmailDocumentDialog";
+import SavedDocumentsDialog from "@/components/SavedDocumentsDialog";
 
 export default function DocumentCreator() {
   const { docType } = useParams();
@@ -75,6 +79,8 @@ export default function DocumentCreator() {
     location: { latitude: 0, longitude: 0, formatted: "Localização não disponível" }
   });
   const formRef = useRef(null);
+  const [emailDialogOpen, setEmailDialogOpen] = useState(false);
+  const [savedDocsDialogOpen, setSavedDocsDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -339,6 +345,34 @@ export default function DocumentCreator() {
     });
   };
 
+  const handleSelectSavedDocument = (title, data) => {
+    setDocumentTitle(title);
+    
+    if (data.values) {
+      setFormValues(data.values);
+    }
+    
+    if (data.colors) {
+      setCustomColors(data.colors);
+    }
+    
+    if (data.logo) {
+      setLogoImage(data.logo);
+    }
+    
+    if (data.cancelled) {
+      setIsCancelled(data.cancelled);
+      setCancelInfo(data.cancelInfo);
+    }
+    
+    setSavedDocsDialogOpen(false);
+    
+    toast({
+      title: "Documento carregado",
+      description: "O documento foi carregado com sucesso"
+    });
+  };
+
   const renderField = (field) => {
     switch (field.type) {
       case "short_text":
@@ -552,8 +586,15 @@ export default function DocumentCreator() {
               Salvar
             </Button>
             <Button
+              onClick={() => setSavedDocsDialogOpen(true)}
+              variant="outline"
+            >
+              <FolderOpen className="h-4 w-4 mr-2" />
+              Abrir
+            </Button>
+            <Button
               type="button"
-              onClick={() => handlePrint()}
+              onClick={handlePrint}
               variant="outline"
             >
               <Printer className="h-4 w-4 mr-2" />
@@ -579,6 +620,14 @@ export default function DocumentCreator() {
             >
               <FileText className="h-4 w-4 mr-2" />
               Word
+            </Button>
+            <Button
+              onClick={() => setEmailDialogOpen(true)}
+              variant="outline"
+              className="bg-green-600 hover:bg-green-700 text-white"
+            >
+              <Mail className="h-4 w-4 mr-2" />
+              Enviar por E-mail
             </Button>
             {!isCancelled && (
               <Button
@@ -811,7 +860,6 @@ export default function DocumentCreator() {
         )}
       </div>
       
-      {/* Save Dialog */}
       <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
         <DialogContent>
           <DialogHeader>
@@ -861,7 +909,6 @@ export default function DocumentCreator() {
         </DialogContent>
       </Dialog>
       
-      {/* Color Picker Dialog */}
       <Dialog open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
         <DialogContent>
           <DialogHeader>
@@ -891,7 +938,6 @@ export default function DocumentCreator() {
         </DialogContent>
       </Dialog>
       
-      {/* Draw Signature Dialog */}
       <Dialog open={signatureDialogOpen} onOpenChange={setSignatureDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -901,7 +947,6 @@ export default function DocumentCreator() {
         </DialogContent>
       </Dialog>
       
-      {/* Biometric Signature Dialog */}
       <Dialog open={biometricDialogOpen} onOpenChange={setBiometricDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -916,12 +961,18 @@ export default function DocumentCreator() {
         </DialogContent>
       </Dialog>
       
-      {/* Cancel Document Dialog */}
       <CancelDocumentDialog
         open={cancelDialogOpen}
         onClose={() => setCancelDialogOpen(false)}
         onCancel={handleCancelDocument}
       />
-    </div>
-  );
-}
+      
+      <EmailDocumentDialog
+        open={emailDialogOpen}
+        onClose={() => setEmailDialogOpen(false)}
+        documentTitle={documentTitle}
+        documentData={{
+          title: documentTitle,
+          values: formValues,
+          colors
+
