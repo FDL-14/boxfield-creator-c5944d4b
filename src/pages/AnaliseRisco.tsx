@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { ArrowLeft, Save, Printer, Download } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -13,7 +12,7 @@ import { toast } from "@/hooks/use-toast";
 import { useReactToPrint } from "react-to-print";
 import { generatePDF } from "@/utils/pdfUtils";
 
-const AnaliseRisco = () => {
+export default function AnaliseRisco() {
   const navigate = useNavigate();
   const [documentTitle, setDocumentTitle] = useState("Análise Preliminar de Risco");
   const [documentData, setDocumentData] = useState({
@@ -35,21 +34,16 @@ const AnaliseRisco = () => {
     ]
   });
   const formRef = useRef(null);
+  const printRef = useRef<HTMLDivElement>(null);
 
   const handlePrint = useReactToPrint({
-    documentTitle: documentTitle,
-    onBeforeGetContent: () => {
-      return new Promise<void>((resolve) => {
-        resolve();
-      });
-    },
+    content: () => printRef.current,
     onAfterPrint: () => {
       toast({
         title: "Documento impresso",
         description: "O documento foi enviado para impressão"
       });
     },
-    content: () => formRef.current,
   });
 
   const handleExportPDF = async () => {
@@ -72,14 +66,12 @@ const AnaliseRisco = () => {
   };
 
   const handleSave = () => {
-    // Save logic here
     toast({
       title: "Documento salvo",
       description: "O documento foi salvo com sucesso"
     });
   };
 
-  // Helper function to add new items to arrays
   const addItem = (type) => {
     const newData = { ...documentData };
     
@@ -100,14 +92,12 @@ const AnaliseRisco = () => {
     setDocumentData(newData);
   };
 
-  // Function to handle print button click
   const handlePrintClick = () => {
     if (handlePrint) {
       handlePrint();
     }
   };
 
-  // Helper function to remove items from arrays
   const removeItem = (type, id) => {
     const newData = { ...documentData };
     
@@ -124,7 +114,6 @@ const AnaliseRisco = () => {
     setDocumentData(newData);
   };
 
-  // Helper function to update form values
   const updateValue = (type, id, field, value) => {
     const newData = { ...documentData };
     
@@ -149,7 +138,6 @@ const AnaliseRisco = () => {
         newData.approvals[index][field] = value;
       }
     } else {
-      // For simple fields
       newData[type] = value;
     }
     
@@ -159,7 +147,6 @@ const AnaliseRisco = () => {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -202,7 +189,6 @@ const AnaliseRisco = () => {
           </div>
         </div>
 
-        {/* APR Form */}
         <div>
           <Tabs defaultValue="form">
             <TabsList className="mb-6">
@@ -265,7 +251,6 @@ const AnaliseRisco = () => {
                   </CardContent>
                 </Card>
 
-                {/* Equipe */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Equipe</CardTitle>
@@ -314,7 +299,6 @@ const AnaliseRisco = () => {
                   </CardContent>
                 </Card>
 
-                {/* Riscos */}
                 <Card>
                   <CardHeader className="flex flex-row items-center justify-between">
                     <CardTitle>Riscos Identificados</CardTitle>
@@ -381,7 +365,7 @@ const AnaliseRisco = () => {
             
             <TabsContent value="preview">
               <div 
-                ref={formRef} 
+                ref={printRef} 
                 className="bg-white border rounded-md shadow-sm p-8"
               >
                 <div className="flex justify-between items-center mb-6 border-b pb-4">
@@ -494,6 +478,4 @@ const AnaliseRisco = () => {
       </div>
     </div>
   );
-};
-
-export default AnaliseRisco;
+}

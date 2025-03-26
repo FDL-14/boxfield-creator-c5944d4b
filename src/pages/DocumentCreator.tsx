@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -32,7 +31,7 @@ import {
   FileText,
   Copy,
   Trash2,
-  Cancel 
+  XCircle 
 } from "lucide-react";
 import { FormBox, FormField, DocumentType, UserDocument } from "@/entities/all";
 import { saveFormData } from "@/utils/formUtils";
@@ -91,7 +90,6 @@ export default function DocumentCreator() {
         setFields(fieldsData);
         setDocumentTypes(typesData);
         
-        // If docType is provided, filter boxes and fields
         if (docType) {
           const foundType = typesData.find(type => type.id === docType || type.slug === docType);
           if (foundType) {
@@ -105,7 +103,6 @@ export default function DocumentCreator() {
           }
         }
 
-        // Get geolocation data
         try {
           const locationData = await getLocationData();
           setDocumentMetadata(prevState => ({
@@ -152,12 +149,10 @@ export default function DocumentCreator() {
     }
     
     try {
-      // Update timestamp and geolocation before saving
       const timestamp = new Date().toISOString();
       let locationData = documentMetadata.location;
       
       try {
-        // Try to get fresh location data
         const newLocationData = await getLocationData();
         locationData = {
           latitude: newLocationData.latitude,
@@ -181,7 +176,6 @@ export default function DocumentCreator() {
         date: timestamp
       };
       
-      // Save to localStorage using the utility function
       const success = saveFormData(docType || "custom", documentTitle, documentData);
       
       if (success) {
@@ -191,7 +185,6 @@ export default function DocumentCreator() {
         });
         
         if (!saveAs) {
-          // Navigate back after saving
           navigate(-1);
         } else {
           setSaveDialogOpen(false);
@@ -209,18 +202,13 @@ export default function DocumentCreator() {
 
   const handlePrint = useReactToPrint({
     documentTitle: documentTitle,
-    onBeforeGetContent: () => {
-      return new Promise<void>((resolve) => {
-        resolve();
-      });
-    },
+    content: () => formRef.current,
     onAfterPrint: () => {
       toast({
         title: "Documento impresso",
         description: "O documento foi enviado para impressão"
       });
     },
-    content: () => formRef.current,
   });
 
   const handleExportPDF = async () => {
@@ -241,7 +229,6 @@ export default function DocumentCreator() {
   };
 
   const handleExportExcel = async () => {
-    // Prepare form data for Excel export
     const exportData = {
       Título: documentTitle,
       'Data de Criação': new Date(documentMetadata.created).toLocaleString(),
@@ -352,7 +339,6 @@ export default function DocumentCreator() {
     });
   };
 
-  // Helper function to render different field types
   const renderField = (field) => {
     switch (field.type) {
       case "short_text":
@@ -533,7 +519,6 @@ export default function DocumentCreator() {
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       <div className="max-w-5xl mx-auto">
-        {/* Header */}
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
           <div>
             <div className="flex items-center gap-3">
@@ -567,7 +552,8 @@ export default function DocumentCreator() {
               Salvar
             </Button>
             <Button
-              onClick={handlePrint}
+              type="button"
+              onClick={() => handlePrint()}
               variant="outline"
             >
               <Printer className="h-4 w-4 mr-2" />
@@ -600,14 +586,13 @@ export default function DocumentCreator() {
                 variant="outline"
                 className="text-red-600 border-red-600 hover:bg-red-50"
               >
-                <Cancel className="h-4 w-4 mr-2" />
+                <XCircle className="h-4 w-4 mr-2" />
                 Cancelar Documento
               </Button>
             )}
           </div>
         </div>
 
-        {/* Customization Controls */}
         <Card className="mb-6">
           <CardContent className="p-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -698,7 +683,6 @@ export default function DocumentCreator() {
               </div>
             </div>
             
-            {/* Document Metadata Display */}
             <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
               <div>
                 <Label className="mb-1 block text-xs text-gray-500">Data e Hora de Criação</Label>
@@ -716,209 +700,5 @@ export default function DocumentCreator() {
           </CardContent>
         </Card>
 
-        {/* Document Form */}
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <p className="text-gray-500">Carregando formulário...</p>
-          </div>
-        ) : (
-          <div 
-            ref={formRef}
-            style={{ 
-              backgroundColor: customColors.background,
-              color: customColors.text,
-              position: "relative"
-            }}
-            className="border rounded-md shadow-sm animate-fade-in mb-10"
-          >
-            {/* Cancelled Watermark */}
-            {isCancelled && (
-              <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none z-10">
-                <div className="absolute transform rotate-45 text-red-600 opacity-30 text-[150px] font-extrabold leading-none whitespace-nowrap">
-                  CANCELADO
-                </div>
-              </div>
-            )}
-            
-            {/* Form Header */}
-            <div 
-              className="flex justify-between items-center p-4"
-              style={{ backgroundColor: customColors.header, color: "#ffffff" }}
-            >
-              <div className="flex items-center">
-                {logoImage ? (
-                  <img src={logoImage} alt="Logo" className="h-10 mr-4" />
-                ) : (
-                  <div className="w-10 h-10 bg-white/20 rounded mr-4"></div>
-                )}
-                <h1 className="text-xl uppercase font-bold">{documentTitle}</h1>
-              </div>
-              <div className="flex gap-4">
-                <div className="border border-white p-1 px-2">
-                  <span>REV. 1</span>
-                </div>
-              </div>
-            </div>
+        {
 
-            {/* Form Content */}
-            <div className="p-4">
-              {boxes.length === 0 ? (
-                <p className="text-center text-gray-500 p-10">
-                  Nenhuma seção encontrada para este tipo de documento
-                </p>
-              ) : (
-                boxes.map((box, boxIndex) => (
-                  <div key={box.id} className="mb-6">
-                    {/* Section Header */}
-                    <div 
-                      className="p-2 font-bold mb-2"
-                      style={{ backgroundColor: customColors.sectionHeader, color: "#ffffff" }}
-                    >
-                      <h2 className="text-md">{boxIndex + 1}. {box.title}</h2>
-                    </div>
-                    
-                    {/* Section Fields */}
-                    <div className="space-y-4 p-2">
-                      {fields
-                        .filter(f => f.box_id === box.id)
-                        .map(field => (
-                          <div key={field.id} className="border-b border-gray-200 pb-4">
-                            <Label htmlFor={field.id} className="font-medium block mb-2">
-                              {field.label}
-                            </Label>
-                            {renderField(field)}
-                          </div>
-                        ))
-                      }
-                      
-                      {fields.filter(f => f.box_id === box.id).length === 0 && (
-                        <p className="text-center text-gray-500 py-4">
-                          Nenhum campo adicionado nesta seção
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                ))
-              )}
-              
-              {/* Cancellation Information Display */}
-              {isCancelled && cancelInfo && (
-                <div className="mt-6 border-t-2 border-red-300 pt-4">
-                  <div className="bg-red-50 p-4 rounded-md">
-                    <h3 className="text-lg font-bold text-red-700 mb-2">Documento Cancelado</h3>
-                    <p className="mb-2"><strong>Motivo:</strong> {cancelInfo.reason}</p>
-                    <p className="mb-4"><strong>Data:</strong> {new Date(cancelInfo.timestamp).toLocaleString()}</p>
-                    
-                    <h4 className="font-semibold mb-2">Aprovado por:</h4>
-                    <div className="space-y-4">
-                      {cancelInfo.approvers.map((approver, idx) => (
-                        <div key={idx} className="border-b pb-2">
-                          <p><strong>Nome:</strong> {approver.name}</p>
-                          <p><strong>Cargo:</strong> {approver.position}</p>
-                          {approver.signature && (
-                            <div className="mt-1">
-                              <img 
-                                src={approver.signature} 
-                                alt={`Assinatura de ${approver.name}`}
-                                className="max-h-[60px]" 
-                              />
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Color Picker Dialog */}
-      <Dialog open={colorPickerOpen} onOpenChange={setColorPickerOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Selecionar Cor</DialogTitle>
-          </DialogHeader>
-          <div className="flex justify-center py-4">
-            <SketchPicker
-              color={
-                currentColorTarget.type === "header" ? customColors.header :
-                currentColorTarget.type === "sectionHeader" ? customColors.sectionHeader :
-                currentColorTarget.type === "background" ? customColors.background :
-                customColors.text
-              }
-              onChange={handleColorChange}
-            />
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setColorPickerOpen(false)}>Aplicar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Save As Dialog */}
-      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Salvar Documento Como</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="saveAsTitle" className="block mb-2">Título do Documento</Label>
-              <Input
-                id="saveAsTitle"
-                value={documentTitle}
-                onChange={(e) => setDocumentTitle(e.target.value)}
-                placeholder="Insira o título do documento"
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>Cancelar</Button>
-            <Button onClick={() => handleSaveDocument(true)}>Salvar</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Signature Dialog */}
-      <Dialog open={signatureDialogOpen} onOpenChange={setSignatureDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>Assinatura Digital</DialogTitle>
-          </DialogHeader>
-          <DrawSignature
-            onSave={handleSignatureSave}
-            onCancel={() => setSignatureDialogOpen(false)}
-            width={400}
-            height={200}
-            initialSignature={formValues[currentSignatureField] || undefined}
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Biometric Signature Dialog */}
-      <Dialog open={biometricDialogOpen} onOpenChange={setBiometricDialogOpen}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle>
-              {signatureType === "face" ? "Reconhecimento Facial" : "Impressão Digital"}
-            </DialogTitle>
-          </DialogHeader>
-          <BiometricSignature
-            onCapture={handleBiometricCapture}
-            onCancel={() => setBiometricDialogOpen(false)}
-          />
-        </DialogContent>
-      </Dialog>
-      
-      {/* Cancel Document Dialog */}
-      <CancelDocumentDialog
-        open={cancelDialogOpen}
-        onClose={() => setCancelDialogOpen(false)}
-        onCancel={handleCancelDocument}
-      />
-    </div>
-  );
-}

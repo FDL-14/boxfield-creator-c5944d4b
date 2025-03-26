@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { FaceRecognition, Fingerprint } from "lucide-react";
+import { User, Fingerprint } from "lucide-react";
 
 interface BiometricSignatureProps {
   onCapture: (type: "face" | "fingerprint", data: string) => void;
@@ -45,7 +45,7 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
       >
         <TabsList className="grid w-full grid-cols-2 mb-6">
           <TabsTrigger value="face" className="flex items-center gap-2">
-            <FaceRecognition className="h-4 w-4" />
+            <User className="h-4 w-4" />
             Reconhecimento Facial
           </TabsTrigger>
           <TabsTrigger value="fingerprint" className="flex items-center gap-2">
@@ -57,23 +57,23 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
         <TabsContent value="face" className="border rounded-lg p-6 flex flex-col items-center">
           <div className="w-64 h-64 mb-4 border-2 rounded-lg flex items-center justify-center bg-gray-50">
             {captureStatus === "idle" && (
-              <FaceRecognition className="h-20 w-20 text-gray-300" />
+              <User className="h-20 w-20 text-gray-300" />
             )}
             {captureStatus === "capturing" && (
               <div className="flex flex-col items-center">
-                <FaceRecognition className="h-20 w-20 text-blue-500 animate-pulse" />
+                <User className="h-20 w-20 text-blue-500 animate-pulse" />
                 <p className="mt-2 text-sm text-gray-500">Escaneando...</p>
               </div>
             )}
             {captureStatus === "success" && (
               <div className="flex flex-col items-center">
-                <FaceRecognition className="h-20 w-20 text-green-500" />
+                <User className="h-20 w-20 text-green-500" />
                 <p className="mt-2 text-sm text-green-600">Reconhecimento bem sucedido!</p>
               </div>
             )}
             {captureStatus === "failed" && (
               <div className="flex flex-col items-center">
-                <FaceRecognition className="h-20 w-20 text-red-500" />
+                <User className="h-20 w-20 text-red-500" />
                 <p className="mt-2 text-sm text-red-600">Falha no reconhecimento!</p>
               </div>
             )}
