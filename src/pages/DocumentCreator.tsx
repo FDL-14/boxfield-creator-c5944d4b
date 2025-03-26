@@ -21,11 +21,28 @@ import {
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
 import { useReactToPrint } from "react-to-print";
-import { ArrowLeft, Save, Printer, Download, Upload, PaintBucket } from "lucide-react";
+import { 
+  ArrowLeft, 
+  Save, 
+  Printer, 
+  Download, 
+  Upload, 
+  PaintBucket, 
+  FileSpreadsheet, 
+  FileText,
+  Copy,
+  Trash2,
+  Cancel 
+} from "lucide-react";
 import { FormBox, FormField, DocumentType, UserDocument } from "@/entities/all";
 import { saveFormData } from "@/utils/formUtils";
 import { generatePDF } from "@/utils/pdfUtils";
 import { SketchPicker } from "react-color";
+import DrawSignature from "@/components/DrawSignature";
+import CancelDocumentDialog from "@/components/CancelDocumentDialog";
+import BiometricSignature from "@/components/BiometricSignature";
+import { exportToExcel, exportToWord } from "@/utils/exportUtils";
+import { getLocationData } from "@/utils/geoUtils";
 
 export default function DocumentCreator() {
   const { docType } = useParams();
@@ -47,6 +64,17 @@ export default function DocumentCreator() {
     text: "#000000"
   });
   const [logoImage, setLogoImage] = useState("");
+  const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
+  const [currentSignatureField, setCurrentSignatureField] = useState("");
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
+  const [isCancelled, setIsCancelled] = useState(false);
+  const [cancelInfo, setCancelInfo] = useState(null);
+  const [biometricDialogOpen, setBiometricDialogOpen] = useState(false);
+  const [signatureType, setSignatureType] = useState("draw"); // "draw", "face", "fingerprint"
+  const [documentMetadata, setDocumentMetadata] = useState({
+    created: new Date().toISOString(),
+    location: { latitude: 0, longitude: 0, formatted: "Localização não disponível" }
+  });
   const formRef = useRef(null);
 
   useEffect(() => {
@@ -75,6 +103,21 @@ export default function DocumentCreator() {
               setLogoImage(foundType.logo);
             }
           }
+        }
+
+        // Get geolocation data
+        try {
+          const locationData = await getLocationData();
+          setDocumentMetadata(prevState => ({
+            ...prevState,
+            location: {
+              latitude: locationData.latitude,
+              longitude: locationData.longitude,
+              formatted: locationData.formatted
+            }
+          }));
+        } catch (error) {
+          console.error("Error getting location:", error);
         }
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
@@ -109,13 +152,33 @@ export default function DocumentCreator() {
     }
     
     try {
+      // Update timestamp and geolocation before saving
+      const timestamp = new Date().toISOString();
+      let locationData = documentMetadata.location;
+      
+      try {
+        // Try to get fresh location data
+        const newLocationData = await getLocationData();
+        locationData = {
+          latitude: newLocationData.latitude,
+          longitude: newLocationData.longitude,
+          formatted: newLocationData.formatted
+        };
+      } catch (error) {
+        console.error("Error updating location before save:", error);
+      }
+      
       const documentData = {
         title: documentTitle,
         docType: docType,
         values: formValues,
         colors: customColors,
         logo: logoImage,
-        date: new Date().toISOString()
+        createdAt: timestamp,
+        location: locationData,
+        cancelled: isCancelled,
+        cancelInfo: cancelInfo,
+        date: timestamp
       };
       
       // Save to localStorage using the utility function
@@ -145,14 +208,19 @@ export default function DocumentCreator() {
   };
 
   const handlePrint = useReactToPrint({
-    content: () => formRef.current,
     documentTitle: documentTitle,
+    onBeforeGetContent: () => {
+      return new Promise<void>((resolve) => {
+        resolve();
+      });
+    },
     onAfterPrint: () => {
       toast({
         title: "Documento impresso",
         description: "O documento foi enviado para impressão"
       });
-    }
+    },
+    content: () => formRef.current,
   });
 
   const handleExportPDF = async () => {
@@ -167,6 +235,50 @@ export default function DocumentCreator() {
       toast({
         title: "Erro ao gerar PDF",
         description: "Não foi possível gerar o arquivo PDF",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleExportExcel = async () => {
+    // Prepare form data for Excel export
+    const exportData = {
+      Título: documentTitle,
+      'Data de Criação': new Date(documentMetadata.created).toLocaleString(),
+      'Localização': documentMetadata.location.formatted,
+      ...formValues
+    };
+    
+    const success = exportToExcel(exportData, documentTitle);
+    
+    if (success) {
+      toast({
+        title: "Excel gerado",
+        description: "O documento foi exportado para Excel com sucesso"
+      });
+    } else {
+      toast({
+        title: "Erro ao gerar Excel",
+        description: "Não foi possível gerar o arquivo Excel",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const handleExportWord = async () => {
+    if (!formRef.current) return;
+    
+    const success = await exportToWord(formRef.current, documentTitle);
+    
+    if (success) {
+      toast({
+        title: "Word gerado",
+        description: "O documento foi exportado para Word com sucesso"
+      });
+    } else {
+      toast({
+        title: "Erro ao gerar Word",
+        description: "Não foi possível gerar o arquivo Word",
         variant: "destructive"
       });
     }
@@ -200,6 +312,44 @@ export default function DocumentCreator() {
     } else if (currentColorTarget.type === "text") {
       setCustomColors(prev => ({ ...prev, text: hex }));
     }
+  };
+
+  const openSignatureDialog = (fieldId, type = "draw") => {
+    setCurrentSignatureField(fieldId);
+    setSignatureType(type);
+    if (type === "draw") {
+      setSignatureDialogOpen(true);
+    } else if (type === "face" || type === "fingerprint") {
+      setBiometricDialogOpen(true);
+    }
+  };
+
+  const handleSignatureSave = (signatureData) => {
+    if (currentSignatureField) {
+      handleInputChange(currentSignatureField, signatureData);
+      setSignatureDialogOpen(false);
+    }
+  };
+
+  const handleBiometricCapture = (type, data) => {
+    if (currentSignatureField) {
+      handleInputChange(currentSignatureField, data);
+      setBiometricDialogOpen(false);
+    }
+  };
+
+  const handleCancelDocument = (reason, approvers) => {
+    setIsCancelled(true);
+    setCancelInfo({
+      reason,
+      approvers,
+      timestamp: new Date().toISOString()
+    });
+    
+    toast({
+      title: "Documento cancelado",
+      description: "O documento foi marcado como cancelado"
+    });
   };
 
   // Helper function to render different field types
@@ -319,20 +469,32 @@ export default function DocumentCreator() {
               placeholder={field.signature_label || "Nome/Cargo"}
               className="text-center"
             />
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => {
-                // Placeholder for signature capture
-                const signatureData = prompt("Digite seu nome para simular uma assinatura");
-                if (signatureData) {
-                  handleInputChange(field.id, "data:image/svg+xml;base64," + btoa(`<svg xmlns="http://www.w3.org/2000/svg" width="200" height="50"><text x="10" y="30" font-family="cursive" font-size="24" fill="black">${signatureData}</text></svg>`));
-                }
-              }}
-            >
-              Assinar
-            </Button>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => openSignatureDialog(field.id, "draw")}
+              >
+                Assinar na Tela
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => openSignatureDialog(field.id, "face")}
+              >
+                Facial
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => openSignatureDialog(field.id, "fingerprint")}
+              >
+                Digital
+              </Button>
+            </div>
           </div>
         );
       case "image":
@@ -418,6 +580,30 @@ export default function DocumentCreator() {
               <Download className="h-4 w-4 mr-2" />
               PDF
             </Button>
+            <Button
+              onClick={handleExportExcel}
+              variant="outline"
+            >
+              <FileSpreadsheet className="h-4 w-4 mr-2" />
+              Excel
+            </Button>
+            <Button
+              onClick={handleExportWord}
+              variant="outline"
+            >
+              <FileText className="h-4 w-4 mr-2" />
+              Word
+            </Button>
+            {!isCancelled && (
+              <Button
+                onClick={() => setCancelDialogOpen(true)}
+                variant="outline"
+                className="text-red-600 border-red-600 hover:bg-red-50"
+              >
+                <Cancel className="h-4 w-4 mr-2" />
+                Cancelar Documento
+              </Button>
+            )}
           </div>
         </div>
 
@@ -511,6 +697,22 @@ export default function DocumentCreator() {
                 </Button>
               </div>
             </div>
+            
+            {/* Document Metadata Display */}
+            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
+              <div>
+                <Label className="mb-1 block text-xs text-gray-500">Data e Hora de Criação</Label>
+                <div className="text-sm">
+                  {new Date(documentMetadata.created).toLocaleString()}
+                </div>
+              </div>
+              <div>
+                <Label className="mb-1 block text-xs text-gray-500">Localização Geográfica</Label>
+                <div className="text-sm">
+                  {documentMetadata.location.formatted}
+                </div>
+              </div>
+            </div>
           </CardContent>
         </Card>
 
@@ -524,10 +726,20 @@ export default function DocumentCreator() {
             ref={formRef}
             style={{ 
               backgroundColor: customColors.background,
-              color: customColors.text
+              color: customColors.text,
+              position: "relative"
             }}
             className="border rounded-md shadow-sm animate-fade-in mb-10"
           >
+            {/* Cancelled Watermark */}
+            {isCancelled && (
+              <div className="absolute inset-0 flex items-center justify-center overflow-hidden pointer-events-none z-10">
+                <div className="absolute transform rotate-45 text-red-600 opacity-30 text-[150px] font-extrabold leading-none whitespace-nowrap">
+                  CANCELADO
+                </div>
+              </div>
+            )}
+            
             {/* Form Header */}
             <div 
               className="flex justify-between items-center p-4"
@@ -588,6 +800,36 @@ export default function DocumentCreator() {
                   </div>
                 ))
               )}
+              
+              {/* Cancellation Information Display */}
+              {isCancelled && cancelInfo && (
+                <div className="mt-6 border-t-2 border-red-300 pt-4">
+                  <div className="bg-red-50 p-4 rounded-md">
+                    <h3 className="text-lg font-bold text-red-700 mb-2">Documento Cancelado</h3>
+                    <p className="mb-2"><strong>Motivo:</strong> {cancelInfo.reason}</p>
+                    <p className="mb-4"><strong>Data:</strong> {new Date(cancelInfo.timestamp).toLocaleString()}</p>
+                    
+                    <h4 className="font-semibold mb-2">Aprovado por:</h4>
+                    <div className="space-y-4">
+                      {cancelInfo.approvers.map((approver, idx) => (
+                        <div key={idx} className="border-b pb-2">
+                          <p><strong>Nome:</strong> {approver.name}</p>
+                          <p><strong>Cargo:</strong> {approver.position}</p>
+                          {approver.signature && (
+                            <div className="mt-1">
+                              <img 
+                                src={approver.signature} 
+                                alt={`Assinatura de ${approver.name}`}
+                                className="max-h-[60px]" 
+                              />
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -639,6 +881,44 @@ export default function DocumentCreator() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Signature Dialog */}
+      <Dialog open={signatureDialogOpen} onOpenChange={setSignatureDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Assinatura Digital</DialogTitle>
+          </DialogHeader>
+          <DrawSignature
+            onSave={handleSignatureSave}
+            onCancel={() => setSignatureDialogOpen(false)}
+            width={400}
+            height={200}
+            initialSignature={formValues[currentSignatureField] || undefined}
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Biometric Signature Dialog */}
+      <Dialog open={biometricDialogOpen} onOpenChange={setBiometricDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {signatureType === "face" ? "Reconhecimento Facial" : "Impressão Digital"}
+            </DialogTitle>
+          </DialogHeader>
+          <BiometricSignature
+            onCapture={handleBiometricCapture}
+            onCancel={() => setBiometricDialogOpen(false)}
+          />
+        </DialogContent>
+      </Dialog>
+      
+      {/* Cancel Document Dialog */}
+      <CancelDocumentDialog
+        open={cancelDialogOpen}
+        onClose={() => setCancelDialogOpen(false)}
+        onCancel={handleCancelDocument}
+      />
     </div>
   );
 }
