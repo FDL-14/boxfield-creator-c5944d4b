@@ -41,11 +41,15 @@ export const generatePDF = async (element: HTMLElement | null, filename: string 
       }
       
       if (sectionEl.dataset.padding) {
-        sectionEl.style.padding = `${sectionEl.dataset.padding * 4}px`;
+        // Convert string to number before multiplication
+        const paddingValue = parseInt(sectionEl.dataset.padding, 10);
+        sectionEl.style.padding = `${paddingValue * 4}px`;
       }
       
       if (sectionEl.dataset.margin) {
-        sectionEl.style.margin = `${sectionEl.dataset.margin * 4}px auto`;
+        // Convert string to number before multiplication
+        const marginValue = parseInt(sectionEl.dataset.margin, 10);
+        sectionEl.style.margin = `${marginValue * 4}px auto`;
       }
       
       // Ensure proper spacing
@@ -59,7 +63,7 @@ export const generatePDF = async (element: HTMLElement | null, filename: string 
       const containerEl = container as HTMLElement;
       
       if (containerEl.dataset.columns) {
-        const columns = parseInt(containerEl.dataset.columns);
+        const columns = parseInt(containerEl.dataset.columns, 10);
         if (columns === 1) {
           containerEl.style.display = 'block';
         } else if (columns === 2 || columns === 3) {
