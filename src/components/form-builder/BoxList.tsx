@@ -47,7 +47,7 @@ export default function BoxList({
           onDeleteBox={() => onDeleteBox(box.id)}
           onDeleteField={onDeleteField}
           onEditField={onEditField}
-          onEditBox={onEditBox}
+          onEditBox={onEditBox ? (boxId, newData) => onEditBox(boxId, newData) : undefined}
           onMoveUp={index > 0 && onMoveBox ? () => onMoveBox(box.id, 'up') : undefined}
           onMoveDown={index < boxes.length - 1 && onMoveBox ? () => onMoveBox(box.id, 'down') : undefined}
           onMoveField={onMoveField}

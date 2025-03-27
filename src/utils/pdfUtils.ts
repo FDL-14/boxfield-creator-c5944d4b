@@ -40,9 +40,34 @@ export const generatePDF = async (element: HTMLElement | null, filename: string 
         sectionEl.style.marginRight = 'auto';
       }
       
+      if (sectionEl.dataset.padding) {
+        sectionEl.style.padding = `${sectionEl.dataset.padding * 4}px`;
+      }
+      
+      if (sectionEl.dataset.margin) {
+        sectionEl.style.margin = `${sectionEl.dataset.margin * 4}px auto`;
+      }
+      
       // Ensure proper spacing
       sectionEl.style.pageBreakInside = 'avoid';
       sectionEl.style.marginBottom = '15px';
+    });
+    
+    // Apply column layouts to the field containers
+    const fieldContainers = clone.querySelectorAll('.field-container');
+    fieldContainers.forEach((container: Element) => {
+      const containerEl = container as HTMLElement;
+      
+      if (containerEl.dataset.columns) {
+        const columns = parseInt(containerEl.dataset.columns);
+        if (columns === 1) {
+          containerEl.style.display = 'block';
+        } else if (columns === 2 || columns === 3) {
+          containerEl.style.display = 'grid';
+          containerEl.style.gridTemplateColumns = `repeat(${columns}, 1fr)`;
+          containerEl.style.gap = '10px';
+        }
+      }
     });
     
     // Improve rendering of form fields

@@ -80,8 +80,29 @@ export default function FormBoxComponent({
     }
   };
 
+  // Determine class names based on layout settings
+  const getColumnClass = () => {
+    if (box.layout?.columns === 1) return 'grid-cols-1';
+    if (box.layout?.columns === 3) return 'grid-cols-1 md:grid-cols-3';
+    return 'grid-cols-1 md:grid-cols-2'; // Default is 2 columns
+  };
+
+  const getAlignmentStyle = () => {
+    return { textAlign: box.layout?.alignment || 'left' };
+  };
+
   return (
-    <Card className={`${box.layout?.width !== 100 ? `w-${box.layout?.width}` : 'w-full'} mx-auto`}>
+    <Card 
+      className={`section-container mx-auto`}
+      style={{ 
+        width: `${box.layout?.width || 100}%`,
+        margin: `${box.layout?.margin || 0}px auto`
+      }}
+      data-alignment={box.layout?.alignment || "left"}
+      data-width={box.layout?.width || 100}
+      data-padding={box.layout?.padding || 2}
+      data-margin={box.layout?.margin || 2}
+    >
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-lg">{box.name}</CardTitle>
         <div className="flex space-x-2">
@@ -249,14 +270,12 @@ export default function FormBoxComponent({
       </CardHeader>
       <CardContent 
         className={`p-${box.layout?.padding || 4}`}
-        style={{
-          textAlign: box.layout?.alignment || "left"
-        }}
+        style={getAlignmentStyle()}
       >
-        <div className={`grid grid-cols-1 ${
-          box.layout?.columns === 2 ? 'md:grid-cols-2' : 
-          box.layout?.columns === 3 ? 'md:grid-cols-3' : ''
-        } gap-4`}>
+        <div 
+          className={`field-container grid ${getColumnClass()} gap-4`}
+          data-columns={box.layout?.columns || 2}
+        >
           {fields.map((field, index) => (
             <FieldComponent
               key={field.id}
