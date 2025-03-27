@@ -23,6 +23,37 @@ export const generatePDF = async (element: HTMLElement | null, filename: string 
     clone.style.padding = '10mm';
     clone.style.boxSizing = 'border-box';
     
+    // Apply styling optimizations for PDF layout
+    const sections = clone.querySelectorAll('.section-container');
+    sections.forEach((section: Element) => {
+      const sectionEl = section as HTMLElement;
+      
+      // Apply section-specific layout if available
+      if (sectionEl.dataset.alignment) {
+        sectionEl.style.textAlign = sectionEl.dataset.alignment;
+      }
+      
+      if (sectionEl.dataset.width) {
+        const width = sectionEl.dataset.width;
+        sectionEl.style.width = `${width}%`;
+        sectionEl.style.marginLeft = 'auto';
+        sectionEl.style.marginRight = 'auto';
+      }
+      
+      // Ensure proper spacing
+      sectionEl.style.pageBreakInside = 'avoid';
+      sectionEl.style.marginBottom = '15px';
+    });
+    
+    // Improve rendering of form fields
+    const formFields = clone.querySelectorAll('input, textarea, select');
+    formFields.forEach((field: Element) => {
+      const fieldEl = field as HTMLElement;
+      fieldEl.style.border = '1px solid #ddd';
+      fieldEl.style.padding = '4px';
+      fieldEl.style.minHeight = '24px';
+    });
+    
     // Create canvas
     const canvas = await html2canvas(clone, {
       scale: 2,

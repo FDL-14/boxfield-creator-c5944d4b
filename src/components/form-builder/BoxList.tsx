@@ -3,7 +3,7 @@ import React from "react";
 import FormBoxComponent from "./FormBoxComponent";
 import EmptyState from "./EmptyState";
 import { Button } from "@/components/ui/button";
-import { PlusCircle } from "lucide-react";
+import { PlusCircle, LayoutGrid } from "lucide-react";
 
 interface BoxListProps {
   boxes: any[];
@@ -16,6 +16,7 @@ interface BoxListProps {
   onAddBox: () => void;
   onMoveBox?: (boxId: string, direction: 'up' | 'down') => void;
   onMoveField?: (fieldId: string, direction: 'up' | 'down') => void;
+  onUpdateLayout?: (boxId: string, layout: any) => void;
   isLoading: boolean;
   showAddButton?: boolean;
 }
@@ -31,6 +32,7 @@ export default function BoxList({
   onAddBox,
   onMoveBox,
   onMoveField,
+  onUpdateLayout,
   isLoading,
   showAddButton = true
 }: BoxListProps) {
@@ -49,6 +51,7 @@ export default function BoxList({
           onMoveUp={index > 0 && onMoveBox ? () => onMoveBox(box.id, 'up') : undefined}
           onMoveDown={index < boxes.length - 1 && onMoveBox ? () => onMoveBox(box.id, 'down') : undefined}
           onMoveField={onMoveField}
+          onUpdateLayout={onUpdateLayout ? (layout) => onUpdateLayout(box.id, layout) : undefined}
           isLoading={isLoading}
         />
       ))}

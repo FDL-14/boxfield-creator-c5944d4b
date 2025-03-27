@@ -2,9 +2,23 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronDown, ChevronUp, PlusCircle, Trash2, Edit } from "lucide-react";
+import { ChevronDown, ChevronUp, PlusCircle, Trash2, Edit, LayoutGrid, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
 import FieldComponent from "./FieldComponent";
 import EditSectionDialog from "../form-builder/EditSectionDialog";
+import { 
+  Popover, 
+  PopoverContent, 
+  PopoverTrigger 
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Slider } from "@/components/ui/slider";
 
 interface FormBoxComponentProps {
   box: any;
@@ -17,6 +31,7 @@ interface FormBoxComponentProps {
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   onMoveField?: (fieldId: string, direction: 'up' | 'down') => void;
+  onUpdateLayout?: (layout: any) => void;
   isLoading: boolean;
   isLocked?: boolean;
 }
@@ -32,10 +47,22 @@ export default function FormBoxComponent({
   onMoveUp,
   onMoveDown,
   onMoveField,
+  onUpdateLayout,
   isLoading,
   isLocked = false
 }: FormBoxComponentProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showLayoutSettings, setShowLayoutSettings] = useState(false);
+
+  const defaultLayout = {
+    alignment: box.layout?.alignment || "left",
+    columns: box.layout?.columns || 2,
+    width: box.layout?.width || 100,
+    padding: box.layout?.padding || 2,
+    margin: box.layout?.margin || 2,
+  };
+
+  const [layoutSettings, setLayoutSettings] = useState(defaultLayout);
 
   const handleEditBox = (newData: any) => {
     if (onEditBox) {
@@ -44,8 +71,17 @@ export default function FormBoxComponent({
     }
   };
 
+  const handleLayoutChange = (property: string, value: any) => {
+    const newLayout = { ...layoutSettings, [property]: value };
+    setLayoutSettings(newLayout);
+    
+    if (onUpdateLayout) {
+      onUpdateLayout(newLayout);
+    }
+  };
+
   return (
-    <Card>
+    <Card className={`${box.layout?.width !== 100 ? `w-${box.layout?.width}` : 'w-full'} mx-auto`}>
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
         <CardTitle className="text-lg">{box.name}</CardTitle>
         <div className="flex space-x-2">
@@ -82,6 +118,117 @@ export default function FormBoxComponent({
                   <Edit className="h-4 w-4" />
                 </Button>
               )}
+              {onUpdateLayout && (
+                <Popover open={showLayoutSettings} onOpenChange={setShowLayoutSettings}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className="text-purple-500"
+                      disabled={isLoading}
+                    >
+                      <LayoutGrid className="h-4 w-4" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                    <div className="space-y-4">
+                      <h4 className="font-medium">Configurações de Layout</h4>
+                      
+                      <div className="space-y-2">
+                        <Label>Alinhamento</Label>
+                        <div className="flex space-x-2">
+                          <Button 
+                            variant={layoutSettings.alignment === "left" ? "default" : "outline"}
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => handleLayoutChange("alignment", "left")}
+                          >
+                            <AlignLeft className="h-4 w-4 mr-2" />
+                            Esquerda
+                          </Button>
+                          <Button 
+                            variant={layoutSettings.alignment === "center" ? "default" : "outline"}
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => handleLayoutChange("alignment", "center")}
+                          >
+                            <AlignCenter className="h-4 w-4 mr-2" />
+                            Centro
+                          </Button>
+                          <Button 
+                            variant={layoutSettings.alignment === "right" ? "default" : "outline"}
+                            size="sm" 
+                            className="flex-1"
+                            onClick={() => handleLayoutChange("alignment", "right")}
+                          >
+                            <AlignRight className="h-4 w-4 mr-2" />
+                            Direita
+                          </Button>
+                        </div>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label>Colunas de Campos</Label>
+                        <Select 
+                          value={layoutSettings.columns.toString()} 
+                          onValueChange={(value) => handleLayoutChange("columns", parseInt(value))}
+                        >
+                          <SelectTrigger>
+                            <SelectValue placeholder="Selecione o número de colunas" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="1">1 Coluna</SelectItem>
+                            <SelectItem value="2">2 Colunas</SelectItem>
+                            <SelectItem value="3">3 Colunas</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label>Largura (%)</Label>
+                          <span className="text-sm">{layoutSettings.width}%</span>
+                        </div>
+                        <Slider
+                          value={[layoutSettings.width]}
+                          min={50}
+                          max={100}
+                          step={5}
+                          onValueChange={(value) => handleLayoutChange("width", value[0])}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label>Espaçamento Interno</Label>
+                          <span className="text-sm">{layoutSettings.padding}</span>
+                        </div>
+                        <Slider
+                          value={[layoutSettings.padding]}
+                          min={0}
+                          max={8}
+                          step={1}
+                          onValueChange={(value) => handleLayoutChange("padding", value[0])}
+                        />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <div className="flex justify-between">
+                          <Label>Margem Externa</Label>
+                          <span className="text-sm">{layoutSettings.margin}</span>
+                        </div>
+                        <Slider
+                          value={[layoutSettings.margin]}
+                          min={0}
+                          max={8}
+                          step={1}
+                          onValueChange={(value) => handleLayoutChange("margin", value[0])}
+                        />
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
               <Button
                 variant="outline"
                 size="icon"
@@ -100,8 +247,16 @@ export default function FormBoxComponent({
           )}
         </div>
       </CardHeader>
-      <CardContent>
-        <div className="space-y-4">
+      <CardContent 
+        className={`p-${box.layout?.padding || 4}`}
+        style={{
+          textAlign: box.layout?.alignment || "left"
+        }}
+      >
+        <div className={`grid grid-cols-1 ${
+          box.layout?.columns === 2 ? 'md:grid-cols-2' : 
+          box.layout?.columns === 3 ? 'md:grid-cols-3' : ''
+        } gap-4`}>
           {fields.map((field, index) => (
             <FieldComponent
               key={field.id}
