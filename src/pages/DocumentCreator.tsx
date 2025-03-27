@@ -26,7 +26,6 @@ import {
   Save, 
   Printer, 
   Download, 
-  Upload, 
   PaintBucket, 
   FileSpreadsheet, 
   FileText,
@@ -39,7 +38,8 @@ import {
   Lock,
   Edit,
   MoreVertical,
-  Plus
+  Plus,
+  PlusCircle
 } from "lucide-react";
 import { FormBox, FormField, DocumentType, UserDocument } from "@/entities/all";
 import { 
@@ -54,11 +54,14 @@ import { SketchPicker } from "react-color";
 import DrawSignature from "@/components/DrawSignature";
 import CancelDocumentDialog from "@/components/CancelDocumentDialog";
 import BiometricSignature from "@/components/BiometricSignature";
-import { exportToExcel, exportToWord } from "@/utils/exportUtils";
+import { exportToExcel } from "@/utils/exportUtils";
 import { getLocationData } from "@/utils/geoUtils";
 import EmailDocumentDialog from "@/components/EmailDocumentDialog";
 import SavedDocumentsDialog from "@/components/SavedDocumentsDialog";
 import EditSectionDialog from "@/components/form-builder/EditSectionDialog";
+import AddBoxDialog from "@/components/form-builder/AddBoxDialog";
+import AddFieldDialog from "@/components/form-builder/AddFieldDialog";
+import BoxList from "@/components/form-builder/BoxList";
 
 export default function DocumentCreator() {
   const { docType } = useParams();
@@ -102,6 +105,11 @@ export default function DocumentCreator() {
   const [isEditingField, setIsEditingField] = useState(false);
   const [currentField, setCurrentField] = useState(null);
   const [editMode, setEditMode] = useState(false);
+  
+  // New state for add section/field dialogs
+  const [showAddSectionDialog, setShowAddSectionDialog] = useState(false);
+  const [showAddFieldDialog, setShowAddFieldDialog] = useState(false);
+  const [selectedBoxId, setSelectedBoxId] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -215,7 +223,10 @@ export default function DocumentCreator() {
         cancelled: isCancelled,
         cancelInfo: cancelInfo,
         lockedSections: lockedSections,
-        date: timestamp
+        date: timestamp,
+        // Save the current boxes and fields with the document
+        boxes: boxes,
+        fields: fields
       };
       
       // If this is the first save, set the document ID
@@ -306,14 +317,25 @@ export default function DocumentCreator() {
   const handleExportWord = async () => {
     if (!formRef.current) return;
     
-    const success = await exportToWord(formRef.current, documentTitle);
-    
-    if (success) {
-      toast({
-        title: "Word gerado",
-        description: "O documento foi exportado para Word com sucesso"
-      });
-    } else {
+    try {
+      // Import the exportToWord function dynamically to prevent build errors
+      const { exportToWord } = await import('@/utils/exportUtils');
+      const success = await exportToWord(formRef.current, documentTitle);
+      
+      if (success) {
+        toast({
+          title: "Word gerado",
+          description: "O documento foi exportado para Word com sucesso"
+        });
+      } else {
+        toast({
+          title: "Erro ao gerar Word",
+          description: "Não foi possível gerar o arquivo Word",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error exporting to Word:", error);
       toast({
         title: "Erro ao gerar Word",
         description: "Não foi possível gerar o arquivo Word",
@@ -414,6 +436,15 @@ export default function DocumentCreator() {
       setCancelInfo(data.cancelInfo);
     }
 
+    // If the document has custom boxes and fields, use them
+    if (data.boxes && data.boxes.length > 0) {
+      setBoxes(data.boxes);
+    }
+    
+    if (data.fields && data.fields.length > 0) {
+      setFields(data.fields);
+    }
+
     if (data.lockedSections) {
       setLockedSections(data.lockedSections);
     } else if (data.values) {
@@ -500,6 +531,239 @@ export default function DocumentCreator() {
 
   const toggleEditMode = () => {
     setEditMode(!editMode);
+  };
+
+  // New methods for adding sections and fields
+  const handleAddSection = async (sectionData) => {
+    try {
+      setLoading(true);
+      
+      // Generate a new ID for the section
+      const newSectionId = `section_${Date.now()}`;
+      
+      // Create the new section
+      const newSection = {
+        id: newSectionId,
+        name: sectionData.title,
+        order: boxes.length, // Add at the end
+      };
+      
+      // Add the new section to the list
+      setBoxes([...boxes, newSection]);
+      
+      setShowAddSectionDialog(false);
+      
+      toast({
+        title: "Seção adicionada",
+        description: "A nova seção foi adicionada com sucesso"
+      });
+    } catch (error) {
+      console.error("Erro ao adicionar seção:", error);
+      toast({
+        title: "Erro ao adicionar seção",
+        description: "Não foi possível adicionar a seção",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddField = async (fieldData) => {
+    try {
+      if (!selectedBoxId) return;
+      
+      setLoading(true);
+      
+      // Generate a new ID for the field
+      const newFieldId = `field_${Date.now()}`;
+      
+      // Get the box fields to determine the order
+      const boxFields = fields.filter(f => f.box_id === selectedBoxId);
+      
+      // Create the new field
+      const newField = {
+        id: newFieldId,
+        label: fieldData.label,
+        type: fieldData.type,
+        box_id: selectedBoxId,
+        order: boxFields.length, // Add at the end
+        required: fieldData.required || false,
+        options: fieldData.options || [],
+        signature_label: fieldData.signature_label || ""
+      };
+      
+      // Add the new field to the list
+      setFields([...fields, newField]);
+      
+      setShowAddFieldDialog(false);
+      
+      toast({
+        title: "Campo adicionado",
+        description: "O novo campo foi adicionado com sucesso"
+      });
+    } catch (error) {
+      console.error("Erro ao adicionar campo:", error);
+      toast({
+        title: "Erro ao adicionar campo",
+        description: "Não foi possível adicionar o campo",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddFieldClick = (boxId) => {
+    setSelectedBoxId(boxId);
+    setShowAddFieldDialog(true);
+  };
+
+  const handleDeleteBox = (boxId) => {
+    if (checkSectionLocked(boxId)) {
+      toast({
+        title: "Seção bloqueada",
+        description: "Esta seção contém assinaturas e não pode ser removida",
+        variant: "warning"
+      });
+      return;
+    }
+    
+    // Remove the box
+    setBoxes(boxes.filter(box => box.id !== boxId));
+    
+    // Remove all fields for this box
+    setFields(fields.filter(field => field.box_id !== boxId));
+    
+    toast({
+      title: "Seção removida",
+      description: "A seção foi removida com sucesso"
+    });
+  };
+
+  const handleDeleteField = (fieldId) => {
+    const field = fields.find(f => f.id === fieldId);
+    
+    if (field && checkSectionLocked(field.box_id)) {
+      toast({
+        title: "Campo bloqueado",
+        description: "Este campo está em uma seção assinada e não pode ser removido",
+        variant: "warning"
+      });
+      return;
+    }
+    
+    // Remove the field
+    setFields(fields.filter(field => field.id !== fieldId));
+    
+    toast({
+      title: "Campo removido",
+      description: "O campo foi removido com sucesso"
+    });
+  };
+
+  const handleMoveBox = (boxId, direction) => {
+    const boxIndex = boxes.findIndex(box => box.id === boxId);
+    if (boxIndex === -1) return;
+    
+    const box = boxes[boxIndex];
+    if (checkSectionLocked(box.id)) {
+      toast({
+        title: "Seção bloqueada",
+        description: "Esta seção contém assinaturas e não pode ser movida",
+        variant: "warning"
+      });
+      return;
+    }
+    
+    const newBoxes = [...boxes];
+    
+    if (direction === 'up' && boxIndex > 0) {
+      // Check if the section above is locked
+      if (checkSectionLocked(newBoxes[boxIndex - 1].id)) {
+        toast({
+          title: "Movimento bloqueado",
+          description: "A seção acima contém assinaturas e não pode ser movida",
+          variant: "warning"
+        });
+        return;
+      }
+      
+      // Swap with the box above
+      [newBoxes[boxIndex], newBoxes[boxIndex - 1]] = [newBoxes[boxIndex - 1], newBoxes[boxIndex]];
+    } else if (direction === 'down' && boxIndex < newBoxes.length - 1) {
+      // Check if the section below is locked
+      if (checkSectionLocked(newBoxes[boxIndex + 1].id)) {
+        toast({
+          title: "Movimento bloqueado",
+          description: "A seção abaixo contém assinaturas e não pode ser movida",
+          variant: "warning"
+        });
+        return;
+      }
+      
+      // Swap with the box below
+      [newBoxes[boxIndex], newBoxes[boxIndex + 1]] = [newBoxes[boxIndex + 1], newBoxes[boxIndex]];
+    }
+    
+    // Update orders
+    newBoxes.forEach((box, index) => {
+      box.order = index;
+    });
+    
+    setBoxes(newBoxes);
+  };
+
+  const handleMoveField = (fieldId, direction) => {
+    const fieldIndex = fields.findIndex(field => field.id === fieldId);
+    if (fieldIndex === -1) return;
+    
+    const field = fields[fieldIndex];
+    
+    if (checkSectionLocked(field.box_id)) {
+      toast({
+        title: "Campo bloqueado",
+        description: "Este campo está em uma seção assinada e não pode ser movido",
+        variant: "warning"
+      });
+      return;
+    }
+    
+    // Get all fields in the same box
+    const boxFields = fields.filter(f => f.box_id === field.box_id);
+    const boxFieldIndex = boxFields.findIndex(f => f.id === fieldId);
+    
+    if (direction === 'up' && boxFieldIndex > 0) {
+      // Swap with the field above
+      const fieldToSwapWith = boxFields[boxFieldIndex - 1];
+      
+      // Update fields array
+      const newFields = fields.map(f => {
+        if (f.id === field.id) {
+          return { ...f, order: fieldToSwapWith.order };
+        } else if (f.id === fieldToSwapWith.id) {
+          return { ...f, order: field.order };
+        }
+        return f;
+      });
+      
+      setFields(newFields);
+    } else if (direction === 'down' && boxFieldIndex < boxFields.length - 1) {
+      // Swap with the field below
+      const fieldToSwapWith = boxFields[boxFieldIndex + 1];
+      
+      // Update fields array
+      const newFields = fields.map(f => {
+        if (f.id === field.id) {
+          return { ...f, order: fieldToSwapWith.order };
+        } else if (f.id === fieldToSwapWith.id) {
+          return { ...f, order: field.order };
+        }
+        return f;
+      });
+      
+      setFields(newFields);
+    }
   };
 
   const renderField = (field) => {
@@ -1111,126 +1375,181 @@ export default function DocumentCreator() {
             <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
           </div>
         ) : (
-          <div 
-            ref={formRef}
-            className="bg-white border rounded-lg shadow-sm p-6"
-            style={{ backgroundColor: customColors.background, color: customColors.text }}
-          >
-            {isCancelled && (
-              <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                <div className="absolute inset-0 flex items-center justify-center transform rotate-45 opacity-30">
-                  <span className="text-[8rem] text-red-600 font-bold whitespace-nowrap">
-                    CANCELADO
-                  </span>
-                </div>
+          <>
+            {editMode && (
+              <div className="mb-6">
+                <Button
+                  onClick={() => setShowAddSectionDialog(true)}
+                  className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  <PlusCircle className="h-4 w-4 mr-2" />
+                  Adicionar Nova Seção
+                </Button>
               </div>
             )}
             
-            <div className="flex items-center justify-between mb-6 p-4 rounded-t-lg" style={{ backgroundColor: customColors.header, color: "#fff" }}>
-              <h2 className="text-xl font-bold">{documentTitle}</h2>
-              {logoImage && (
-                <div className="h-12 w-24 bg-white rounded flex items-center justify-center p-1">
-                  <img src={logoImage} alt="Logo" className="max-h-10 max-w-20 object-contain" />
+            <div 
+              ref={formRef}
+              className="bg-white border rounded-lg shadow-sm p-6 mb-6"
+              style={{ backgroundColor: customColors.background, color: customColors.text }}
+            >
+              {isCancelled && (
+                <div className="absolute inset-0 overflow-hidden pointer-events-none">
+                  <div className="absolute inset-0 flex items-center justify-center transform rotate-45 opacity-30">
+                    <span className="text-[8rem] text-red-600 font-bold whitespace-nowrap">
+                      CANCELADO
+                    </span>
+                  </div>
                 </div>
               )}
-            </div>
-            
-            {boxes.length === 0 ? (
-              <div className="text-center p-8 border-2 border-dashed rounded-lg">
-                <p className="text-gray-500">Nenhum campo configurado para este documento</p>
-              </div>
-            ) : (
-              boxes.map((box) => (
-                <div key={box.id} className="mb-6">
-                  <div 
-                    className={`text-lg font-semibold p-2 mb-3 rounded flex justify-between items-center`} 
-                    style={{ backgroundColor: customColors.sectionHeader, color: "#fff" }}
-                  >
-                    <span>{box.name}</span>
-                    <div className="flex items-center gap-2">
-                      {checkSectionLocked(box.id) && (
-                        <span className="text-xs bg-white text-orange-700 px-2 py-1 rounded-full flex items-center">
-                          <Lock className="h-3 w-3 mr-1" /> Seção Bloqueada
-                        </span>
-                      )}
-                      {editMode && !checkSectionLocked(box.id) && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => handleEditSection(box.id)}
-                          className="text-white hover:bg-white/20"
-                        >
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
+              
+              <div className="flex items-center justify-between mb-6 p-4 rounded-t-lg" style={{ backgroundColor: customColors.header, color: "#fff" }}>
+                <h2 className="text-xl font-bold">{documentTitle}</h2>
+                {logoImage && (
+                  <div className="h-12 w-24 bg-white rounded flex items-center justify-center p-1">
+                    <img src={logoImage} alt="Logo" className="max-h-10 max-w-20 object-contain" />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
-                    {fields
-                      .filter(field => field.box_id === box.id)
-                      .map(field => (
-                        <div key={field.id} className="mb-4">
-                          <Label htmlFor={field.id} className="mb-2 block font-medium">
-                            {field.label}
-                            {field.required && <span className="text-red-500 ml-1">*</span>}
-                          </Label>
-                          {renderField(field)}
-                        </div>
-                      ))}
-                  </div>
-                </div>
-              ))
-            )}
-            
-            <div className="mt-8 border-t pt-4">
-              <h3 className="text-lg font-semibold mb-2">Informações do Documento</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <span className="font-medium">Data e Hora: </span>
-                  {new Date(documentMetadata.created).toLocaleString()}
-                </div>
-                <div>
-                  <span className="font-medium">Localização: </span>
-                  {documentMetadata.location.formatted}
-                </div>
+                )}
               </div>
               
-              {isCancelled && cancelInfo && (
-                <div className="mt-4 border-t pt-4 border-red-300">
-                  <h3 className="text-lg font-semibold text-red-600 mb-2">Documento Cancelado</h3>
-                  <div className="text-sm">
-                    <div className="mb-2">
-                      <span className="font-medium">Data de Cancelamento: </span>
-                      {new Date(cancelInfo.timestamp).toLocaleString()}
+              {boxes.length === 0 ? (
+                <div className="text-center p-8 border-2 border-dashed rounded-lg">
+                  <p className="text-gray-500">Nenhum campo configurado para este documento</p>
+                  {editMode && (
+                    <Button
+                      onClick={() => setShowAddSectionDialog(true)}
+                      className="mt-4 bg-orange-600 hover:bg-orange-700 text-white"
+                    >
+                      <PlusCircle className="h-4 w-4 mr-2" />
+                      Adicionar Seção
+                    </Button>
+                  )}
+                </div>
+              ) : (
+                editMode ? (
+                  // Render with BoxList component in edit mode
+                  <BoxList
+                    boxes={boxes}
+                    fields={fields}
+                    onAddField={handleAddFieldClick}
+                    onDeleteBox={handleDeleteBox}
+                    onDeleteField={handleDeleteField}
+                    onEditField={handleSaveField}
+                    onEditBox={handleSaveSection}
+                    onAddBox={() => setShowAddSectionDialog(true)}
+                    onMoveBox={handleMoveBox}
+                    onMoveField={handleMoveField}
+                    isLoading={loading}
+                    showAddButton={false}
+                  />
+                ) : (
+                  // Render sections and fields for viewing/filling
+                  boxes.map((box) => (
+                    <div key={box.id} className="mb-6">
+                      <div 
+                        className={`text-lg font-semibold p-2 mb-3 rounded flex justify-between items-center`} 
+                        style={{ backgroundColor: customColors.sectionHeader, color: "#fff" }}
+                      >
+                        <span>{box.name}</span>
+                        <div className="flex items-center gap-2">
+                          {checkSectionLocked(box.id) && (
+                            <span className="text-xs bg-white text-orange-700 px-2 py-1 rounded-full flex items-center">
+                              <Lock className="h-3 w-3 mr-1" /> Seção Bloqueada
+                            </span>
+                          )}
+                          {editMode && !checkSectionLocked(box.id) && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleEditSection(box.id)}
+                              className="text-white hover:bg-white/20"
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
+                        {fields
+                          .filter(field => field.box_id === box.id)
+                          .map(field => (
+                            <div key={field.id} className="mb-4">
+                              <Label htmlFor={field.id} className="mb-2 block font-medium">
+                                {field.label}
+                                {field.required && <span className="text-red-500 ml-1">*</span>}
+                              </Label>
+                              {renderField(field)}
+                            </div>
+                          ))}
+                          
+                        {editMode && !checkSectionLocked(box.id) && (
+                          <div className="mb-4 col-span-2">
+                            <Button
+                              onClick={() => handleAddFieldClick(box.id)}
+                              variant="outline"
+                              className="w-full"
+                            >
+                              <PlusCircle className="h-4 w-4 mr-2" />
+                              Adicionar Campo
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="mb-2">
-                      <span className="font-medium">Motivo: </span>
-                      {cancelInfo.reason}
-                    </div>
-                    <div>
-                      <span className="font-medium">Aprovadores: </span>
-                      <ul className="list-disc ml-5">
-                        {cancelInfo.approvers && cancelInfo.approvers.map((approver, idx) => (
-                          <li key={idx}>
-                            {approver.name} ({approver.role})
-                            {approver.signature && (
-                              <div className="mt-1 mb-2">
-                                <img 
-                                  src={approver.signature} 
-                                  alt={`Assinatura de ${approver.name}`} 
-                                  className="h-10 ml-2" 
-                                />
-                              </div>
-                            )}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                  ))
+                )
+              )}
+              
+              <div className="mt-8 border-t pt-4">
+                <h3 className="text-lg font-semibold mb-2">Informações do Documento</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="font-medium">Data e Hora: </span>
+                    {new Date(documentMetadata.created).toLocaleString()}
+                  </div>
+                  <div>
+                    <span className="font-medium">Localização: </span>
+                    {documentMetadata.location.formatted}
                   </div>
                 </div>
-              )}
+                
+                {isCancelled && cancelInfo && (
+                  <div className="mt-4 border-t pt-4 border-red-300">
+                    <h3 className="text-lg font-semibold text-red-600 mb-2">Documento Cancelado</h3>
+                    <div className="text-sm">
+                      <div className="mb-2">
+                        <span className="font-medium">Data de Cancelamento: </span>
+                        {new Date(cancelInfo.timestamp).toLocaleString()}
+                      </div>
+                      <div className="mb-2">
+                        <span className="font-medium">Motivo: </span>
+                        {cancelInfo.reason}
+                      </div>
+                      <div>
+                        <span className="font-medium">Aprovadores: </span>
+                        <ul className="list-disc ml-5">
+                          {cancelInfo.approvers && cancelInfo.approvers.map((approver, idx) => (
+                            <li key={idx}>
+                              {approver.name} ({approver.role})
+                              {approver.signature && (
+                                <div className="mt-1 mb-2">
+                                  <img 
+                                    src={approver.signature} 
+                                    alt={`Assinatura de ${approver.name}`} 
+                                    className="h-10 ml-2" 
+                                  />
+                                </div>
+                              )}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
       
@@ -1368,6 +1687,21 @@ export default function DocumentCreator() {
         onSave={handleSaveSection}
         section={boxes.find(box => box.id === currentSectionId) || {}}
         isLoading={false}
+      />
+      
+      {/* Add the new dialogs for adding sections and fields */}
+      <AddBoxDialog
+        open={showAddSectionDialog}
+        onClose={() => setShowAddSectionDialog(false)}
+        onAdd={handleAddSection}
+        isLoading={loading}
+      />
+      
+      <AddFieldDialog
+        open={showAddFieldDialog}
+        onClose={() => setShowAddFieldDialog(false)}
+        onAdd={handleAddField}
+        isLoading={loading}
       />
     </div>
   );

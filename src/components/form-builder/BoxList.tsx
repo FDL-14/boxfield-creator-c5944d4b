@@ -2,6 +2,8 @@
 import React from "react";
 import FormBoxComponent from "./FormBoxComponent";
 import EmptyState from "./EmptyState";
+import { Button } from "@/components/ui/button";
+import { PlusCircle } from "lucide-react";
 
 interface BoxListProps {
   boxes: any[];
@@ -15,6 +17,7 @@ interface BoxListProps {
   onMoveBox?: (boxId: string, direction: 'up' | 'down') => void;
   onMoveField?: (fieldId: string, direction: 'up' | 'down') => void;
   isLoading: boolean;
+  showAddButton?: boolean;
 }
 
 export default function BoxList({
@@ -28,7 +31,8 @@ export default function BoxList({
   onAddBox,
   onMoveBox,
   onMoveField,
-  isLoading
+  isLoading,
+  showAddButton = true
 }: BoxListProps) {
   return (
     <div className="space-y-6">
@@ -51,6 +55,17 @@ export default function BoxList({
 
       {boxes.length === 0 && (
         <EmptyState onAddBox={onAddBox} isLoading={isLoading} />
+      )}
+
+      {showAddButton && boxes.length > 0 && (
+        <Button 
+          onClick={onAddBox} 
+          className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+          disabled={isLoading}
+        >
+          <PlusCircle className="h-4 w-4 mr-2" />
+          Adicionar Nova Seção
+        </Button>
       )}
     </div>
   );

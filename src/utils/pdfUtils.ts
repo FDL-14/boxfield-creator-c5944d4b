@@ -8,15 +8,34 @@ import html2canvas from "html2canvas";
  * @param filename The name of the PDF file
  */
 export const generatePDF = async (element: HTMLElement | null, filename: string = "documento") => {
-  if (!element) return;
+  if (!element) return false;
   
   try {
+    // Create a clone of the element to manipulate without affecting the UI
+    const clone = element.cloneNode(true) as HTMLElement;
+    const container = document.createElement('div');
+    container.appendChild(clone);
+    document.body.appendChild(container);
+    
+    // Style the clone for better PDF output
+    clone.style.width = '210mm';
+    clone.style.margin = '0';
+    clone.style.padding = '10mm';
+    clone.style.boxSizing = 'border-box';
+    
     // Create canvas
-    const canvas = await html2canvas(element, {
+    const canvas = await html2canvas(clone, {
       scale: 2,
       useCORS: true,
-      logging: false
+      logging: false,
+      width: clone.offsetWidth,
+      height: clone.offsetHeight,
+      windowWidth: clone.offsetWidth,
+      windowHeight: clone.offsetHeight
     });
+    
+    // Remove the clone from DOM after capturing
+    document.body.removeChild(container);
     
     const imgData = canvas.toDataURL('image/png');
     
@@ -28,8 +47,10 @@ export const generatePDF = async (element: HTMLElement | null, filename: string 
     });
     
     const imgWidth = 210; // A4 width in mm
-    const pageHeight = 295; // A4 height in mm
+    const pageHeight = 287; // A4 height in mm (slightly less for margins)
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
+    
+    // Split into pages
     let heightLeft = imgHeight;
     let position = 0;
     
@@ -39,7 +60,7 @@ export const generatePDF = async (element: HTMLElement | null, filename: string 
     
     // Add subsequent pages if needed
     while (heightLeft > 0) {
-      position = heightLeft - imgHeight;
+      position = -pageHeight * (imgHeight - heightLeft) / imgHeight;
       pdf.addPage();
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
