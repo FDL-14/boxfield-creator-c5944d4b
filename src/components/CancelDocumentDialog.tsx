@@ -31,25 +31,25 @@ export default function CancelDocumentDialog({
     setApprovers([...approvers, { name: "", role: "", signature: "" }]);
   };
 
-  const handleRemoveApprover = (index) => {
+  const handleRemoveApprover = (index: number) => {
     if (approvers.length <= 1) return;
     const newApprovers = [...approvers];
     newApprovers.splice(index, 1);
     setApprovers(newApprovers);
   };
 
-  const handleApproverChange = (index, field, value) => {
+  const handleApproverChange = (index: number, field: string, value: string) => {
     const newApprovers = [...approvers];
     newApprovers[index] = { ...newApprovers[index], [field]: value };
     setApprovers(newApprovers);
   };
 
-  const openSignatureDialog = (index) => {
+  const openSignatureDialog = (index: number) => {
     setCurrentApproverIndex(index);
     setShowSignatureDialog(true);
   };
 
-  const handleSaveSignature = (signatureData) => {
+  const handleSaveSignature = (signatureData: string) => {
     try {
       const newApprovers = [...approvers];
       newApprovers[currentApproverIndex].signature = signatureData;

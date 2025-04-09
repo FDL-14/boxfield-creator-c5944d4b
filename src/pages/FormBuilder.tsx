@@ -240,8 +240,8 @@ export default function FormBuilder() {
       
       await loadData(); // Reload to get the updated order
       
-      // Updated fields will be loaded by loadData, so fix the reference to getFieldsData
-      const updatedFields = await formService.getFieldsData();
+      // Updated fields will be loaded by loadData
+      const updatedFields = fields;
       saveDocumentTypeConfig({ boxes, fields: updatedFields });
       saveCompletedFormType(boxes, updatedFields);
     } finally {
@@ -289,16 +289,27 @@ export default function FormBuilder() {
     if (!boxes.length) return;
     
     try {
-      // Save as a form type in form-builder category
+      // Prepare form data with current timestamp as ID to ensure uniqueness
       const formData = {
         id: Date.now(),
         boxes: boxes,
         fields: fields,
         title: "Modelo de Formulário Personalizado",
-        type: "form-builder"
+        type: "form-builder",
+        date: new Date().toISOString(),
+        formType: "form-builder"
       };
       
-      saveFormData("form-builder", "Modelo de Formulário Personalizado", formData);
+      console.log("Salvando modelo de formulário:", formData);
+      
+      // Save as a form type in form-builder category
+      const success = saveFormData("form-builder", "Modelo de Formulário Personalizado", formData);
+      
+      if (success) {
+        console.log("Modelo de formulário salvo com sucesso");
+      } else {
+        console.error("Erro ao salvar modelo de formulário");
+      }
     } catch (error) {
       console.error("Erro ao salvar tipo de formulário:", error);
     }

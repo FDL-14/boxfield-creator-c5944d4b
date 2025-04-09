@@ -38,6 +38,7 @@ export default function SavedDocumentsDialog({
     try {
       setLoading(true);
       const docs = getSavedForms(docType || "custom");
+      console.log("Documentos carregados:", docs);
       setSavedDocuments(docs);
     } catch (error) {
       console.error("Erro ao carregar documentos:", error);
@@ -132,12 +133,16 @@ export default function SavedDocumentsDialog({
                   const isCancelled = doc.cancelled || (doc.data && doc.data.cancelled);
                   const cancellationReason = doc.cancellationReason || (doc.data && doc.data.cancellationReason);
                   
+                  // Check if document has boxes and fields data (for form-builder)
+                  const hasFormBuilderData = doc.boxes && doc.fields && doc.boxes.length > 0;
+                  const hasDataObject = doc.data && Object.keys(doc.data).length > 0;
+                  
                   return (
                     <div 
                       key={doc.id} 
                       className={`flex items-center justify-between border rounded p-3 cursor-pointer hover:bg-gray-50 transition-colors
                                 ${isCancelled ? 'bg-red-50 border-red-200' : ''}`}
-                      onClick={() => onSelectDocument(doc.name || doc.title, doc.data || doc)}
+                      onClick={() => onSelectDocument(doc.name || doc.title, hasFormBuilderData ? doc : doc.data || doc)}
                     >
                       <div className="flex items-center space-x-3">
                         <div className={`p-2 rounded-md ${isCancelled ? 'bg-red-100' : 'bg-blue-100'}`}>
@@ -171,6 +176,12 @@ export default function SavedDocumentsDialog({
                               <p className="text-xs text-red-500 flex items-center mt-1">
                                 <AlertCircle className="h-3 w-3 mr-1 flex-shrink-0" />
                                 Motivo: {cancellationReason}
+                              </p>
+                            )}
+                            {hasFormBuilderData && (
+                              <p className="text-xs text-blue-500 flex items-center">
+                                <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
+                                Tipo: Modelo de Formulário ({doc.boxes.length} seções, {doc.fields.length} campos)
                               </p>
                             )}
                           </div>

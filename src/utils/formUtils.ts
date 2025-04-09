@@ -1,3 +1,4 @@
+
 /**
  * Saves form data to localStorage
  * @param formType The type of form (e.g., 'analise-risco', 'permissao-trabalho')
@@ -31,7 +32,7 @@ export const saveFormData = (formType: string, name: string, data: any) => {
       id: formId,
       name,
       title: name,
-      data: cleanDataForStorage(data), // Clean the data to reduce storage size
+      data: cleanDataForStorage({...data, id: formId}), // Clean the data to reduce storage size
       date: existingIndex >= 0 ? savedForms[existingIndex].date : new Date().toISOString(),
       formType: formType,
       updated_at: new Date().toISOString(),
