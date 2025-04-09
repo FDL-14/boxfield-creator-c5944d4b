@@ -22,6 +22,21 @@ export const useFormService = () => {
     }
   };
 
+  const getFieldsData = async () => {
+    try {
+      const fieldsData = await FormField.list("order");
+      return fieldsData;
+    } catch (error) {
+      console.error("Erro ao carregar campos:", error);
+      toast({
+        title: "Erro ao carregar campos",
+        description: "Não foi possível carregar os campos do formulário",
+        variant: "destructive"
+      });
+      return [];
+    }
+  };
+
   const addBox = async (boxData) => {
     try {
       await FormBox.create(boxData);
@@ -62,7 +77,6 @@ export const useFormService = () => {
 
   const editBox = async (boxId, newData, boxes) => {
     try {
-      // Verificar se a seção existe antes de editar
       const boxExists = boxes.find(b => b.id === boxId);
       if (!boxExists) {
         toast({
@@ -92,7 +106,6 @@ export const useFormService = () => {
 
   const deleteBox = async (boxId, boxes, fields) => {
     try {
-      // Verificar se a seção existe antes de excluir
       const boxExists = boxes.find(b => b.id === boxId);
       if (!boxExists) {
         toast({
@@ -103,13 +116,11 @@ export const useFormService = () => {
         return false;
       }
 
-      // Delete all fields in this box first
       const boxFields = fields.filter(f => f.box_id === boxId);
       for (const field of boxFields) {
         await FormField.delete(field.id);
       }
       
-      // Now delete the box
       await FormBox.delete(boxId);
       
       toast({
@@ -130,7 +141,6 @@ export const useFormService = () => {
 
   const deleteField = async (fieldId, fields) => {
     try {
-      // Verificar se o campo existe antes de excluir
       const fieldExists = fields.find(f => f.id === fieldId);
       if (!fieldExists) {
         toast({
@@ -160,7 +170,6 @@ export const useFormService = () => {
 
   const editField = async (fieldId, newData, fields) => {
     try {
-      // Verificar se o campo existe antes de editar
       const fieldExists = fields.find(f => f.id === fieldId);
       if (!fieldExists) {
         toast({
@@ -227,6 +236,7 @@ export const useFormService = () => {
     editField,
     editBox,
     updateBoxOrder,
-    updateFieldOrder
+    updateFieldOrder,
+    getFieldsData
   };
 };

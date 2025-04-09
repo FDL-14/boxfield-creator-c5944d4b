@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFormService } from "@/services/formService";
@@ -230,7 +229,7 @@ export default function FormBuilder() {
       
       await loadData(); // Reload to get the updated order
       
-      // Updated fields will be loaded by loadData, so we'll save after that
+      // Updated fields will be loaded by loadData, so fix the reference to getFieldsData
       const updatedFields = await formService.getFieldsData();
       saveDocumentTypeConfig({ boxes, fields: updatedFields });
     } finally {
