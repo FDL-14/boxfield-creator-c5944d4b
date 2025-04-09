@@ -1,22 +1,22 @@
 
 import React, { useState } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import { Trash, Plus, UploadCloud } from "lucide-react";
+import { Trash, Plus, UploadCloud, AlertTriangle } from "lucide-react";
 import DrawSignature from "./DrawSignature";
 
 export interface CancelDocumentDialogProps {
   open: boolean;
-  onClose: () => void; // Changed from onOpenChange to onClose
+  onClose: () => void;
   onCancel: (reason: string, approvers: any[]) => void;
 }
 
 export default function CancelDocumentDialog({
   open,
-  onClose, // Changed from onOpenChange to onClose
+  onClose,
   onCancel
 }: CancelDocumentDialogProps) {
   const [reason, setReason] = useState("");
@@ -66,8 +66,18 @@ export default function CancelDocumentDialog({
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>Cancelar Documento</DialogTitle>
+            <DialogDescription>
+              O documento será marcado como cancelado e exibirá uma marca d'água quando for visualizado ou impresso.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="bg-red-50 p-3 rounded-md border border-red-200 flex items-start gap-2 mb-4">
+              <AlertTriangle className="h-5 w-5 text-red-500 flex-shrink-0 mt-0.5" />
+              <p className="text-sm text-red-700">
+                Esta ação não pode ser desfeita. O documento será permanentemente marcado como cancelado.
+              </p>
+            </div>
+            
             <div>
               <Label htmlFor="cancel-reason" className="mb-2 block">Motivo do Cancelamento</Label>
               <Textarea

@@ -11,7 +11,7 @@ import html2canvas from "html2canvas";
 export const generatePDF = async (
   element: HTMLElement | null, 
   filename: string = "documento", 
-  options: { cancelled?: boolean } = {}
+  options: { cancelled?: boolean; cancellationReason?: string } = {}
 ) => {
   if (!element) return false;
   
@@ -27,6 +27,7 @@ export const generatePDF = async (
     clone.style.margin = '0';
     clone.style.padding = '10mm';
     clone.style.boxSizing = 'border-box';
+    clone.style.position = 'relative';
     
     // Apply styling optimizations for PDF layout
     const sections = clone.querySelectorAll('.section-container');
@@ -88,8 +89,9 @@ export const generatePDF = async (
       fieldEl.style.minHeight = '24px';
     });
     
-    // Add CANCELADO watermark if document is cancelled
+    // Add watermark for cancelled documents
     if (options.cancelled) {
+      // Add a large watermark that spans the entire document
       const watermarkContainer = document.createElement('div');
       watermarkContainer.style.position = 'absolute';
       watermarkContainer.style.top = '0';
@@ -99,20 +101,47 @@ export const generatePDF = async (
       watermarkContainer.style.pointerEvents = 'none';
       watermarkContainer.style.zIndex = '1000';
       
+      // Add document title with cancelled status
+      const cancelledTitle = document.createElement('div');
+      cancelledTitle.textContent = 'DOCUMENTO CANCELADO';
+      cancelledTitle.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+      cancelledTitle.style.color = 'rgba(255, 0, 0, 0.8)';
+      cancelledTitle.style.padding = '10px';
+      cancelledTitle.style.textAlign = 'center';
+      cancelledTitle.style.fontSize = '16px';
+      cancelledTitle.style.fontWeight = 'bold';
+      cancelledTitle.style.marginBottom = '15px';
+      clone.insertBefore(cancelledTitle, clone.firstChild);
+      
+      // Create diagonal watermark overlay
       const watermark = document.createElement('div');
       watermark.textContent = 'CANCELADO';
-      watermark.style.position = 'absolute';
+      watermark.style.position = 'fixed';
       watermark.style.top = '50%';
       watermark.style.left = '50%';
       watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)';
       watermark.style.fontSize = '120px';
       watermark.style.fontWeight = 'bold';
-      watermark.style.color = 'rgba(255, 0, 0, 0.5)';
+      watermark.style.color = 'rgba(255, 0, 0, 0.4)';
       watermark.style.textAlign = 'center';
       watermark.style.whiteSpace = 'nowrap';
+      watermark.style.width = '100%';
+      watermark.style.pointerEvents = 'none';
+      
+      // If there's a cancellation reason, add it to the watermark
+      if (options.cancellationReason) {
+        const reasonElement = document.createElement('div');
+        reasonElement.textContent = `Motivo: ${options.cancellationReason}`;
+        reasonElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+        reasonElement.style.color = 'rgba(255, 0, 0, 0.8)';
+        reasonElement.style.padding = '10px';
+        reasonElement.style.marginTop = '10px';
+        reasonElement.style.marginBottom = '15px';
+        reasonElement.style.fontSize = '14px';
+        clone.insertBefore(reasonElement, clone.firstChild.nextSibling);
+      }
       
       watermarkContainer.appendChild(watermark);
-      clone.style.position = 'relative';
       clone.appendChild(watermarkContainer);
     }
     
@@ -160,7 +189,7 @@ export const generatePDF = async (
     }
     
     // Save the PDF
-    pdf.save(`${filename}.pdf`);
+    pdf.save(`${filename}${options.cancelled ? '-CANCELADO' : ''}.pdf`);
     
     return true;
   } catch (error) {

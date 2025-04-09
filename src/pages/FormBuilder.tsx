@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFormService } from "@/services/formService";
@@ -6,9 +7,9 @@ import AddBoxDialog from "@/components/form-builder/AddBoxDialog";
 import AddFieldDialog from "@/components/form-builder/AddFieldDialog";
 import FormBuilderHeader from "@/components/form-builder/FormBuilderHeader";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, Save } from "lucide-react";
+import { ArrowLeft, Save, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { saveDocumentTypeConfig, loadDocumentTypeConfig } from "@/utils/formUtils";
+import { saveDocumentTypeConfig, loadDocumentTypeConfig, saveFormData } from "@/utils/formUtils";
 
 export default function FormBuilder() {
   const navigate = useNavigate();
@@ -18,6 +19,7 @@ export default function FormBuilder() {
   const [showAddField, setShowAddField] = useState(false);
   const [selectedBoxId, setSelectedBoxId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [saveSuccess, setSaveSuccess] = useState(false);
   const { toast } = useToast();
   
   const formService = useFormService();
@@ -66,7 +68,9 @@ export default function FormBuilder() {
         setShowAddBox(false);
         
         // Save the updated configuration
-        saveDocumentTypeConfig({ boxes: [...boxes, boxData], fields });
+        const updatedBoxes = [...boxes, boxData];
+        saveDocumentTypeConfig({ boxes: updatedBoxes, fields });
+        saveCompletedFormType(updatedBoxes, fields);
       }
     } finally {
       setIsLoading(false);
@@ -82,7 +86,9 @@ export default function FormBuilder() {
         setShowAddField(false);
         
         // Save the updated configuration
-        saveDocumentTypeConfig({ boxes, fields: [...fields, {...fieldData, box_id: selectedBoxId}] });
+        const updatedFields = [...fields, {...fieldData, box_id: selectedBoxId}];
+        saveDocumentTypeConfig({ boxes, fields: updatedFields });
+        saveCompletedFormType(boxes, updatedFields);
       }
     } finally {
       setIsLoading(false);
@@ -100,6 +106,7 @@ export default function FormBuilder() {
         const updatedBoxes = boxes.filter(box => box.id !== boxId);
         const updatedFields = fields.filter(field => field.box_id !== boxId);
         saveDocumentTypeConfig({ boxes: updatedBoxes, fields: updatedFields });
+        saveCompletedFormType(updatedBoxes, updatedFields);
       }
     } finally {
       setIsLoading(false);
@@ -116,6 +123,7 @@ export default function FormBuilder() {
         // Save the updated configuration
         const updatedFields = fields.filter(field => field.id !== fieldId);
         saveDocumentTypeConfig({ boxes, fields: updatedFields });
+        saveCompletedFormType(boxes, updatedFields);
       }
     } finally {
       setIsLoading(false);
@@ -133,6 +141,7 @@ export default function FormBuilder() {
         box.id === boxId ? { ...box, ...newData } : box
       );
       saveDocumentTypeConfig({ boxes: updatedBoxes, fields });
+      saveCompletedFormType(updatedBoxes, fields);
     } finally {
       setIsLoading(false);
     }
@@ -150,6 +159,7 @@ export default function FormBuilder() {
           field.id === fieldId ? { ...field, ...newData } : field
         );
         saveDocumentTypeConfig({ boxes, fields: updatedFields });
+        saveCompletedFormType(boxes, updatedFields);
       }
     } finally {
       setIsLoading(false);
@@ -193,6 +203,7 @@ export default function FormBuilder() {
       
       // Save the updated configuration
       saveDocumentTypeConfig({ boxes: newBoxes, fields });
+      saveCompletedFormType(newBoxes, fields);
     } finally {
       setIsLoading(false);
     }
@@ -232,6 +243,7 @@ export default function FormBuilder() {
       // Updated fields will be loaded by loadData, so fix the reference to getFieldsData
       const updatedFields = await formService.getFieldsData();
       saveDocumentTypeConfig({ boxes, fields: updatedFields });
+      saveCompletedFormType(boxes, updatedFields);
     } finally {
       setIsLoading(false);
     }
@@ -254,6 +266,7 @@ export default function FormBuilder() {
       
       // Save configuration
       saveDocumentTypeConfig({ boxes: updatedBoxes, fields });
+      saveCompletedFormType(updatedBoxes, fields);
       
       toast({
         title: "Layout atualizado",
@@ -271,14 +284,38 @@ export default function FormBuilder() {
     }
   };
 
+  const saveCompletedFormType = (boxes, fields) => {
+    // Only save if there's content to save
+    if (!boxes.length) return;
+    
+    try {
+      // Save as a form type in form-builder category
+      const formData = {
+        id: Date.now(),
+        boxes: boxes,
+        fields: fields,
+        title: "Modelo de Formulário Personalizado",
+        type: "form-builder"
+      };
+      
+      saveFormData("form-builder", "Modelo de Formulário Personalizado", formData);
+    } catch (error) {
+      console.error("Erro ao salvar tipo de formulário:", error);
+    }
+  };
+
   const handleSaveFormLayout = async () => {
     try {
       setIsLoading(true);
       
       // Save the current configuration
       const success = saveDocumentTypeConfig({ boxes, fields });
+      saveCompletedFormType(boxes, fields);
       
       if (success) {
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2000);
+        
         toast({
           title: "Layout salvo",
           description: "O layout do formulário foi salvo com sucesso"
@@ -334,11 +371,15 @@ export default function FormBuilder() {
         <div className="mt-6 flex justify-between">
           <Button
             onClick={handleSaveFormLayout}
-            className="bg-blue-600 hover:bg-blue-700"
+            className={`transition-colors ${saveSuccess ? 'bg-green-600 hover:bg-green-700' : 'bg-blue-600 hover:bg-blue-700'}`}
             disabled={isLoading}
           >
-            <Save className="h-4 w-4 mr-2" />
-            Salvar Layout
+            {saveSuccess ? (
+              <Check className="h-4 w-4 mr-2" />
+            ) : (
+              <Save className="h-4 w-4 mr-2" />
+            )}
+            {saveSuccess ? "Layout Salvo!" : "Salvar Layout"}
           </Button>
           
           <Button
