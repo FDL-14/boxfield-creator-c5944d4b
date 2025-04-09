@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Trash, Plus, UploadCloud, AlertTriangle } from "lucide-react";
 import DrawSignature from "./DrawSignature";
+import { useToast } from "@/hooks/use-toast";
 
 export interface CancelDocumentDialogProps {
   open: boolean;
@@ -19,10 +20,12 @@ export default function CancelDocumentDialog({
   onClose,
   onCancel
 }: CancelDocumentDialogProps) {
+  const { toast } = useToast();
   const [reason, setReason] = useState("");
   const [approvers, setApprovers] = useState([{ name: "", role: "", signature: "" }]);
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const [currentApproverIndex, setCurrentApproverIndex] = useState(0);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddApprover = () => {
     setApprovers([...approvers, { name: "", role: "", signature: "" }]);
@@ -47,17 +50,80 @@ export default function CancelDocumentDialog({
   };
 
   const handleSaveSignature = (signatureData) => {
-    const newApprovers = [...approvers];
-    newApprovers[currentApproverIndex].signature = signatureData;
-    setApprovers(newApprovers);
-    setShowSignatureDialog(false);
+    try {
+      const newApprovers = [...approvers];
+      newApprovers[currentApproverIndex].signature = signatureData;
+      setApprovers(newApprovers);
+      setShowSignatureDialog(false);
+      
+      toast({
+        title: "Assinatura adicionada",
+        description: "A assinatura foi adicionada com sucesso."
+      });
+    } catch (error) {
+      console.error("Erro ao adicionar assinatura:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar a assinatura.",
+        variant: "destructive"
+      });
+    }
   };
 
   const handleSubmit = () => {
-    onCancel(reason, approvers);
-    onClose();
-    setReason("");
-    setApprovers([{ name: "", role: "", signature: "" }]);
+    try {
+      setIsSubmitting(true);
+      
+      // Validação
+      if (!reason.trim()) {
+        toast({
+          title: "Erro",
+          description: "Informe um motivo para o cancelamento.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      if (approvers.some(a => !a.name.trim() || !a.role.trim() || !a.signature)) {
+        toast({
+          title: "Erro",
+          description: "Todos os aprovadores precisam ter nome, cargo e assinatura.",
+          variant: "destructive"
+        });
+        setIsSubmitting(false);
+        return;
+      }
+      
+      // Logando dados para depuração
+      console.log("Dados de cancelamento:", {
+        reason,
+        approvers
+      });
+      
+      // Chamar a função de cancelamento
+      onCancel(reason, approvers);
+      
+      // Feedback ao usuário
+      toast({
+        title: "Documento cancelado",
+        description: "O documento foi marcado como cancelado com sucesso."
+      });
+      
+      // Resetar formulário e fechar diálogo
+      onClose();
+      setReason("");
+      setApprovers([{ name: "", role: "", signature: "" }]);
+    } catch (error) {
+      console.error("Erro ao cancelar documento:", error);
+      toast({
+        title: "Erro",
+        description: "Ocorreu um erro ao cancelar o documento.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -183,6 +249,7 @@ export default function CancelDocumentDialog({
               type="button"
               variant="outline"
               onClick={onClose}
+              disabled={isSubmitting}
             >
               Cancelar
             </Button>
@@ -190,9 +257,9 @@ export default function CancelDocumentDialog({
               type="button"
               onClick={handleSubmit}
               className="bg-red-600 hover:bg-red-700"
-              disabled={!reason.trim() || approvers.some(a => !a.name.trim() || !a.role.trim() || !a.signature)}
+              disabled={isSubmitting || !reason.trim() || approvers.some(a => !a.name.trim() || !a.role.trim() || !a.signature)}
             >
-              Confirmar Cancelamento
+              {isSubmitting ? "Processando..." : "Confirmar Cancelamento"}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -203,6 +270,9 @@ export default function CancelDocumentDialog({
           <DialogContent className="sm:max-w-md">
             <DialogHeader>
               <DialogTitle>Desenhar Assinatura</DialogTitle>
+              <DialogDescription>
+                Use o mouse ou toque para desenhar sua assinatura abaixo
+              </DialogDescription>
             </DialogHeader>
             <DrawSignature 
               onSave={handleSaveSignature} 

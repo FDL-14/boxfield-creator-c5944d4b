@@ -6,18 +6,29 @@
  */
 export const saveFormData = (formType: string, name: string, data: any) => {
   try {
+    console.log("Salvando formulário:", { formType, name, data });
+    
+    // Garantir que temos dados válidos para salvar
+    if (!formType || !name) {
+      console.error("Tipo de formulário ou nome inválido");
+      return false;
+    }
+    
+    // Garantir que temos o ID do documento
+    const formId = data.id || Date.now();
+    
     // Get existing saved forms
     const savedFormsKey = `saved_forms_${formType}`;
     let savedForms = JSON.parse(localStorage.getItem(savedFormsKey) || '[]');
     
     // Check if we're updating an existing form
     const existingIndex = savedForms.findIndex((form: any) => 
-      form.id === data.id || (form.title === name && form.date === data.date)
+      form.id === formId || (form.title === name && form.date === data.date)
     );
     
     const newFormData = {
       ...(existingIndex >= 0 ? savedForms[existingIndex] : {}),
-      id: data.id || Date.now(),
+      id: formId,
       name,
       title: name,
       data: cleanDataForStorage(data), // Clean the data to reduce storage size
@@ -28,55 +39,114 @@ export const saveFormData = (formType: string, name: string, data: any) => {
       cancellationReason: data.cancellationReason || ""
     };
     
-    if (existingIndex >= 0) {
-      // Update existing form
-      savedForms[existingIndex] = newFormData;
-    } else {
-      // Add new form - limit to 20 most recent documents if storage is becoming an issue
-      if (savedForms.length > 20) {
-        // Sort by date and keep only most recent 20
-        savedForms.sort((a: any, b: any) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime());
-        savedForms = savedForms.slice(0, 19); // Keep 19 to make room for the new one
-      }
-      savedForms.push(newFormData);
+    console.log("Dados do formulário a serem salvos:", newFormData);
+    
+    // Verificar se o formulário tem seções e campos (form builder)
+    if (formType === 'form-builder' && data.boxes && data.fields) {
+      newFormData.boxes = data.boxes;
+      newFormData.fields = data.fields;
     }
     
     try {
+      // Verificar disponibilidade de espaço
+      const testStorage = () => {
+        const testKey = `test_storage_${Date.now()}`;
+        const testData = new Array(1024).fill('A').join(''); // 1KB de teste
+        localStorage.setItem(testKey, testData);
+        localStorage.removeItem(testKey);
+      };
+      
+      testStorage(); // Testar se podemos escrever no localStorage
+      
+      if (existingIndex >= 0) {
+        // Update existing form
+        savedForms[existingIndex] = newFormData;
+      } else {
+        // Add new form - limit to 20 most recent documents if needed
+        if (savedForms.length >= 20) {
+          // Sort by date and keep only most recent ones
+          savedForms.sort((a: any, b: any) => 
+            new Date(b.updated_at || b.date).getTime() - new Date(a.updated_at || a.date).getTime()
+          );
+          savedForms = savedForms.slice(0, 19); // Keep 19 to make room for the new one
+        }
+        savedForms.push(newFormData);
+      }
+      
       // Try to save to localStorage
-      localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
-    } catch (storageError) {
+      const dataToSave = JSON.stringify(savedForms);
+      localStorage.setItem(savedFormsKey, dataToSave);
+      
+      console.log(`Formulário ${name} salvo com sucesso no tipo ${formType}.`);
+      
+      // Also save document types configuration if this is a form-builder type
+      if (formType === 'form-builder') {
+        const configSaved = saveDocumentTypeConfig(data);
+        console.log("Configuração de tipo de documento salva:", configSaved);
+      }
+      
+      return true;
+    } catch (storageError: any) {
+      console.error("Erro ao salvar no localStorage:", storageError);
+      
       if (storageError.name === 'QuotaExceededError' || storageError.code === 22) {
         console.warn("Storage quota exceeded, pruning older documents");
         
         // If we hit quota, prune data further and try again
         if (savedForms.length > 5) {
           savedForms = savedForms.slice(-5); // Just keep 5 most recent
-          localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
-        } else {
-          // If still not enough, try to reduce data size for current items
+          try {
+            localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
+            return true;
+          } catch (e) {
+            // Falha mesmo após reduzir para 5 documentos
+            console.error("Falha ao salvar mesmo após reduzir quantidade:", e);
+          }
+        } 
+        
+        // If still not enough, try to reduce data size for all items
+        try {
           savedForms.forEach((form: any) => {
             if (form.data && typeof form.data === 'object') {
               // Remove any large data that's not essential
-              if (form.data.signatures) delete form.data.signatures;
-              if (form.data.images) delete form.data.images;
-              if (form.data.attachments) delete form.data.attachments;
+              delete form.data.signatures;
+              delete form.data.images;
+              delete form.data.attachments;
+              
+              // Limitar tamanho de valores de string
+              Object.keys(form.data).forEach(key => {
+                if (typeof form.data[key] === 'string' && form.data[key].length > 1000) {
+                  form.data[key] = form.data[key].substring(0, 1000) + '...';
+                }
+              });
             }
           });
+          
+          // Adicionar o novo formulário otimizado
+          if (existingIndex >= 0) {
+            savedForms[existingIndex] = {
+              ...newFormData,
+              data: { id: formId, name, title: name } // Dados mínimos
+            };
+          } else {
+            savedForms.push({
+              ...newFormData,
+              data: { id: formId, name, title: name } // Dados mínimos
+            });
+          }
+          
           localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
+          return true;
+        } catch (finalError) {
+          console.error("Falha final ao tentar salvar o formulário:", finalError);
+          return false;
         }
       } else {
         throw storageError; // Rethrow if it's a different error
       }
     }
-    
-    // Also save document types configuration if this is a form-builder type
-    if (formType === 'form-builder') {
-      saveDocumentTypeConfig(data);
-    }
-    
-    return true;
   } catch (error) {
-    console.error("Error saving form data:", error);
+    console.error("Erro crítico ao salvar dados do formulário:", error);
     return false;
   }
 };
@@ -113,6 +183,14 @@ const cleanDataForStorage = (data: any) => {
  */
 export const saveDocumentTypeConfig = (data: any) => {
   try {
+    console.log("Salvando configuração de tipo de documento:", data);
+    
+    // Verificar se temos dados válidos
+    if (!data) {
+      console.error("Dados de configuração inválidos");
+      return false;
+    }
+    
     // Store document type configuration
     const config = {
       boxes: data.boxes || [],
@@ -120,10 +198,28 @@ export const saveDocumentTypeConfig = (data: any) => {
       updated_at: new Date().toISOString()
     };
     
+    // Adicionar em localStorage
     localStorage.setItem('document_type_config', JSON.stringify(config));
+    console.log("Configuração de documento salva no localStorage");
+    
+    // Salvar também como um tipo de formulário para acesso posterior
+    const formData = {
+      id: Date.now(),
+      boxes: config.boxes,
+      fields: config.fields,
+      title: "Modelo de Formulário Personalizado",
+      name: "Modelo de Formulário Personalizado",
+      type: "form-builder",
+      date: new Date().toISOString()
+    };
+    
+    // Salvar como tipo de formulário
+    const saved = saveFormData("form-builder", "Modelo de Formulário Personalizado", formData);
+    console.log("Configuração salva como formulário:", saved);
+    
     return true;
   } catch (error) {
-    console.error("Error saving document type config:", error);
+    console.error("Erro ao salvar configuração de tipo de documento:", error);
     return false;
   }
 };
@@ -134,9 +230,10 @@ export const saveDocumentTypeConfig = (data: any) => {
 export const loadDocumentTypeConfig = () => {
   try {
     const config = localStorage.getItem('document_type_config');
+    console.log("Carregando configuração de tipo de documento:", config ? "Encontrado" : "Não encontrado");
     return config ? JSON.parse(config) : null;
   } catch (error) {
-    console.error("Error loading document type config:", error);
+    console.error("Erro ao carregar configuração de tipo de documento:", error);
     return null;
   }
 };
@@ -148,9 +245,11 @@ export const loadDocumentTypeConfig = () => {
 export const getSavedForms = (formType: string) => {
   try {
     const savedFormsKey = `saved_forms_${formType}`;
-    return JSON.parse(localStorage.getItem(savedFormsKey) || '[]');
+    const forms = JSON.parse(localStorage.getItem(savedFormsKey) || '[]');
+    console.log(`Recuperados ${forms.length} formulários do tipo ${formType}`);
+    return forms;
   } catch (error) {
-    console.error("Error getting saved forms:", error);
+    console.error("Erro ao obter formulários salvos:", error);
     return [];
   }
 };
@@ -163,9 +262,11 @@ export const getSavedForms = (formType: string) => {
 export const getSavedFormById = (formType: string, id: number) => {
   try {
     const savedForms = getSavedForms(formType);
-    return savedForms.find((form: any) => form.id === id) || null;
+    const form = savedForms.find((form: any) => form.id === id);
+    console.log(`Recuperado formulário ID ${id} do tipo ${formType}:`, form ? "Encontrado" : "Não encontrado");
+    return form || null;
   } catch (error) {
-    console.error("Error getting saved form by ID:", error);
+    console.error("Erro ao obter formulário por ID:", error);
     return null;
   }
 };
@@ -183,10 +284,11 @@ export const deleteSavedForm = (formType: string, id: number) => {
     const updatedForms = savedForms.filter((form: any) => form.id !== id);
     
     localStorage.setItem(savedFormsKey, JSON.stringify(updatedForms));
+    console.log(`Formulário ID ${id} do tipo ${formType} excluído.`);
     
     return true;
   } catch (error) {
-    console.error("Error deleting saved form:", error);
+    console.error("Erro ao excluir formulário salvo:", error);
     return false;
   }
 };
@@ -234,12 +336,17 @@ export const saveDocumentAsCancelled = (
   approvers: any[] = []
 ) => {
   try {
+    console.log(`Cancelando documento ID ${id} do tipo ${formType}`);
+    
     const savedFormsKey = `saved_forms_${formType}`;
     const savedForms = JSON.parse(localStorage.getItem(savedFormsKey) || '[]');
     
     const formIndex = savedForms.findIndex((form: any) => form.id === id);
     
     if (formIndex >= 0) {
+      console.log("Documento encontrado. Aplicando status de cancelado.");
+      
+      // Marcando como cancelado
       savedForms[formIndex] = {
         ...savedForms[formIndex],
         cancelled: true,
@@ -256,12 +363,15 @@ export const saveDocumentAsCancelled = (
       }
       
       localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
+      console.log("Documento marcado como cancelado com sucesso.");
       return true;
+    } else {
+      console.error(`Documento ID ${id} não encontrado para cancelamento.`);
     }
     
     return false;
   } catch (error) {
-    console.error("Error marking document as cancelled:", error);
+    console.error("Erro ao marcar documento como cancelado:", error);
     return false;
   }
 };

@@ -91,9 +91,38 @@ export const generatePDF = async (
     
     // Add watermark for cancelled documents
     if (options.cancelled) {
-      // Add a large watermark that spans the entire document
+      // Add a clear DOCUMENTO CANCELADO header at the top
+      const cancelledTitle = document.createElement('div');
+      cancelledTitle.textContent = 'DOCUMENTO CANCELADO';
+      cancelledTitle.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+      cancelledTitle.style.color = 'rgba(255, 0, 0, 0.8)';
+      cancelledTitle.style.padding = '10px';
+      cancelledTitle.style.margin = '0 0 15px 0';
+      cancelledTitle.style.textAlign = 'center';
+      cancelledTitle.style.fontSize = '24px';
+      cancelledTitle.style.fontWeight = 'bold';
+      cancelledTitle.style.width = '100%';
+      cancelledTitle.style.borderBottom = '2px solid rgba(255, 0, 0, 0.5)';
+      cancelledTitle.style.letterSpacing = '1px';
+      clone.insertBefore(cancelledTitle, clone.firstChild);
+      
+      // If there's a cancellation reason, add it to the document
+      if (options.cancellationReason) {
+        const reasonElement = document.createElement('div');
+        reasonElement.textContent = `Motivo: ${options.cancellationReason}`;
+        reasonElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
+        reasonElement.style.color = 'rgba(255, 0, 0, 0.8)';
+        reasonElement.style.padding = '10px';
+        reasonElement.style.marginTop = '0';
+        reasonElement.style.marginBottom = '15px';
+        reasonElement.style.fontSize = '16px';
+        reasonElement.style.textAlign = 'center';
+        clone.insertBefore(reasonElement, cancelledTitle.nextSibling);
+      }
+      
+      // Add a large diagonal watermark
       const watermarkContainer = document.createElement('div');
-      watermarkContainer.style.position = 'absolute';
+      watermarkContainer.style.position = 'fixed';
       watermarkContainer.style.top = '0';
       watermarkContainer.style.left = '0';
       watermarkContainer.style.width = '100%';
@@ -101,97 +130,132 @@ export const generatePDF = async (
       watermarkContainer.style.pointerEvents = 'none';
       watermarkContainer.style.zIndex = '1000';
       
-      // Add document title with cancelled status
-      const cancelledTitle = document.createElement('div');
-      cancelledTitle.textContent = 'DOCUMENTO CANCELADO';
-      cancelledTitle.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
-      cancelledTitle.style.color = 'rgba(255, 0, 0, 0.8)';
-      cancelledTitle.style.padding = '10px';
-      cancelledTitle.style.textAlign = 'center';
-      cancelledTitle.style.fontSize = '16px';
-      cancelledTitle.style.fontWeight = 'bold';
-      cancelledTitle.style.marginBottom = '15px';
-      clone.insertBefore(cancelledTitle, clone.firstChild);
-      
-      // Create diagonal watermark overlay
+      // Create diagonal watermark overlay with stronger presence
       const watermark = document.createElement('div');
       watermark.textContent = 'CANCELADO';
       watermark.style.position = 'fixed';
       watermark.style.top = '50%';
       watermark.style.left = '50%';
       watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)';
-      watermark.style.fontSize = '120px';
+      watermark.style.fontSize = '150px';
       watermark.style.fontWeight = 'bold';
-      watermark.style.color = 'rgba(255, 0, 0, 0.4)';
+      watermark.style.color = 'rgba(255, 0, 0, 0.6)'; // More visible red
       watermark.style.textAlign = 'center';
       watermark.style.whiteSpace = 'nowrap';
       watermark.style.width = '100%';
       watermark.style.pointerEvents = 'none';
-      
-      // If there's a cancellation reason, add it to the watermark
-      if (options.cancellationReason) {
-        const reasonElement = document.createElement('div');
-        reasonElement.textContent = `Motivo: ${options.cancellationReason}`;
-        reasonElement.style.backgroundColor = 'rgba(255, 0, 0, 0.1)';
-        reasonElement.style.color = 'rgba(255, 0, 0, 0.8)';
-        reasonElement.style.padding = '10px';
-        reasonElement.style.marginTop = '10px';
-        reasonElement.style.marginBottom = '15px';
-        reasonElement.style.fontSize = '14px';
-        clone.insertBefore(reasonElement, clone.firstChild.nextSibling);
-      }
+      watermark.style.textShadow = '1px 1px 2px rgba(0,0,0,0.2)';
+      watermark.style.fontFamily = 'Arial, sans-serif';
+      watermark.style.letterSpacing = '5px';
+      watermark.style.opacity = '0.8';
       
       watermarkContainer.appendChild(watermark);
-      clone.appendChild(watermarkContainer);
-    }
-    
-    // Create canvas
-    const canvas = await html2canvas(clone, {
-      scale: 2,
-      useCORS: true,
-      logging: false,
-      width: clone.offsetWidth,
-      height: clone.offsetHeight,
-      windowWidth: clone.offsetWidth,
-      windowHeight: clone.offsetHeight
-    });
-    
-    // Remove the clone from DOM after capturing
-    document.body.removeChild(container);
-    
-    const imgData = canvas.toDataURL('image/png');
-    
-    // Calculate PDF dimensions (A4 format)
-    const pdf = new jsPDF({
-      orientation: 'portrait',
-      unit: 'mm',
-      format: 'a4'
-    });
-    
-    const imgWidth = 210; // A4 width in mm
-    const pageHeight = 287; // A4 height in mm (slightly less for margins)
-    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-    
-    // Split into pages
-    let heightLeft = imgHeight;
-    let position = 0;
-    
-    // Add first page
-    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-    heightLeft -= pageHeight;
-    
-    // Add subsequent pages if needed
-    while (heightLeft > 0) {
-      position = -pageHeight * (imgHeight - heightLeft) / imgHeight;
-      pdf.addPage();
+      document.body.appendChild(watermarkContainer);
+      
+      // Create canvas after adding the watermark
+      const canvas = await html2canvas(clone, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        width: clone.offsetWidth,
+        height: clone.offsetHeight,
+        windowWidth: clone.offsetWidth,
+        windowHeight: clone.offsetHeight,
+        // Ensure the watermark is included in the rendering
+        onclone: (clonedDoc) => {
+          const clonedWatermark = watermarkContainer.cloneNode(true) as HTMLElement;
+          clonedDoc.body.appendChild(clonedWatermark);
+        }
+      });
+      
+      // Remove the elements from DOM after capturing
+      document.body.removeChild(container);
+      document.body.removeChild(watermarkContainer);
+      
+      // Continue with PDF creation as before
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Calculate PDF dimensions (A4 format)
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 287; // A4 height in mm (slightly less for margins)
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Split into pages
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      // Add first page
       pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
       heightLeft -= pageHeight;
+      
+      // Add subsequent pages if needed
+      while (heightLeft > 0) {
+        position = -pageHeight * (imgHeight - heightLeft) / imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      // Save the PDF
+      pdf.save(`${filename}${options.cancelled ? '-CANCELADO' : ''}.pdf`);
+      
+      return true;
+    } else {
+      // Regular document without cancellation
+      // Create canvas
+      const canvas = await html2canvas(clone, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        width: clone.offsetWidth,
+        height: clone.offsetHeight,
+        windowWidth: clone.offsetWidth,
+        windowHeight: clone.offsetHeight
+      });
+      
+      // Remove the clone from DOM after capturing
+      document.body.removeChild(container);
+      
+      const imgData = canvas.toDataURL('image/png');
+      
+      // Calculate PDF dimensions (A4 format)
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4'
+      });
+      
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 287; // A4 height in mm (slightly less for margins)
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Split into pages
+      let heightLeft = imgHeight;
+      let position = 0;
+      
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      heightLeft -= pageHeight;
+      
+      // Add subsequent pages if needed
+      while (heightLeft > 0) {
+        position = -pageHeight * (imgHeight - heightLeft) / imgHeight;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+        heightLeft -= pageHeight;
+      }
+      
+      // Save the PDF
+      pdf.save(`${filename}.pdf`);
+      
+      return true;
     }
-    
-    // Save the PDF
-    pdf.save(`${filename}${options.cancelled ? '-CANCELADO' : ''}.pdf`);
-    
-    return true;
   } catch (error) {
     console.error("Error generating PDF:", error);
     return false;
