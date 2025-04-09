@@ -36,6 +36,13 @@ export default function BoxList({
   isLoading,
   showAddButton = true
 }: BoxListProps) {
+  const handleUpdateLayout = (boxId: string, layoutData: any) => {
+    if (onUpdateLayout) {
+      console.log("Updating layout for box", boxId, layoutData);
+      onUpdateLayout(boxId, layoutData);
+    }
+  };
+
   return (
     <div className="space-y-6">
       {boxes.map((box, index) => (
@@ -51,7 +58,7 @@ export default function BoxList({
           onMoveUp={index > 0 && onMoveBox ? () => onMoveBox(box.id, 'up') : undefined}
           onMoveDown={index < boxes.length - 1 && onMoveBox ? () => onMoveBox(box.id, 'down') : undefined}
           onMoveField={onMoveField}
-          onUpdateLayout={onUpdateLayout ? (layout) => onUpdateLayout(box.id, layout) : undefined}
+          onUpdateLayout={onUpdateLayout ? (layout) => handleUpdateLayout(box.id, layout) : undefined}
           isLoading={isLoading}
         />
       ))}

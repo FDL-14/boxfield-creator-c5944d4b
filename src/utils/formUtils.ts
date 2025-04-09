@@ -35,6 +35,7 @@ export const saveFormData = (formType: string, name: string, data: any) => {
         data,
         date: new Date().toISOString(),
         formType: formType,
+        updated_at: new Date().toISOString()
       };
       
       savedForms.push(newForm);
@@ -43,10 +44,49 @@ export const saveFormData = (formType: string, name: string, data: any) => {
     // Save back to localStorage
     localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
     
+    // Also save document types configuration if this is a form-builder type
+    if (formType === 'form-builder') {
+      saveDocumentTypeConfig(data);
+    }
+    
     return true;
   } catch (error) {
     console.error("Error saving form data:", error);
     return false;
+  }
+};
+
+/**
+ * Saves document type configuration
+ * @param data The document type configuration data
+ */
+export const saveDocumentTypeConfig = (data: any) => {
+  try {
+    // Store document type configuration
+    const config = {
+      boxes: data.boxes || [],
+      fields: data.fields || [],
+      updated_at: new Date().toISOString()
+    };
+    
+    localStorage.setItem('document_type_config', JSON.stringify(config));
+    return true;
+  } catch (error) {
+    console.error("Error saving document type config:", error);
+    return false;
+  }
+};
+
+/**
+ * Loads document type configuration
+ */
+export const loadDocumentTypeConfig = () => {
+  try {
+    const config = localStorage.getItem('document_type_config');
+    return config ? JSON.parse(config) : null;
+  } catch (error) {
+    console.error("Error loading document type config:", error);
+    return null;
   }
 };
 
@@ -127,4 +167,36 @@ export const getLockedSections = (formValues: any, boxes: any[], fields: any[]) 
       return isSectionLocked(formValues, fieldsInSection);
     })
     .map(box => box.id);
+};
+
+/**
+ * Saves a document as cancelled
+ * @param formType The type of form
+ * @param id The ID of the form to mark as cancelled
+ * @param reason Reason for cancellation
+ */
+export const saveDocumentAsCancelled = (formType: string, id: number, reason: string = "") => {
+  try {
+    const savedFormsKey = `saved_forms_${formType}`;
+    const savedForms = JSON.parse(localStorage.getItem(savedFormsKey) || '[]');
+    
+    const formIndex = savedForms.findIndex((form: any) => form.id === id);
+    
+    if (formIndex >= 0) {
+      savedForms[formIndex] = {
+        ...savedForms[formIndex],
+        cancelled: true,
+        cancellationReason: reason,
+        cancellationDate: new Date().toISOString()
+      };
+      
+      localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
+      return true;
+    }
+    
+    return false;
+  } catch (error) {
+    console.error("Error marking document as cancelled:", error);
+    return false;
+  }
 };

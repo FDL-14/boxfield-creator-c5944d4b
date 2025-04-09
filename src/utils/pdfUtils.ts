@@ -6,8 +6,13 @@ import html2canvas from "html2canvas";
  * Generates a PDF from a DOM element
  * @param element The DOM element to convert to PDF
  * @param filename The name of the PDF file
+ * @param options Additional options like cancelled status
  */
-export const generatePDF = async (element: HTMLElement | null, filename: string = "documento") => {
+export const generatePDF = async (
+  element: HTMLElement | null, 
+  filename: string = "documento", 
+  options: { cancelled?: boolean } = {}
+) => {
   if (!element) return false;
   
   try {
@@ -82,6 +87,34 @@ export const generatePDF = async (element: HTMLElement | null, filename: string 
       fieldEl.style.padding = '4px';
       fieldEl.style.minHeight = '24px';
     });
+    
+    // Add CANCELADO watermark if document is cancelled
+    if (options.cancelled) {
+      const watermarkContainer = document.createElement('div');
+      watermarkContainer.style.position = 'absolute';
+      watermarkContainer.style.top = '0';
+      watermarkContainer.style.left = '0';
+      watermarkContainer.style.width = '100%';
+      watermarkContainer.style.height = '100%';
+      watermarkContainer.style.pointerEvents = 'none';
+      watermarkContainer.style.zIndex = '1000';
+      
+      const watermark = document.createElement('div');
+      watermark.textContent = 'CANCELADO';
+      watermark.style.position = 'absolute';
+      watermark.style.top = '50%';
+      watermark.style.left = '50%';
+      watermark.style.transform = 'translate(-50%, -50%) rotate(-45deg)';
+      watermark.style.fontSize = '120px';
+      watermark.style.fontWeight = 'bold';
+      watermark.style.color = 'rgba(255, 0, 0, 0.5)';
+      watermark.style.textAlign = 'center';
+      watermark.style.whiteSpace = 'nowrap';
+      
+      watermarkContainer.appendChild(watermark);
+      clone.style.position = 'relative';
+      clone.appendChild(watermarkContainer);
+    }
     
     // Create canvas
     const canvas = await html2canvas(clone, {

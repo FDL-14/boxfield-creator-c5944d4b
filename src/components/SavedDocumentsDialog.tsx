@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getSavedForms } from "@/utils/formUtils";
-import { Search, FileText, Calendar, Save, Trash2 } from "lucide-react";
+import { Search, FileText, Calendar, Save, Trash2, AlertCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { deleteSavedForm } from "@/utils/formUtils";
 
@@ -60,7 +60,8 @@ export default function SavedDocumentsDialog({
   
   const filteredDocuments = searchTerm 
     ? savedDocuments.filter(doc => 
-        doc.name.toLowerCase().includes(searchTerm.toLowerCase()))
+        doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.title?.toLowerCase().includes(searchTerm.toLowerCase()))
     : savedDocuments;
   
   return (
@@ -87,17 +88,35 @@ export default function SavedDocumentsDialog({
                 {filteredDocuments.map((doc) => (
                   <div 
                     key={doc.id} 
-                    className="flex items-center justify-between border rounded p-3 cursor-pointer hover:bg-gray-50"
-                    onClick={() => onSelectDocument(doc.name, doc.data)}
+                    className={`flex items-center justify-between border rounded p-3 cursor-pointer hover:bg-gray-50 ${doc.cancelled ? 'bg-red-50 border-red-200' : ''}`}
+                    onClick={() => onSelectDocument(doc.name || doc.title, doc.data || doc)}
                   >
                     <div className="flex items-center space-x-3">
-                      <FileText className="h-5 w-5 text-blue-500" />
+                      <FileText className={`h-5 w-5 ${doc.cancelled ? 'text-red-500' : 'text-blue-500'}`} />
                       <div>
-                        <p className="font-medium">{doc.name}</p>
+                        <div className="flex items-center">
+                          <p className="font-medium">{doc.name || doc.title}</p>
+                          {doc.cancelled && (
+                            <span className="ml-2 bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded">
+                              CANCELADO
+                            </span>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500 flex items-center">
                           <Calendar className="h-3 w-3 mr-1" />
                           {new Date(doc.date).toLocaleString()}
                         </p>
+                        {doc.updated_at && doc.updated_at !== doc.date && (
+                          <p className="text-xs text-gray-500">
+                            Atualizado: {new Date(doc.updated_at).toLocaleString()}
+                          </p>
+                        )}
+                        {doc.cancellationReason && (
+                          <p className="text-xs text-red-500 flex items-center mt-1">
+                            <AlertCircle className="h-3 w-3 mr-1" />
+                            Motivo: {doc.cancellationReason}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <Button

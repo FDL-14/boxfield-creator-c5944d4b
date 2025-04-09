@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useFormService } from "@/services/formService";
@@ -7,6 +8,8 @@ import AddFieldDialog from "@/components/form-builder/AddFieldDialog";
 import FormBuilderHeader from "@/components/form-builder/FormBuilderHeader";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Save } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { saveDocumentTypeConfig, loadDocumentTypeConfig } from "@/utils/formUtils";
 
 export default function FormBuilder() {
   const navigate = useNavigate();
@@ -16,6 +19,7 @@ export default function FormBuilder() {
   const [showAddField, setShowAddField] = useState(false);
   const [selectedBoxId, setSelectedBoxId] = useState(null);
   const [isLoading, setIsLoading] = useState(false);
+  const { toast } = useToast();
   
   const formService = useFormService();
 
@@ -26,9 +30,29 @@ export default function FormBuilder() {
   const loadData = async () => {
     try {
       setIsLoading(true);
-      const { boxesData, fieldsData } = await formService.loadData();
-      setBoxes(boxesData);
-      setFields(fieldsData);
+      
+      // Try to load from cached config first
+      const savedConfig = loadDocumentTypeConfig();
+      if (savedConfig && savedConfig.boxes && savedConfig.fields) {
+        setBoxes(savedConfig.boxes);
+        setFields(savedConfig.fields);
+        toast({
+          title: "Configuração carregada",
+          description: "Layout do formulário carregado com sucesso",
+        });
+      } else {
+        // Fall back to service if no cached config
+        const { boxesData, fieldsData } = await formService.loadData();
+        setBoxes(boxesData);
+        setFields(fieldsData);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar dados:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar dados do formulário",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -41,6 +65,9 @@ export default function FormBuilder() {
       if (success) {
         await loadData();
         setShowAddBox(false);
+        
+        // Save the updated configuration
+        saveDocumentTypeConfig({ boxes: [...boxes, boxData], fields });
       }
     } finally {
       setIsLoading(false);
@@ -54,6 +81,9 @@ export default function FormBuilder() {
       if (success) {
         await loadData();
         setShowAddField(false);
+        
+        // Save the updated configuration
+        saveDocumentTypeConfig({ boxes, fields: [...fields, {...fieldData, box_id: selectedBoxId}] });
       }
     } finally {
       setIsLoading(false);
@@ -66,6 +96,11 @@ export default function FormBuilder() {
       const success = await formService.deleteBox(boxId, boxes, fields);
       if (success) {
         await loadData();
+        
+        // Save the updated configuration
+        const updatedBoxes = boxes.filter(box => box.id !== boxId);
+        const updatedFields = fields.filter(field => field.box_id !== boxId);
+        saveDocumentTypeConfig({ boxes: updatedBoxes, fields: updatedFields });
       }
     } finally {
       setIsLoading(false);
@@ -78,6 +113,10 @@ export default function FormBuilder() {
       const success = await formService.deleteField(fieldId, fields);
       if (success) {
         await loadData();
+        
+        // Save the updated configuration
+        const updatedFields = fields.filter(field => field.id !== fieldId);
+        saveDocumentTypeConfig({ boxes, fields: updatedFields });
       }
     } finally {
       setIsLoading(false);
@@ -89,6 +128,12 @@ export default function FormBuilder() {
       setIsLoading(true);
       await formService.editBox(boxId, newData, boxes);
       await loadData();
+      
+      // Save the updated configuration
+      const updatedBoxes = boxes.map(box => 
+        box.id === boxId ? { ...box, ...newData } : box
+      );
+      saveDocumentTypeConfig({ boxes: updatedBoxes, fields });
     } finally {
       setIsLoading(false);
     }
@@ -100,6 +145,12 @@ export default function FormBuilder() {
       const success = await formService.editField(fieldId, newData, fields);
       if (success) {
         await loadData();
+        
+        // Save the updated configuration
+        const updatedFields = fields.map(field => 
+          field.id === fieldId ? { ...field, ...newData } : field
+        );
+        saveDocumentTypeConfig({ boxes, fields: updatedFields });
       }
     } finally {
       setIsLoading(false);
@@ -140,6 +191,9 @@ export default function FormBuilder() {
       }
       
       setBoxes(newBoxes);
+      
+      // Save the updated configuration
+      saveDocumentTypeConfig({ boxes: newBoxes, fields });
     } finally {
       setIsLoading(false);
     }
@@ -175,6 +229,71 @@ export default function FormBuilder() {
       }
       
       await loadData(); // Reload to get the updated order
+      
+      // Updated fields will be loaded by loadData, so we'll save after that
+      const updatedFields = await formService.getFieldsData();
+      saveDocumentTypeConfig({ boxes, fields: updatedFields });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleUpdateLayout = async (boxId, layoutData) => {
+    try {
+      setIsLoading(true);
+      
+      // Find the box to update
+      const updatedBoxes = boxes.map(box => 
+        box.id === boxId ? { ...box, ...layoutData } : box
+      );
+      
+      // Update in service
+      await formService.editBox(boxId, layoutData, boxes);
+      
+      // Update local state
+      setBoxes(updatedBoxes);
+      
+      // Save configuration
+      saveDocumentTypeConfig({ boxes: updatedBoxes, fields });
+      
+      toast({
+        title: "Layout atualizado",
+        description: "As configurações de layout foram salvas"
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar layout:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar o layout",
+        variant: "destructive"
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleSaveFormLayout = async () => {
+    try {
+      setIsLoading(true);
+      
+      // Save the current configuration
+      const success = saveDocumentTypeConfig({ boxes, fields });
+      
+      if (success) {
+        toast({
+          title: "Layout salvo",
+          description: "O layout do formulário foi salvo com sucesso"
+        });
+      } else {
+        throw new Error("Falha ao salvar layout");
+      }
+    } catch (error) {
+      console.error("Erro ao salvar layout:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível salvar o layout do formulário",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -209,10 +328,20 @@ export default function FormBuilder() {
           onAddBox={() => setShowAddBox(true)}
           onMoveBox={handleMoveBox}
           onMoveField={handleMoveField}
+          onUpdateLayout={handleUpdateLayout}
           isLoading={isLoading}
         />
 
-        <div className="mt-6 flex justify-end">
+        <div className="mt-6 flex justify-between">
+          <Button
+            onClick={handleSaveFormLayout}
+            className="bg-blue-600 hover:bg-blue-700"
+            disabled={isLoading}
+          >
+            <Save className="h-4 w-4 mr-2" />
+            Salvar Layout
+          </Button>
+          
           <Button
             onClick={() => navigate("/document-creator/form-builder")}
             className="bg-green-600 hover:bg-green-700"
