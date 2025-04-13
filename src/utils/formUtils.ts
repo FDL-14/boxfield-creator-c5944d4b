@@ -74,77 +74,128 @@ export const saveFormData = (formType: string, name: string, data: any) => {
         savedForms.push(newFormData);
       }
       
-      // Try to save to localStorage
-      const dataToSave = JSON.stringify(savedForms);
-      localStorage.setItem(savedFormsKey, dataToSave);
-      
-      console.log(`Formulário ${name} salvo com sucesso no tipo ${formType}.`);
-      
-      // Also save document types configuration if this is a form-builder type
-      if (formType === 'form-builder') {
-        const configSaved = saveDocumentTypeConfig(data);
-        console.log("Configuração de tipo de documento salva:", configSaved);
-      }
-      
-      return true;
-    } catch (storageError: any) {
-      console.error("Erro ao salvar no localStorage:", storageError);
-      
-      if (storageError.name === 'QuotaExceededError' || storageError.code === 22) {
-        console.warn("Storage quota exceeded, pruning older documents");
+      // Antes de salvar no localStorage, verifique se não estamos excedendo o limite
+      try {
+        const dataToSave = JSON.stringify(savedForms);
+        const estimatedSize = new Blob([dataToSave]).size;
         
-        // If we hit quota, prune data further and try again
-        if (savedForms.length > 5) {
-          savedForms = savedForms.slice(-5); // Just keep 5 most recent
-          try {
-            localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
-            return true;
-          } catch (e) {
-            // Falha mesmo após reduzir para 5 documentos
-            console.error("Falha ao salvar mesmo após reduzir quantidade:", e);
+        if (estimatedSize > 4.5 * 1024 * 1024) { // Se estiver perto do limite de 5MB
+          console.warn("Dados muito grandes, reduzindo quantidade de formulários...");
+          
+          // Reduzir quantidade de formulários para 10
+          savedForms.sort((a: any, b: any) => 
+            new Date(b.updated_at || b.date).getTime() - new Date(a.updated_at || a.date).getTime()
+          );
+          
+          // Garantir que o atual está incluído
+          const currentForm = savedForms.find((form: any) => form.id === formId);
+          const reducedForms = savedForms.slice(0, 10);
+          
+          if (currentForm && !reducedForms.some((form: any) => form.id === formId)) {
+            reducedForms[reducedForms.length - 1] = currentForm;
           }
-        } 
+          
+          savedForms = reducedForms;
+        }
         
-        // If still not enough, try to reduce data size for all items
-        try {
-          savedForms.forEach((form: any) => {
-            if (form.data && typeof form.data === 'object') {
-              // Remove any large data that's not essential
-              delete form.data.signatures;
-              delete form.data.images;
-              delete form.data.attachments;
-              
-              // Limitar tamanho de valores de string
-              Object.keys(form.data).forEach(key => {
-                if (typeof form.data[key] === 'string' && form.data[key].length > 1000) {
-                  form.data[key] = form.data[key].substring(0, 1000) + '...';
-                }
-              });
+        localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
+        console.log(`Formulário ${name} salvo com sucesso no tipo ${formType}.`);
+        
+        // Also save document types configuration if this is a form-builder type
+        if (formType === 'form-builder') {
+          const configSaved = saveDocumentTypeConfig(data);
+          console.log("Configuração de tipo de documento salva:", configSaved);
+        }
+        
+        return true;
+      } catch (storageError: any) {
+        // Se falhar no primeiro salvamento, tentar reduzir ainda mais
+        console.error("Erro ao salvar no localStorage:", storageError);
+        
+        // Se o erro for de quota, tentar otimizar mais
+        if (storageError.name === 'QuotaExceededError' || 
+            storageError.code === 22 || 
+            storageError.toString().includes('quota')) {
+          console.warn("Quota excedida, limpando localStorage para espaço");
+          
+          // Tentar limpar outros dados desnecessários
+          const keysToKeep = [savedFormsKey];
+          Object.keys(localStorage).forEach(key => {
+            if (!keysToKeep.includes(key)) {
+              try {
+                localStorage.removeItem(key);
+              } catch (e) {
+                // Ignorar erros na limpeza
+              }
             }
           });
           
-          // Adicionar o novo formulário otimizado
-          if (existingIndex >= 0) {
-            savedForms[existingIndex] = {
-              ...newFormData,
-              data: { id: formId, name, title: name } // Dados mínimos
-            };
-          } else {
-            savedForms.push({
-              ...newFormData,
-              data: { id: formId, name, title: name } // Dados mínimos
-            });
+          // Reduzir para apenas 5 documentos mais recentes
+          savedForms.sort((a: any, b: any) => 
+            new Date(b.updated_at || b.date).getTime() - new Date(a.updated_at || a.date).getTime()
+          );
+          
+          // Garantir que o atual está incluído
+          const currentForm = savedForms.find((form: any) => form.id === formId);
+          const reducedForms = savedForms.slice(0, 5);
+          
+          if (currentForm && !reducedForms.some((form: any) => form.id === formId)) {
+            reducedForms[reducedForms.length - 1] = currentForm;
           }
           
-          localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
-          return true;
-        } catch (finalError) {
-          console.error("Falha final ao tentar salvar o formulário:", finalError);
-          return false;
+          // Limpar ainda mais os dados de cada formulário
+          reducedForms.forEach((form: any) => {
+            if (form.data) {
+              // Remover dados grandes
+              const minimalData = {
+                id: form.data.id,
+                title: form.data.title || form.title,
+                formType: form.data.formType || form.formType
+              };
+              
+              // Manter apenas informações essenciais do cancelamento
+              if (form.data.cancelled) {
+                minimalData.cancelled = form.data.cancelled;
+                minimalData.cancellationReason = form.data.cancellationReason;
+              }
+              
+              form.data = minimalData;
+            }
+          });
+          
+          try {
+            localStorage.setItem(savedFormsKey, JSON.stringify(reducedForms));
+            console.log("Salvamento de emergência bem-sucedido com dados reduzidos");
+            return true;
+          } catch (finalError) {
+            console.error("Falha final ao salvar:", finalError);
+            
+            // Última tentativa: Salvar apenas o documento atual com dados mínimos
+            try {
+              const minimalForm = {
+                id: formId,
+                name,
+                title: name,
+                date: new Date().toISOString(),
+                formType,
+                data: { id: formId, title: name }
+              };
+              
+              localStorage.setItem(savedFormsKey, JSON.stringify([minimalForm]));
+              console.log("Salvamento mínimo de emergência realizado");
+              return true;
+            } catch (e) {
+              console.error("Impossível salvar mesmo com dados mínimos:", e);
+              return false;
+            }
+          }
+        } else {
+          throw storageError; // Rethrow if it's a different error
         }
-      } else {
-        throw storageError; // Rethrow if it's a different error
       }
+    } catch (error) {
+      console.error("Erro crítico ao salvar dados do formulário:", error);
+      return false;
     }
   } catch (error) {
     console.error("Erro crítico ao salvar dados do formulário:", error);
@@ -199,26 +250,58 @@ export const saveDocumentTypeConfig = (data: any) => {
       updated_at: new Date().toISOString()
     };
     
-    // Adicionar em localStorage
-    localStorage.setItem('document_type_config', JSON.stringify(config));
-    console.log("Configuração de documento salva no localStorage");
+    console.log("Configuração a ser salva:", config);
     
-    // Salvar também como um tipo de formulário para acesso posterior
-    const formData = {
-      id: Date.now(),
-      boxes: config.boxes,
-      fields: config.fields,
-      title: "Modelo de Formulário Personalizado",
-      name: "Modelo de Formulário Personalizado",
-      type: "form-builder",
-      date: new Date().toISOString()
-    };
-    
-    // Salvar como tipo de formulário
-    const saved = saveFormData("form-builder", "Modelo de Formulário Personalizado", formData);
-    console.log("Configuração salva como formulário:", saved);
-    
-    return true;
+    // Primeiro, salvar como configuração global
+    try {
+      // Adicionar em localStorage
+      localStorage.setItem('document_type_config', JSON.stringify(config));
+      console.log("Configuração de documento salva no localStorage");
+      
+      // Também salvar com nome específico se houver um nome no data
+      if (data.title || data.name) {
+        const configName = `document_type_config_${data.title || data.name}`;
+        localStorage.setItem(configName, JSON.stringify(config));
+        console.log(`Configuração específica '${data.title || data.name}' salva`);
+      }
+      
+      // Criar um ID único baseado em timestamp se não existir
+      const formId = data.id || Date.now();
+      
+      // Salvar também como um tipo de formulário para acesso posterior
+      const formData = {
+        id: formId,
+        boxes: config.boxes,
+        fields: config.fields,
+        title: data.title || "Modelo de Formulário Personalizado",
+        name: data.name || "Modelo de Formulário Personalizado",
+        type: "form-builder",
+        formType: "form-builder",
+        date: new Date().toISOString()
+      };
+      
+      // Salvar como tipo de formulário
+      const saved = saveFormData("form-builder", formData.title, formData);
+      console.log("Configuração salva como formulário:", saved);
+      
+      return true;
+    } catch (error) {
+      console.error("Erro ao salvar configuração:", error);
+      
+      // Tentar salvar versão reduzida em caso de erro
+      try {
+        const minConfig = {
+          id: Date.now(),
+          title: data.title || "Modelo de Formulário",
+          date: new Date().toISOString()
+        };
+        localStorage.setItem('document_type_config_minimal', JSON.stringify(minConfig));
+        return true;
+      } catch (e) {
+        console.error("Erro final ao salvar configuração mínima:", e);
+        return false;
+      }
+    }
   } catch (error) {
     console.error("Erro ao salvar configuração de tipo de documento:", error);
     return false;
@@ -375,4 +458,114 @@ export const saveDocumentAsCancelled = (
     console.error("Erro ao marcar documento como cancelado:", error);
     return false;
   }
+};
+
+/**
+ * Verifica duplicações de campos em um formulário
+ * @param fields Array de campos
+ * @returns Array de IDs de campos duplicados
+ */
+export const findDuplicateFields = (fields: any[]) => {
+  const fieldIds = new Set();
+  const duplicates = new Set();
+  
+  fields.forEach(field => {
+    if (fieldIds.has(field.id)) {
+      duplicates.add(field.id);
+    } else {
+      fieldIds.add(field.id);
+    }
+  });
+  
+  return Array.from(duplicates);
+};
+
+/**
+ * Verifica duplicações de seções em um formulário
+ * @param boxes Array de seções
+ * @returns Array de IDs de seções duplicadas
+ */
+export const findDuplicateBoxes = (boxes: any[]) => {
+  const boxIds = new Set();
+  const duplicates = new Set();
+  
+  boxes.forEach(box => {
+    if (boxIds.has(box.id)) {
+      duplicates.add(box.id);
+    } else {
+      boxIds.add(box.id);
+    }
+  });
+  
+  return Array.from(duplicates);
+};
+
+/**
+ * Corrige IDs duplicados em campos e seções
+ * @param boxes Array de seções
+ * @param fields Array de campos
+ * @returns Objeto com arrays corrigidos
+ */
+export const fixDuplicateIds = (boxes: any[], fields: any[]) => {
+  const boxIdMap = new Map();
+  const fieldIdMap = new Map();
+  
+  // Criar novos arrays para evitar mutar os originais
+  const fixedBoxes = boxes.map(box => {
+    const newBox = { ...box };
+    if (boxIdMap.has(box.id)) {
+      // Se já existe este ID, criar um novo
+      newBox.id = Date.now() + Math.floor(Math.random() * 10000);
+      boxIdMap.set(box.id, newBox.id);
+    } else {
+      boxIdMap.set(box.id, box.id);
+    }
+    return newBox;
+  });
+  
+  const fixedFields = fields.map(field => {
+    const newField = { ...field };
+    if (fieldIdMap.has(field.id)) {
+      // Se já existe este ID, criar um novo
+      newField.id = Date.now() + Math.floor(Math.random() * 10000);
+      fieldIdMap.set(field.id, newField.id);
+    } else {
+      fieldIdMap.set(field.id, field.id);
+    }
+    
+    // Atualizar box_id se a seção foi alterada
+    if (boxIdMap.has(field.box_id) && boxIdMap.get(field.box_id) !== field.box_id) {
+      newField.box_id = boxIdMap.get(field.box_id);
+    }
+    
+    return newField;
+  });
+  
+  return { boxes: fixedBoxes, fields: fixedFields };
+};
+
+/**
+ * Prepara um modelo de formulário para uso, garantindo IDs únicos
+ * @param template O modelo de formulário
+ * @returns Modelo com IDs únicos
+ */
+export const prepareFormTemplate = (template: any) => {
+  if (!template) return null;
+  
+  let boxes = template.boxes || [];
+  let fields = template.fields || [];
+  
+  // Verificar se há duplicações
+  const duplicateBoxes = findDuplicateBoxes(boxes);
+  const duplicateFields = findDuplicateFields(fields);
+  
+  // Corrigir se necessário
+  if (duplicateBoxes.length > 0 || duplicateFields.length > 0) {
+    console.log("Corrigindo IDs duplicados no modelo");
+    const fixed = fixDuplicateIds(boxes, fields);
+    boxes = fixed.boxes;
+    fields = fixed.fields;
+  }
+  
+  return { ...template, boxes, fields };
 };

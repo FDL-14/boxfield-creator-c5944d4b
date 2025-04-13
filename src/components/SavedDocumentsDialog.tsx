@@ -3,12 +3,12 @@ import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getSavedForms } from "@/utils/formUtils";
-import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck } from "lucide-react";
+import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { deleteSavedForm } from "@/utils/formUtils";
+import { Textarea } from "@/components/ui/textarea";
 
 interface SavedDocumentsDialogProps {
   open: boolean;
@@ -27,6 +27,8 @@ export default function SavedDocumentsDialog({
   const [savedDocuments, setSavedDocuments] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showDetails, setShowDetails] = useState<number | null>(null);
+  const [documentJson, setDocumentJson] = useState("");
   
   useEffect(() => {
     if (open) {
@@ -70,6 +72,30 @@ export default function SavedDocumentsDialog({
         variant: "destructive"
       });
     }
+  };
+  
+  const handleViewDocumentDetails = (id: number, document: any, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowDetails(id);
+    
+    // Prepare JSON data for display
+    const formattedJson = JSON.stringify(document, null, 2);
+    setDocumentJson(formattedJson);
+  };
+  
+  const copyJsonToClipboard = () => {
+    navigator.clipboard.writeText(documentJson).then(() => {
+      toast({
+        title: "JSON copiado",
+        description: "JSON do documento copiado para a área de transferência"
+      });
+    }).catch(err => {
+      toast({
+        title: "Erro ao copiar",
+        description: "Não foi possível copiar o JSON",
+        variant: "destructive"
+      });
+    });
   };
   
   const formatDate = (dateString: string) => {
@@ -187,14 +213,24 @@ export default function SavedDocumentsDialog({
                           </div>
                         </div>
                       </div>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={(e) => handleDeleteDocument(doc.id, e)}
-                        className="text-red-500 hover:text-red-700 hover:bg-red-50 ml-2 flex-shrink-0"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <div className="flex">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => handleViewDocumentDetails(doc.id, doc, e)}
+                          className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 mr-1 flex-shrink-0"
+                        >
+                          <Copy className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={(e) => handleDeleteDocument(doc.id, e)}
+                          className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </div>
                     </div>
                   );
                 })}
@@ -226,6 +262,36 @@ export default function SavedDocumentsDialog({
           </Button>
         </DialogFooter>
       </DialogContent>
+
+      {/* Dialog para exibir detalhes do documento */}
+      {showDetails !== null && (
+        <Dialog 
+          open={showDetails !== null} 
+          onOpenChange={() => setShowDetails(null)}
+        >
+          <DialogContent className="sm:max-w-lg max-h-[90vh]">
+            <DialogHeader>
+              <DialogTitle>Detalhes do Documento</DialogTitle>
+            </DialogHeader>
+            <div className="mt-4">
+              <Textarea
+                readOnly
+                value={documentJson}
+                className="font-mono text-xs h-[450px]"
+              />
+            </div>
+            <DialogFooter>
+              <Button onClick={() => setShowDetails(null)} variant="outline">
+                Fechar
+              </Button>
+              <Button onClick={copyJsonToClipboard}>
+                <Copy className="h-4 w-4 mr-2" />
+                Copiar JSON
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      )}
     </Dialog>
   );
 }
