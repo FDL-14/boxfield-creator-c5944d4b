@@ -147,7 +147,7 @@ export const saveFormData = (formType: string, name: string, data: any) => {
           reducedForms.forEach((form: any) => {
             if (form.data) {
               // Remover dados grandes
-              const minimalData = {
+              const minimalData: any = {
                 id: form.data.id,
                 title: form.data.title || form.title,
                 formType: form.data.formType || form.formType
@@ -178,7 +178,12 @@ export const saveFormData = (formType: string, name: string, data: any) => {
                 title: name,
                 date: new Date().toISOString(),
                 formType,
-                data: { id: formId, title: name }
+                data: { 
+                  id: formId, 
+                  title: name,
+                  cancelled: data.cancelled || false,
+                  cancellationReason: data.cancellationReason || ""
+                }
               };
               
               localStorage.setItem(savedFormsKey, JSON.stringify([minimalForm]));
