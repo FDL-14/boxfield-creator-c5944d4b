@@ -65,7 +65,20 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onAdd(field);
+    
+    // Garantir que campos de seleção tenham pelo menos duas opções
+    if ((field.type === "checkbox" || field.type === "flag" || field.type === "flag_with_text") && 
+        field.options.length === 1) {
+      // Adicionar uma segunda opção padrão
+      const updatedField = {
+        ...field,
+        options: [...field.options, {text: "Opção 2"}]
+      };
+      onAdd(updatedField);
+    } else {
+      onAdd(field);
+    }
+    
     setField({ 
       label: "", 
       type: "", 
@@ -85,6 +98,20 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
         signature_label: ""
       });
       onClose();
+    }
+  };
+  
+  // Quando o tipo mudar para um tipo de seleção, garantir que tenha duas opções
+  const handleTypeChange = (type) => {
+    if ((type === "checkbox" || type === "flag" || type === "flag_with_text") && 
+        field.options.length < 2) {
+      setField({
+        ...field,
+        type,
+        options: [{text: "Opção 1"}, {text: "Opção 2"}]
+      });
+    } else {
+      setField({ ...field, type });
     }
   };
 
@@ -107,7 +134,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
 
             <Select
               value={field.type}
-              onValueChange={(value) => setField({ ...field, type: value })}
+              onValueChange={handleTypeChange}
               disabled={isLoading}
             >
               <SelectTrigger className="transition-all duration-300">
@@ -122,7 +149,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
               </SelectContent>
             </Select>
 
-            {(field.type === "flag" || field.type === "flag_with_text") && (
+            {(field.type === "flag" || field.type === "flag_with_text" || field.type === "checkbox") && (
               <div className="space-y-3 p-3 border rounded-lg animate-fade-in">
                 <h4 className="font-medium text-sm">Opções de Seleção</h4>
                 
@@ -136,7 +163,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
                       className="flex-1"
                     />
                     
-                    {field.options.length > 1 && (
+                    {field.options.length > 2 && (
                       <Button
                         type="button"
                         variant="ghost"
@@ -180,7 +207,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
             <Button 
               type="submit" 
               disabled={!field.label.trim() || !field.type || isLoading ||
-                ((field.type === "flag" || field.type === "flag_with_text") && 
+                ((field.type === "flag" || field.type === "flag_with_text" || field.type === "checkbox") && 
                 field.options.some(opt => !opt.text.trim()))}
               className="bg-blue-600 hover:bg-blue-700 transition-all duration-300"
             >

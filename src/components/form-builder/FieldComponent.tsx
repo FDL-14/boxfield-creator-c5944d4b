@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,18 +70,27 @@ export default function FieldComponent({
       case "long_text":
         return <Textarea disabled placeholder="Campo de texto longo" className="transition-all duration-300" />;
       case "checkbox":
-        return <Checkbox disabled className="transition-all duration-300" />;
-      case "flag":
         return (
           <div className="space-y-2 transition-all duration-300">
             <RadioGroup disabled>
-              {(field.options || [{text: "Opção 1"}]).map((option, index) => (
+              {(field.options || [{text: "Opção 1"}, {text: "Opção 2"}]).map((option, index) => (
                 <div key={index} className="flex items-center space-x-2">
                   <RadioGroupItem value={`option-${index}`} id={`option-${index}`} disabled />
                   <Label htmlFor={`option-${index}`} className="text-sm">{option.text}</Label>
                 </div>
               ))}
             </RadioGroup>
+          </div>
+        );
+      case "flag":
+        return (
+          <div className="space-y-2 transition-all duration-300">
+            {(field.options || [{text: "Opção 1"}, {text: "Opção 2"}]).map((option, index) => (
+              <div key={index} className="flex items-center space-x-2">
+                <Checkbox id={`flag-${index}`} disabled />
+                <Label htmlFor={`flag-${index}`} className="text-sm">{option.text}</Label>
+              </div>
+            ))}
           </div>
         );
       case "flag_with_text":
@@ -146,7 +156,7 @@ export default function FieldComponent({
             className="transition-all duration-300"
           />
           
-          {(editedField.type === "flag" || editedField.type === "flag_with_text") && (
+          {(editedField.type === "flag" || editedField.type === "flag_with_text" || editedField.type === "checkbox") && (
             <div className="space-y-3 p-3 border rounded-lg animate-fade-in">
               <h4 className="font-medium text-sm">Opções de Seleção</h4>
               
@@ -215,7 +225,7 @@ export default function FieldComponent({
               onClick={handleSave}
               className="bg-green-600 hover:bg-green-700 transition-all duration-300"
               disabled={isLoading || 
-                ((editedField.type === "flag" || editedField.type === "flag_with_text") && 
+                ((editedField.type === "flag" || editedField.type === "flag_with_text" || editedField.type === "checkbox") && 
                 (editedField.options || []).some(opt => !opt.text.trim()))}
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
