@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -32,6 +31,7 @@ export default function FieldComponent({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [editedField, setEditedField] = useState(field);
+  const [selectedCheckboxes, setSelectedCheckboxes] = useState({});
 
   const handleAddOption = () => {
     setEditedField({
@@ -63,6 +63,13 @@ export default function FieldComponent({
     setIsEditing(false);
   };
 
+  const toggleCheckbox = (id) => {
+    setSelectedCheckboxes(prev => ({
+      ...prev,
+      [id]: !prev[id]
+    }));
+  };
+
   const renderPreview = () => {
     switch (field.type) {
       case "short_text":
@@ -87,7 +94,12 @@ export default function FieldComponent({
           <div className="space-y-2 transition-all duration-300">
             {(field.options || [{text: "Opção 1"}, {text: "Opção 2"}]).map((option, index) => (
                 <div key={index} className="flex items-center space-x-2">
-                  <Checkbox id={`flag-${field.id}-${index}`} disabled />
+                  <Checkbox 
+                    id={`flag-${field.id}-${index}`}
+                    checked={selectedCheckboxes[`flag-${field.id}-${index}`] || false}
+                    onCheckedChange={() => toggleCheckbox(`flag-${field.id}-${index}`)}
+                    disabled={isLocked}
+                  />
                   <Label htmlFor={`flag-${field.id}-${index}`} className="text-sm">{option.text}</Label>
                 </div>
             ))}
@@ -99,11 +111,17 @@ export default function FieldComponent({
             {(field.options || [{text: "Opção 1"}]).map((option, index) => (
               <div key={index} className="flex items-start gap-2">
                 <div className="flex items-center h-6">
-                  <Checkbox disabled className="mt-1" />
+                  <Checkbox 
+                    id={`flag-text-${field.id}-${index}`}
+                    checked={selectedCheckboxes[`flag-text-${field.id}-${index}`] || false}
+                    onCheckedChange={() => toggleCheckbox(`flag-text-${field.id}-${index}`)}
+                    disabled={isLocked}
+                    className="mt-1"
+                  />
                 </div>
                 <div className="flex-1">
                   <Label className="text-sm mb-1 block">{option.text}</Label>
-                  <Input disabled className="w-full" placeholder="Texto adicional" />
+                  <Input disabled={!selectedCheckboxes[`flag-text-${field.id}-${index}`] || isLocked} className="w-full" placeholder="Texto adicional" />
                 </div>
               </div>
             ))}
