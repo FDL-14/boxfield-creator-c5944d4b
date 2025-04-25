@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getSavedForms } from "@/utils/formUtils";
+import { getSavedForms, prepareFormTemplate } from "@/utils/formUtils";
 import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck, Copy } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { deleteSavedForm } from "@/utils/formUtils";
@@ -81,6 +81,17 @@ export default function SavedDocumentsDialog({
     // Prepare JSON data for display
     const formattedJson = JSON.stringify(document, null, 2);
     setDocumentJson(formattedJson);
+  };
+  
+  const handleSelectDocument = (name: string, document: any) => {
+    // For form-builder templates, prepare the template first
+    if (docType === 'form-builder') {
+      const preparedTemplate = prepareFormTemplate(document);
+      onSelectDocument(name, preparedTemplate || document);
+    } else {
+      onSelectDocument(name, document);
+    }
+    onClose();
   };
   
   const copyJsonToClipboard = () => {
@@ -163,12 +174,15 @@ export default function SavedDocumentsDialog({
                   const hasFormBuilderData = doc.boxes && doc.fields && doc.boxes.length > 0;
                   const hasDataObject = doc.data && Object.keys(doc.data).length > 0;
                   
+                  // Determine the data to pass when clicked
+                  const documentToPass = hasFormBuilderData ? doc : doc.data || doc;
+                  
                   return (
                     <div 
                       key={doc.id} 
                       className={`flex items-center justify-between border rounded p-3 cursor-pointer hover:bg-gray-50 transition-colors
                                 ${isCancelled ? 'bg-red-50 border-red-200' : ''}`}
-                      onClick={() => onSelectDocument(doc.name || doc.title, hasFormBuilderData ? doc : doc.data || doc)}
+                      onClick={() => handleSelectDocument(doc.name || doc.title, documentToPass)}
                     >
                       <div className="flex items-center space-x-3">
                         <div className={`p-2 rounded-md ${isCancelled ? 'bg-red-100' : 'bg-blue-100'}`}>

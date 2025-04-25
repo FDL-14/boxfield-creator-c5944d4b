@@ -86,10 +86,10 @@ export default function FieldComponent({
         return (
           <div className="space-y-2 transition-all duration-300">
             {(field.options || [{text: "Opção 1"}, {text: "Opção 2"}]).map((option, index) => (
-              <div key={index} className="flex items-center space-x-2">
-                <Checkbox id={`flag-${index}`} disabled />
-                <Label htmlFor={`flag-${index}`} className="text-sm">{option.text}</Label>
-              </div>
+                <div key={index} className="flex items-center space-x-2">
+                  <Checkbox id={`flag-${field.id}-${index}`} disabled />
+                  <Label htmlFor={`flag-${field.id}-${index}`} className="text-sm">{option.text}</Label>
+                </div>
             ))}
           </div>
         );

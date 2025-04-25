@@ -1,4 +1,3 @@
-
 /**
  * Saves form data to localStorage
  * @param formType The type of form (e.g., 'analise-risco', 'permissao-trabalho')
@@ -150,14 +149,10 @@ export const saveFormData = (formType: string, name: string, data: any) => {
               const minimalData: any = {
                 id: form.data.id,
                 title: form.data.title || form.title,
-                formType: form.data.formType || form.formType
+                formType: form.data.formType || form.formType,
+                cancelled: form.data.cancelled || false,
+                cancellationReason: form.data.cancellationReason || ""
               };
-              
-              // Manter apenas informações essenciais do cancelamento
-              if (form.data.cancelled) {
-                minimalData.cancelled = form.data.cancelled;
-                minimalData.cancellationReason = form.data.cancellationReason;
-              }
               
               form.data = minimalData;
             }

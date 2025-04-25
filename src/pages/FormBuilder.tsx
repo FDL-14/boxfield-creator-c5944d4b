@@ -67,6 +67,12 @@ export default function FormBuilder() {
         console.log("Configuração carregada do localStorage:", savedConfig);
         setBoxes(savedConfig.boxes);
         setFields(savedConfig.fields);
+        
+        // If there's a title, use it for the template name
+        if (savedConfig.title || savedConfig.name) {
+          setTemplateName(savedConfig.title || savedConfig.name);
+        }
+        
         toast({
           title: "Configuração carregada",
           description: "Layout do formulário carregado com sucesso",
@@ -171,7 +177,7 @@ export default function FormBuilder() {
       const updatedBoxes = boxes.map(box => 
         box.id === boxId ? { ...box, ...newData } : box
       );
-      saveDocumentTypeConfig({ boxes: updatedBoxes, fields });
+      saveDocumentTypeConfig({ boxes: updatedBoxes, fields, name: templateName, title: templateName });
       saveCompletedFormType(updatedBoxes, fields);
     } finally {
       setIsLoading(false);
