@@ -1,3 +1,4 @@
+
 /**
  * Saves form data to localStorage
  * @param formType The type of form (e.g., 'analise-risco', 'permissao-trabalho')
@@ -360,7 +361,7 @@ export const getSavedFormById = (formType: string, id: number) => {
  * @param formType The type of form
  * @param id The ID of the form to delete
  */
-export const deleteSavedForm = (formType: string, id: number) => {
+export const deleteSavedForm = (formType: string, id: number | string) => {
   try {
     const savedFormsKey = `saved_forms_${formType}`;
     const savedForms = JSON.parse(localStorage.getItem(savedFormsKey) || '[]');

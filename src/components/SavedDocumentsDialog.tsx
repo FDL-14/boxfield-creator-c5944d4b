@@ -39,8 +39,7 @@ export default function SavedDocumentsDialog({
   const loadSavedDocuments = async () => {
     try {
       setLoading(true);
-      // Fixed: Pass docType as a string (which it already is), without any type conversion
-      // The issue was likely in the formUtils.ts implementation expecting a different type
+      // Get saved forms using the docType string
       const docs = await getSavedForms(docType || "custom");
       console.log("Documentos carregados:", docs);
       setSavedDocuments(docs);
@@ -61,6 +60,7 @@ export default function SavedDocumentsDialog({
     setLoading(true);
     
     try {
+      // Pass id directly as string or number based on the updated deleteSavedForm function
       const success = await deleteSavedForm(docType || "custom", id);
       
       if (success) {
