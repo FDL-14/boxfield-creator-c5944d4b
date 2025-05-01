@@ -1,5 +1,4 @@
 
-// Apenas modificamos a interface para incluir onToggleLockWhenSigned
 import React from "react";
 import FormBoxComponent from "./FormBoxComponent";
 import { Button } from "@/components/ui/button";
@@ -45,7 +44,7 @@ export default function BoxList({
   );
 
   if (sortedBoxes.length === 0) {
-    return <EmptyState onAddBox={onAddBox} />;
+    return <EmptyState onAddBox={onAddBox} isLoading={isLoading} />;
   }
 
   return (
