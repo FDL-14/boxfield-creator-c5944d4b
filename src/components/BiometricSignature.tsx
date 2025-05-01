@@ -22,6 +22,21 @@ interface FaceRegistration {
   timestamp: string;
 }
 
+// Define profile type to match the database
+interface Profile {
+  id: string;
+  name: string;
+  email?: string | null;
+  role?: string | null;
+  cpf?: string | null;
+  company_ids?: string[] | null;
+  client_ids?: string[] | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  face_image?: string | null;
+  is_face_registered?: boolean | null;
+}
+
 const BiometricSignature: React.FC<BiometricSignatureProps> = ({
   onCapture,
   onCancel,
@@ -92,13 +107,18 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
         }
         
         if (data && data.length > 0) {
+          // Type assertion to ensure data is treated as Profile[]
+          const profiles = data as Profile[];
+          
           // Convert to our format
-          const faces = data.map(d => ({
-            image: d.face_image || '',
-            name: d.name || '',
-            role: d.role || '',
-            timestamp: d.updated_at || new Date().toISOString()
-          })).filter(face => face.image);
+          const faces = profiles
+            .filter(d => d.face_image) // Only include profiles with face_image
+            .map(d => ({
+              image: d.face_image || '',
+              name: d.name || '',
+              role: d.role || '',
+              timestamp: d.updated_at || new Date().toISOString()
+            }));
           
           // Merge with local storage data, prioritizing Supabase data
           const mergedFaces = [...faces];
