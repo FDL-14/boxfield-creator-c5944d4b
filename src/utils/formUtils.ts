@@ -1,4 +1,3 @@
-
 /**
  * Saves form data to localStorage
  * @param formType The type of form (e.g., 'analise-risco', 'permissao-trabalho')
@@ -24,32 +23,35 @@ export const saveFormData = (formType: string, name: string, data: any) => {
     
     // Check if we're updating an existing form
     const existingIndex = savedForms.findIndex((form: any) => 
-      form.id === formId || (form.title === name && form.date === data.date)
+      form.id === formId
     );
+    
+    // Create a deep copy of the data to prevent reference issues
+    const dataCopy = JSON.parse(JSON.stringify(data));
     
     const newFormData = {
       ...(existingIndex >= 0 ? savedForms[existingIndex] : {}),
       id: formId,
       name,
       title: name,
-      data: cleanDataForStorage({...data, id: formId}), // Clean the data to reduce storage size
+      data: cleanDataForStorage({...dataCopy, id: formId}), // Clean the data to reduce storage size
       date: existingIndex >= 0 ? savedForms[existingIndex].date : new Date().toISOString(),
       formType: formType,
       updated_at: new Date().toISOString(),
-      cancelled: data.cancelled || false,
-      cancellationReason: data.cancellationReason || "",
-      // Salvar os valores do documento
-      document_values: data.document_values || {},
+      cancelled: dataCopy.cancelled || false,
+      cancellationReason: dataCopy.cancellationReason || "",
+      // Salvar os valores do documento - garantir que preservamos os valores
+      document_values: dataCopy.document_values || {},
       // Salvar configurações de bloqueio de seções
-      section_locks: data.section_locks || []
+      section_locks: dataCopy.section_locks || []
     };
     
     console.log("Dados do formulário a serem salvos:", newFormData);
     
     // Verificar se o formulário tem seções e campos (form builder)
-    if (formType === 'form-builder' && data.boxes && data.fields) {
-      newFormData.boxes = data.boxes;
-      newFormData.fields = data.fields;
+    if (formType === 'form-builder' && dataCopy.boxes && dataCopy.fields) {
+      newFormData.boxes = dataCopy.boxes;
+      newFormData.fields = dataCopy.fields;
     }
     
     try {
@@ -63,17 +65,19 @@ export const saveFormData = (formType: string, name: string, data: any) => {
       
       testStorage(); // Testar se podemos escrever no localStorage
       
+      // CORREÇÃO: Não deve substituir formulários existentes com o mesmo nome, mas criar novo
       if (existingIndex >= 0) {
-        // Update existing form
+        // Update existing form by ID only, not by name
         savedForms[existingIndex] = newFormData;
       } else {
-        // Add new form - limit to 20 most recent documents if needed
-        if (savedForms.length >= 20) {
+        // Add as a new form - don't replace existing ones with same name
+        // limit to 50 most recent documents if needed
+        if (savedForms.length >= 50) {
           // Sort by date and keep only most recent ones
           savedForms.sort((a: any, b: any) => 
             new Date(b.updated_at || b.date).getTime() - new Date(a.updated_at || a.date).getTime()
           );
-          savedForms = savedForms.slice(0, 19); // Keep 19 to make room for the new one
+          savedForms = savedForms.slice(0, 49); // Keep 49 to make room for the new one
         }
         savedForms.push(newFormData);
       }
@@ -86,14 +90,14 @@ export const saveFormData = (formType: string, name: string, data: any) => {
         if (estimatedSize > 4.5 * 1024 * 1024) { // Se estiver perto do limite de 5MB
           console.warn("Dados muito grandes, reduzindo quantidade de formulários...");
           
-          // Reduzir quantidade de formulários para 10
+          // Reduzir quantidade de formulários para 30
           savedForms.sort((a: any, b: any) => 
             new Date(b.updated_at || b.date).getTime() - new Date(a.updated_at || a.date).getTime()
           );
           
           // Garantir que o atual está incluído
           const currentForm = savedForms.find((form: any) => form.id === formId);
-          const reducedForms = savedForms.slice(0, 10);
+          const reducedForms = savedForms.slice(0, 30);
           
           if (currentForm && !reducedForms.some((form: any) => form.id === formId)) {
             reducedForms[reducedForms.length - 1] = currentForm;
@@ -103,11 +107,14 @@ export const saveFormData = (formType: string, name: string, data: any) => {
         }
         
         localStorage.setItem(savedFormsKey, JSON.stringify(savedForms));
-        console.log(`Formulário ${name} salvo com sucesso no tipo ${formType}.`);
+        console.log(`Formulário ${name} salvo com sucesso no tipo ${formType}. Total de formulários: ${savedForms.length}`);
+        
+        // Tentar salvar no Supabase se estiver conectado
+        trySaveFormToSupabase(formType, newFormData);
         
         // Also save document types configuration if this is a form-builder type
         if (formType === 'form-builder') {
-          const configSaved = saveDocumentTypeConfig(data);
+          const configSaved = saveDocumentTypeConfig(dataCopy);
           console.log("Configuração de tipo de documento salva:", configSaved);
         }
         
@@ -134,14 +141,14 @@ export const saveFormData = (formType: string, name: string, data: any) => {
             }
           });
           
-          // Reduzir para apenas 5 documentos mais recentes
+          // Reduzir para apenas 15 documentos mais recentes
           savedForms.sort((a: any, b: any) => 
             new Date(b.updated_at || b.date).getTime() - new Date(a.updated_at || a.date).getTime()
           );
           
           // Garantir que o atual está incluído
           const currentForm = savedForms.find((form: any) => form.id === formId);
-          const reducedForms = savedForms.slice(0, 5);
+          const reducedForms = savedForms.slice(0, 15);
           
           if (currentForm && !reducedForms.some((form: any) => form.id === formId)) {
             reducedForms[reducedForms.length - 1] = currentForm;
@@ -209,6 +216,39 @@ export const saveFormData = (formType: string, name: string, data: any) => {
 };
 
 /**
+ * Tenta salvar o formulário no Supabase se disponível
+ */
+const trySaveFormToSupabase = async (formType: string, formData: any) => {
+  try {
+    // Import supabase client
+    const { supabase } = await import("@/integrations/supabase/client");
+    
+    // Check if supabase is initialized and user is authenticated
+    const session = await supabase.auth.getSession();
+    if (session && session.data.session) {
+      const { error } = await supabase
+        .from('document_templates')
+        .upsert({
+          type: formType,
+          title: formData.title || formData.name,
+          data: formData,
+          is_template: false,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'id' });
+      
+      if (error) {
+        console.error("Erro ao salvar formulário no Supabase:", error);
+      } else {
+        console.log("Formulário salvo com sucesso no Supabase");
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao tentar salvar no Supabase:", error);
+    // Continue anyway since we saved to localStorage
+  }
+};
+
+/**
  * Clean data object to reduce storage size
  */
 const cleanDataForStorage = (data: any) => {
@@ -223,7 +263,10 @@ const cleanDataForStorage = (data: any) => {
       if (typeof obj[key] === 'string' && obj[key].length > 2000 && 
          (obj[key].startsWith('data:image') || key.includes('signature'))) {
         // Replace large data URLs with a placeholder to save space
-        obj[key] = '[IMAGE DATA]';
+        // For signature fields, keep them to preserve functionality
+        if (!key.includes('signature')) {
+          obj[key] = '[IMAGE DATA]';
+        }
       } else if (typeof obj[key] === 'object' && obj[key] !== null) {
         processObject(obj[key]);
       }
@@ -588,4 +631,69 @@ export const prepareFormTemplate = (template: any) => {
   }
   
   return { ...template, boxes, fields };
+};
+
+/**
+ * Verifica se o formulário salvo contém todos os dados necessários
+ * @param form O formulário salvo
+ * @returns Booleano indicando se o formulário está completo
+ */
+export const isFormComplete = (form: any) => {
+  if (!form) return false;
+  
+  // Verificar se o formulário tem os campos essenciais
+  if (!form.id || !form.name || !form.title || !form.formType) {
+    return false;
+  }
+  
+  // Verificar se o formulário tem dados completos
+  if (!form.data || typeof form.data !== 'object') {
+    return false;
+  }
+  
+  // Para form-builder, verificar se tem boxes e fields
+  if (form.formType === 'form-builder') {
+    if (!form.boxes || !form.fields || !Array.isArray(form.boxes) || !Array.isArray(form.fields)) {
+      return false;
+    }
+  }
+  
+  // Verificar valores do documento
+  if (!form.document_values || typeof form.document_values !== 'object') {
+    return false;
+  }
+  
+  return true;
+};
+
+/**
+ * Verifica e repara formulários salvos com problemas
+ * @param formType O tipo de formulário
+ */
+export const checkAndRepairSavedForms = async (formType: string) => {
+  try {
+    const savedFormsKey = `saved_forms_${formType}`;
+    const forms = JSON.parse(localStorage.getItem(savedFormsKey) || '[]');
+    
+    let hasChanges = false;
+    const repairedForms = forms.filter((form: any) => {
+      const isComplete = isFormComplete(form);
+      if (!isComplete) {
+        console.warn(`Formulário ID ${form.id} incompleto, removendo...`);
+        hasChanges = true;
+        return false;
+      }
+      return true;
+    });
+    
+    if (hasChanges) {
+      localStorage.setItem(savedFormsKey, JSON.stringify(repairedForms));
+      console.log(`Reparados ${forms.length - repairedForms.length} formulários no tipo ${formType}`);
+    }
+    
+    return repairedForms;
+  } catch (error) {
+    console.error("Erro ao verificar e reparar formulários salvos:", error);
+    return [];
+  }
 };
