@@ -72,7 +72,7 @@ export default function BoxList({
             onMoveField={onMoveField}
             onUpdateLayout={(layoutData) => onUpdateLayout(box.id, layoutData)}
             onToggleLockWhenSigned={onToggleLockWhenSigned ? 
-              (value) => onToggleLockWhenSigned(box.id, value) : undefined}
+              (value: boolean) => onToggleLockWhenSigned(box.id, value) : undefined}
             isLoading={isLoading}
             isLocked={isLocked}
           />
