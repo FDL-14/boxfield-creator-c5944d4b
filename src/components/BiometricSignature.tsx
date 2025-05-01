@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
@@ -83,8 +82,9 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
       const session = await supabase.auth.getSession();
       if (session && session.data.session) {
         const { data, error } = await supabase
-          .from('registered_faces')
-          .select('*');
+          .from('profiles')
+          .select('*')
+          .eq('is_face_registered', true);
         
         if (error) {
           console.error("Erro ao carregar faces do Supabase:", error);
@@ -94,11 +94,11 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
         if (data && data.length > 0) {
           // Convert to our format
           const faces = data.map(d => ({
-            image: d.face_image,
-            name: d.name,
-            role: d.role,
-            timestamp: d.created_at
-          }));
+            image: d.face_image || '',
+            name: d.name || '',
+            role: d.role || '',
+            timestamp: d.updated_at || new Date().toISOString()
+          })).filter(face => face.image);
           
           // Merge with local storage data, prioritizing Supabase data
           const mergedFaces = [...faces];
@@ -108,8 +108,10 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
           localStorage.setItem('registeredFaces', JSON.stringify(mergedFaces));
           
           // Set registered face state
-          setHasRegisteredFace(true);
-          setRegisteredFaceImage(faces[0].image);
+          if (faces.length > 0) {
+            setHasRegisteredFace(true);
+            setRegisteredFaceImage(faces[0].image);
+          }
         }
       }
     } catch (error) {
@@ -279,13 +281,16 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
       // Check if supabase is initialized and user is authenticated
       const session = await supabase.auth.getSession();
       if (session && session.data.session) {
+        // Update or insert the profile with face data
         const { error } = await supabase
-          .from('registered_faces')
-          .insert({
+          .from('profiles')
+          .update({
             face_image: faceData.image,
             name: faceData.name,
-            role: faceData.role
-          });
+            role: faceData.role,
+            is_face_registered: true
+          })
+          .eq('id', session.data.session.user.id);
         
         if (error) {
           console.error("Erro ao salvar face no Supabase:", error);
