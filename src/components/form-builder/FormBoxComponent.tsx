@@ -33,7 +33,7 @@ interface FormBoxComponentProps {
   onMoveDown?: () => void;
   onMoveField?: (fieldId: string, direction: 'up' | 'down') => void;
   onUpdateLayout?: (layout: any) => void;
-  onToggleLockWhenSigned?: (boxId: string, value: boolean) => void;
+  onToggleLockWhenSigned?: (value: boolean) => void;
   isLoading: boolean;
   isLocked?: boolean;
 }
