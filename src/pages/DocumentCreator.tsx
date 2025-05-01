@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -849,7 +848,7 @@ export default function DocumentCreator() {
     toast({
       title: "Configuração atualizada",
       description: `A seção será ${sectionLockConfig[boxId] ? "desbloqueada" : "bloqueada"} quando assinada`,
-      variant: "success"
+      variant: "default"
     });
   };
 
