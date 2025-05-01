@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChevronDown, ChevronUp, PlusCircle, Trash2, Edit, LayoutGrid, AlignLeft, AlignCenter, AlignRight } from "lucide-react";
+import { ChevronDown, ChevronUp, PlusCircle, Trash2, Edit, LayoutGrid, AlignLeft, AlignCenter, AlignRight, Lock, Unlock } from "lucide-react";
 import FieldComponent from "./FieldComponent";
 import EditSectionDialog from "../form-builder/EditSectionDialog";
 import { 
@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 
 interface FormBoxComponentProps {
   box: any;
@@ -32,6 +33,7 @@ interface FormBoxComponentProps {
   onMoveDown?: () => void;
   onMoveField?: (fieldId: string, direction: 'up' | 'down') => void;
   onUpdateLayout?: (layout: any) => void;
+  onToggleLockWhenSigned?: (boxId: string, value: boolean) => void;
   isLoading: boolean;
   isLocked?: boolean;
 }
@@ -48,11 +50,13 @@ export default function FormBoxComponent({
   onMoveDown,
   onMoveField,
   onUpdateLayout,
+  onToggleLockWhenSigned,
   isLoading,
   isLocked = false
 }: FormBoxComponentProps) {
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showLayoutSettings, setShowLayoutSettings] = useState(false);
+  const [showLockSettings, setShowLockSettings] = useState(false);
 
   const defaultLayout = {
     alignment: box.layout?.alignment || "left",
@@ -63,6 +67,7 @@ export default function FormBoxComponent({
   };
 
   const [layoutSettings, setLayoutSettings] = useState(defaultLayout);
+  const [lockWhenSigned, setLockWhenSigned] = useState(box.lockWhenSigned !== false);
 
   const handleEditBox = (newData: any) => {
     if (onEditBox) {
@@ -77,6 +82,13 @@ export default function FormBoxComponent({
     
     if (onUpdateLayout) {
       onUpdateLayout(newLayout);
+    }
+  };
+
+  const handleLockWhenSignedChange = (value: boolean) => {
+    setLockWhenSigned(value);
+    if (onToggleLockWhenSigned) {
+      onToggleLockWhenSigned(box.id, value);
     }
   };
 
@@ -245,6 +257,42 @@ export default function FormBoxComponent({
                           step={1}
                           onValueChange={(value) => handleLayoutChange("margin", value[0])}
                         />
+                      </div>
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              )}
+              {onToggleLockWhenSigned && (
+                <Popover open={showLockSettings} onOpenChange={setShowLockSettings}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      className={lockWhenSigned ? "text-amber-500" : "text-gray-500"}
+                      disabled={isLoading}
+                    >
+                      {lockWhenSigned ? <Lock className="h-4 w-4" /> : <Unlock className="h-4 w-4" />}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80">
+                    <div className="space-y-4">
+                      <h4 className="font-medium">Configurações de Bloqueio</h4>
+                      
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="lock-when-signed">Bloquear seção após assinatura</Label>
+                        <Switch
+                          id="lock-when-signed"
+                          checked={lockWhenSigned}
+                          onCheckedChange={handleLockWhenSignedChange}
+                        />
+                      </div>
+                      
+                      <div className="text-sm text-gray-500">
+                        {lockWhenSigned ? (
+                          <p>Esta seção será bloqueada para edição após qualquer campo de assinatura ser assinado no documento.</p>
+                        ) : (
+                          <p>Esta seção continuará editável mesmo após a assinatura no documento.</p>
+                        )}
                       </div>
                     </div>
                   </PopoverContent>

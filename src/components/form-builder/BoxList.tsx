@@ -1,9 +1,10 @@
 
+// Apenas modificamos a interface para incluir onToggleLockWhenSigned
 import React from "react";
 import FormBoxComponent from "./FormBoxComponent";
-import EmptyState from "./EmptyState";
 import { Button } from "@/components/ui/button";
-import { PlusCircle, LayoutGrid } from "lucide-react";
+import { PlusCircle } from "lucide-react";
+import EmptyState from "./EmptyState";
 
 interface BoxListProps {
   boxes: any[];
@@ -12,13 +13,14 @@ interface BoxListProps {
   onDeleteBox: (boxId: string) => void;
   onDeleteField: (fieldId: string) => void;
   onEditField: (fieldId: string, newData: any) => void;
-  onEditBox?: (boxId: string, newData: any) => void;
+  onEditBox: (boxId: string, newData: any) => void;
   onAddBox: () => void;
-  onMoveBox?: (boxId: string, direction: 'up' | 'down') => void;
-  onMoveField?: (fieldId: string, direction: 'up' | 'down') => void;
-  onUpdateLayout?: (boxId: string, layout: any) => void;
+  onMoveBox: (boxId: string, direction: 'up' | 'down') => void;
+  onMoveField: (fieldId: string, direction: 'up' | 'down') => void;
+  onUpdateLayout: (boxId: string, layoutData: any) => void;
+  onToggleLockWhenSigned?: (boxId: string, value: boolean) => void;
   isLoading: boolean;
-  showAddButton?: boolean;
+  isLocked?: boolean;
 }
 
 export default function BoxList({
@@ -33,49 +35,62 @@ export default function BoxList({
   onMoveBox,
   onMoveField,
   onUpdateLayout,
+  onToggleLockWhenSigned,
   isLoading,
-  showAddButton = true
+  isLocked = false
 }: BoxListProps) {
-  const handleUpdateLayout = (boxId: string, layoutData: any) => {
-    if (onUpdateLayout) {
-      console.log("Updating layout for box", boxId, layoutData);
-      onUpdateLayout(boxId, layoutData);
-    }
-  };
+  // Ordenar boxes pela propriedade order
+  const sortedBoxes = [...boxes].sort((a, b) => 
+    (a.order || 0) - (b.order || 0)
+  );
+
+  if (sortedBoxes.length === 0) {
+    return <EmptyState onAddBox={onAddBox} />;
+  }
 
   return (
     <div className="space-y-6">
-      {boxes.map((box, index) => (
-        <FormBoxComponent
-          key={box.id}
-          box={box}
-          fields={fields.filter(f => f.box_id === box.id)}
-          onAddField={() => onAddField(box.id)}
-          onDeleteBox={() => onDeleteBox(box.id)}
-          onDeleteField={onDeleteField}
-          onEditField={onEditField}
-          onEditBox={onEditBox ? (boxId, newData) => onEditBox(boxId, newData) : undefined}
-          onMoveUp={index > 0 && onMoveBox ? () => onMoveBox(box.id, 'up') : undefined}
-          onMoveDown={index < boxes.length - 1 && onMoveBox ? () => onMoveBox(box.id, 'down') : undefined}
-          onMoveField={onMoveField}
-          onUpdateLayout={onUpdateLayout ? (layout) => handleUpdateLayout(box.id, layout) : undefined}
-          isLoading={isLoading}
-        />
-      ))}
+      {sortedBoxes.map((box, index) => {
+        const boxFields = fields.filter(field => field.box_id === box.id);
+        
+        // Ordenar campos pelo order
+        const sortedBoxFields = [...boxFields].sort((a, b) => 
+          (a.order || 0) - (b.order || 0)
+        );
 
-      {boxes.length === 0 && (
-        <EmptyState onAddBox={onAddBox} isLoading={isLoading} />
-      )}
-
-      {showAddButton && boxes.length > 0 && (
-        <Button 
-          onClick={onAddBox} 
-          className="w-full bg-orange-600 hover:bg-orange-700 text-white"
-          disabled={isLoading}
-        >
-          <PlusCircle className="h-4 w-4 mr-2" />
-          Adicionar Nova Seção
-        </Button>
+        return (
+          <FormBoxComponent
+            key={box.id}
+            box={box}
+            fields={sortedBoxFields}
+            onAddField={() => onAddField(box.id)}
+            onDeleteBox={() => onDeleteBox(box.id)}
+            onDeleteField={onDeleteField}
+            onEditField={onEditField}
+            onEditBox={(newData) => onEditBox(box.id, newData)}
+            onMoveUp={index > 0 ? () => onMoveBox(box.id, 'up') : undefined}
+            onMoveDown={index < sortedBoxes.length - 1 ? () => onMoveBox(box.id, 'down') : undefined}
+            onMoveField={onMoveField}
+            onUpdateLayout={(layoutData) => onUpdateLayout(box.id, layoutData)}
+            onToggleLockWhenSigned={onToggleLockWhenSigned ? 
+              (value) => onToggleLockWhenSigned(box.id, value) : undefined}
+            isLoading={isLoading}
+            isLocked={isLocked}
+          />
+        );
+      })}
+      
+      {!isLocked && (
+        <div className="mt-6 flex justify-center">
+          <Button
+            onClick={onAddBox}
+            className="w-full md:w-auto"
+            disabled={isLoading}
+          >
+            <PlusCircle className="h-5 w-5 mr-2" />
+            Adicionar Nova Seção
+          </Button>
+        </div>
       )}
     </div>
   );

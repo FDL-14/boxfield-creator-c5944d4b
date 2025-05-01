@@ -4,7 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save } from "lucide-react";
+import { Loader2, Save, Lock } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 
 interface EditSectionDialogProps {
   open: boolean;
@@ -21,7 +22,10 @@ export default function EditSectionDialog({
   section,
   isLoading
 }: EditSectionDialogProps) {
-  const [editedSection, setEditedSection] = useState(section);
+  const [editedSection, setEditedSection] = useState({
+    ...section,
+    lockWhenSigned: section.lockWhenSigned !== false
+  });
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +53,25 @@ export default function EditSectionDialog({
               required
             />
           </div>
+          
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Lock className="h-4 w-4 mr-2 text-amber-500" />
+              <Label htmlFor="lock-when-signed">Bloquear seção após assinatura</Label>
+            </div>
+            <Switch
+              id="lock-when-signed"
+              checked={editedSection.lockWhenSigned !== false}
+              onCheckedChange={(checked) => 
+                setEditedSection({ ...editedSection, lockWhenSigned: checked })
+              }
+            />
+          </div>
+          <p className="text-xs text-gray-500">
+            {editedSection.lockWhenSigned !== false 
+              ? "Esta seção será bloqueada para edição após qualquer campo de assinatura ser assinado no documento."
+              : "Esta seção continuará editável mesmo após a assinatura no documento."}
+          </p>
           
           <DialogFooter className="flex justify-end gap-2 pt-4">
             <Button

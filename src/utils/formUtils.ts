@@ -37,7 +37,11 @@ export const saveFormData = (formType: string, name: string, data: any) => {
       formType: formType,
       updated_at: new Date().toISOString(),
       cancelled: data.cancelled || false,
-      cancellationReason: data.cancellationReason || ""
+      cancellationReason: data.cancellationReason || "",
+      // Salvar os valores do documento
+      document_values: data.document_values || {},
+      // Salvar configurações de bloqueio de seções
+      section_locks: data.section_locks || []
     };
     
     console.log("Dados do formulário a serem salvos:", newFormData);
@@ -248,7 +252,12 @@ export const saveDocumentTypeConfig = (data: any) => {
     const config = {
       boxes: data.boxes || [],
       fields: data.fields || [],
-      updated_at: new Date().toISOString()
+      updated_at: new Date().toISOString(),
+      // Adicionar configurações de bloqueio de seção
+      section_locks: data.section_locks || data.boxes?.map((box: any) => ({
+        section_id: box.id,
+        lock_when_signed: box.lockWhenSigned !== false
+      })) || []
     };
     
     console.log("Configuração a ser salva:", config);
@@ -278,7 +287,8 @@ export const saveDocumentTypeConfig = (data: any) => {
         name: data.name || "Modelo de Formulário Personalizado",
         type: "form-builder",
         formType: "form-builder",
-        date: new Date().toISOString()
+        date: new Date().toISOString(),
+        section_locks: config.section_locks || []
       };
       
       // Salvar como tipo de formulário
@@ -399,12 +409,21 @@ export const isSectionLocked = (formValues: any, fieldsInSection: any[]) => {
  * @returns Array of locked section IDs
  */
 export const getLockedSections = (formValues: any, boxes: any[], fields: any[]) => {
-  return boxes
+  // Primeiro verificamos se há configurações específicas de bloqueio
+  const sectionLocks = boxes
     .filter(box => {
-      const fieldsInSection = fields.filter(field => field.box_id === box.id);
-      return isSectionLocked(formValues, fieldsInSection);
+      // Obter todos os campos de assinatura em qualquer seção do documento
+      const allSignatureFields = fields.filter(field => field.type === 'signature');
+      
+      // Verificar se algum deles está assinado
+      const anySignatureSigned = allSignatureFields.some(field => formValues[field.id]);
+      
+      // Se alguma assinatura foi feita e esta seção está configurada para bloquear
+      return anySignatureSigned && box.lockWhenSigned !== false;
     })
     .map(box => box.id);
+  
+  return sectionLocks;
 };
 
 /**

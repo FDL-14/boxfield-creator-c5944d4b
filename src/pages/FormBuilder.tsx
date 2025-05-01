@@ -15,11 +15,13 @@ import {
   saveFormData, 
   findDuplicateBoxes, 
   findDuplicateFields,
-  fixDuplicateIds
+  fixDuplicateIds,
+  getLockedSections
 } from "@/utils/formUtils";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function FormBuilder() {
   const navigate = useNavigate();
@@ -99,13 +101,19 @@ export default function FormBuilder() {
   const handleAddBox = async (boxData) => {
     try {
       setIsLoading(true);
-      const success = await formService.addBox(boxData);
+      // Adicionar propriedade lockWhenSigned
+      const boxWithLockSettings = {
+        ...boxData,
+        lockWhenSigned: true // Por padrão, bloquear seção após assinatura
+      };
+      
+      const success = await formService.addBox(boxWithLockSettings);
       if (success) {
         await loadData();
         setShowAddBox(false);
         
         // Save the updated configuration
-        const updatedBoxes = [...boxes, boxData];
+        const updatedBoxes = [...boxes, boxWithLockSettings];
         saveDocumentTypeConfig({ boxes: updatedBoxes, fields });
         saveCompletedFormType(updatedBoxes, fields);
       }
@@ -162,6 +170,42 @@ export default function FormBuilder() {
         saveDocumentTypeConfig({ boxes, fields: updatedFields });
         saveCompletedFormType(boxes, updatedFields);
       }
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleToggleLockWhenSigned = async (boxId, value) => {
+    try {
+      setIsLoading(true);
+      
+      // Update the box in local state
+      const updatedBoxes = boxes.map(box => 
+        box.id === boxId ? { ...box, lockWhenSigned: value } : box
+      );
+      
+      setBoxes(updatedBoxes);
+      
+      // Save to service/storage
+      await formService.editBox(boxId, { lockWhenSigned: value }, boxes);
+      
+      // Save the updated configuration
+      saveDocumentTypeConfig({ boxes: updatedBoxes, fields, name: templateName, title: templateName });
+      saveCompletedFormType(updatedBoxes, fields);
+      
+      toast({
+        title: value ? "Bloqueio ativado" : "Bloqueio desativado",
+        description: value ? 
+          "Esta seção será bloqueada após assinatura" : 
+          "Esta seção não será bloqueada após assinatura"
+      });
+    } catch (error) {
+      console.error("Erro ao atualizar configuração de bloqueio:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível atualizar a configuração de bloqueio",
+        variant: "destructive"
+      });
     } finally {
       setIsLoading(false);
     }
@@ -292,11 +336,11 @@ export default function FormBuilder() {
       
       // Find the box to update
       const updatedBoxes = boxes.map(box => 
-        box.id === boxId ? { ...box, ...layoutData } : box
+        box.id === boxId ? { ...box, layout: layoutData } : box
       );
       
       // Update in service
-      await formService.editBox(boxId, layoutData, boxes);
+      await formService.editBox(boxId, { layout: layoutData }, boxes);
       
       // Update local state
       setBoxes(updatedBoxes);
@@ -374,10 +418,34 @@ export default function FormBuilder() {
         name: name,
         type: "form-builder",
         date: new Date().toISOString(),
-        formType: "form-builder"
+        formType: "form-builder",
+        // Inclua os valores dos campos e outras configurações importantes
+        document_values: {},
+        // Incluir configurações de bloqueio de seções
+        section_locks: boxes.map(box => ({
+          section_id: box.id,
+          lock_when_signed: box.lockWhenSigned !== false
+        }))
       };
       
       console.log("Salvando modelo de formulário:", formData);
+      
+      // Também salvar no Supabase se estiver disponível
+      try {
+        const user = supabase.auth.getUser();
+        if (user) {
+          supabase.from('document_templates').insert({
+            type: "form-builder",
+            title: name,
+            data: formData,
+            is_template: true
+          }).then(response => {
+            console.log("Resposta do Supabase:", response);
+          });
+        }
+      } catch (e) {
+        console.log("Erro ao salvar no Supabase (ignorando):", e);
+      }
       
       // Save as a form type in form-builder category
       const success = saveFormData("form-builder", name, formData);
@@ -508,6 +576,7 @@ export default function FormBuilder() {
           onMoveBox={handleMoveBox}
           onMoveField={handleMoveField}
           onUpdateLayout={handleUpdateLayout}
+          onToggleLockWhenSigned={handleToggleLockWhenSigned}
           isLoading={isLoading}
         />
 
