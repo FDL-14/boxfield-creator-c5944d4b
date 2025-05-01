@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -88,7 +87,7 @@ export default function FormBoxComponent({
   const handleLockWhenSignedChange = (value: boolean) => {
     setLockWhenSigned(value);
     if (onToggleLockWhenSigned) {
-      onToggleLockWhenSigned(box.id, value);
+      onToggleLockWhenSigned(value);
     }
   };
 
