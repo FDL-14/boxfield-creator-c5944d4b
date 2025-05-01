@@ -4,11 +4,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { getSavedForms, prepareFormTemplate } from "@/utils/formUtils";
-import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck, Copy } from "lucide-react";
+import { getSavedForms, prepareFormTemplate, deleteSavedForm } from "@/utils/formUtils";
+import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck, Copy, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { deleteSavedForm } from "@/utils/formUtils";
 import { Textarea } from "@/components/ui/textarea";
+import { Badge } from "@/components/ui/badge";
 
 interface SavedDocumentsDialogProps {
   open: boolean;
@@ -27,7 +27,7 @@ export default function SavedDocumentsDialog({
   const [savedDocuments, setSavedDocuments] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showDetails, setShowDetails] = useState<number | null>(null);
+  const [showDetails, setShowDetails] = useState<string | null>(null);
   const [documentJson, setDocumentJson] = useState("");
   
   useEffect(() => {
@@ -36,10 +36,10 @@ export default function SavedDocumentsDialog({
     }
   }, [open, docType]);
   
-  const loadSavedDocuments = () => {
+  const loadSavedDocuments = async () => {
     try {
       setLoading(true);
-      const docs = getSavedForms(docType || "custom");
+      const docs = await getSavedForms(docType || "custom");
       console.log("Documentos carregados:", docs);
       setSavedDocuments(docs);
     } catch (error) {
@@ -54,27 +54,39 @@ export default function SavedDocumentsDialog({
     }
   };
   
-  const handleDeleteDocument = (id: number, e: React.MouseEvent) => {
+  const handleDeleteDocument = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
+    setLoading(true);
     
-    const success = deleteSavedForm(docType || "custom", id);
-    
-    if (success) {
-      toast({
-        title: "Documento excluído",
-        description: "O documento foi excluído com sucesso"
-      });
-      loadSavedDocuments();
-    } else {
+    try {
+      const success = await deleteSavedForm(docType || "custom", id);
+      
+      if (success) {
+        toast({
+          title: "Documento excluído",
+          description: "O documento foi excluído com sucesso"
+        });
+        loadSavedDocuments();
+      } else {
+        toast({
+          title: "Erro ao excluir",
+          description: "Não foi possível excluir o documento",
+          variant: "destructive"
+        });
+      }
+    } catch (error) {
+      console.error("Error deleting document:", error);
       toast({
         title: "Erro ao excluir",
-        description: "Não foi possível excluir o documento",
+        description: "Ocorreu um erro ao excluir o documento",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
   
-  const handleViewDocumentDetails = (id: number, document: any, e: React.MouseEvent) => {
+  const handleViewDocumentDetails = (id: string, document: any, e: React.MouseEvent) => {
     e.stopPropagation();
     setShowDetails(id);
     
@@ -85,7 +97,7 @@ export default function SavedDocumentsDialog({
   
   const handleSelectDocument = (name: string, document: any) => {
     // For form-builder templates, prepare the template first
-    if (docType === 'form-builder') {
+    if (docType === 'form-builder' && document.isTemplate) {
       const preparedTemplate = prepareFormTemplate(document);
       onSelectDocument(name, preparedTemplate || document);
     } else {
@@ -126,7 +138,8 @@ export default function SavedDocumentsDialog({
   const filteredDocuments = searchTerm 
     ? savedDocuments.filter(doc => 
         doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        doc.title?.toLowerCase().includes(searchTerm.toLowerCase()))
+        doc.title?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        doc.description?.toLowerCase().includes(searchTerm.toLowerCase()))
     : savedDocuments;
   
   // Sort documents by date (most recent first)
@@ -173,34 +186,54 @@ export default function SavedDocumentsDialog({
                   // Check if document has boxes and fields data (for form-builder)
                   const hasFormBuilderData = doc.boxes && doc.fields && doc.boxes.length > 0;
                   const hasDataObject = doc.data && Object.keys(doc.data).length > 0;
+                  const isTemplate = doc.isTemplate || false;
                   
                   // Determine the data to pass when clicked
                   const documentToPass = hasFormBuilderData ? doc : doc.data || doc;
                   
+                  // Get the ID to use
+                  const docId = doc.supabaseId || doc.id || "";
+                  
                   return (
                     <div 
-                      key={doc.id} 
+                      key={docId} 
                       className={`flex items-center justify-between border rounded p-3 cursor-pointer hover:bg-gray-50 transition-colors
-                                ${isCancelled ? 'bg-red-50 border-red-200' : ''}`}
+                                ${isCancelled ? 'bg-red-50 border-red-200' : ''}
+                                ${isTemplate ? 'bg-blue-50 border-blue-200' : ''}`}
                       onClick={() => handleSelectDocument(doc.name || doc.title, documentToPass)}
                     >
                       <div className="flex items-center space-x-3">
-                        <div className={`p-2 rounded-md ${isCancelled ? 'bg-red-100' : 'bg-blue-100'}`}>
+                        <div className={`p-2 rounded-md ${isCancelled ? 'bg-red-100' : isTemplate ? 'bg-blue-100' : 'bg-green-100'}`}>
                           {isCancelled ? (
                             <AlertCircle className="h-5 w-5 text-red-500" />
+                          ) : isTemplate ? (
+                            <FileText className="h-5 w-5 text-blue-500" />
                           ) : (
-                            <FileCheck className="h-5 w-5 text-blue-500" />
+                            <FileCheck className="h-5 w-5 text-green-500" />
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <p className="font-medium truncate">{doc.name || doc.title}</p>
                             {isCancelled && (
-                              <span className="bg-red-100 text-red-800 text-xs px-2 py-0.5 rounded whitespace-nowrap">
+                              <Badge variant="destructive" className="text-xs whitespace-nowrap">
                                 CANCELADO
-                              </span>
+                              </Badge>
+                            )}
+                            {isTemplate && (
+                              <Badge variant="outline" className="bg-blue-100 text-blue-800 text-xs whitespace-nowrap border-blue-200">
+                                MODELO
+                              </Badge>
+                            )}
+                            {doc.supabaseId && (
+                              <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                                BANCO DE DADOS
+                              </Badge>
                             )}
                           </div>
+                          {doc.description && (
+                            <p className="text-sm text-gray-500 truncate mt-1">{doc.description}</p>
+                          )}
                           <div className="flex flex-col gap-1 mt-1">
                             <p className="text-xs text-gray-500 flex items-center">
                               <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
@@ -221,7 +254,8 @@ export default function SavedDocumentsDialog({
                             {hasFormBuilderData && (
                               <p className="text-xs text-blue-500 flex items-center">
                                 <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
-                                Tipo: Modelo de Formulário ({doc.boxes.length} seções, {doc.fields.length} campos)
+                                Tipo: {isTemplate ? "Modelo de Formulário" : "Formulário"} 
+                                ({doc.boxes.length} seções, {doc.fields.length} campos)
                               </p>
                             )}
                           </div>
@@ -231,7 +265,7 @@ export default function SavedDocumentsDialog({
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={(e) => handleViewDocumentDetails(doc.id, doc, e)}
+                          onClick={(e) => handleViewDocumentDetails(docId, doc, e)}
                           className="text-blue-500 hover:text-blue-700 hover:bg-blue-50 mr-1 flex-shrink-0"
                         >
                           <Copy className="h-4 w-4" />
@@ -239,10 +273,15 @@ export default function SavedDocumentsDialog({
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={(e) => handleDeleteDocument(doc.id, e)}
+                          onClick={(e) => handleDeleteDocument(docId, e)}
                           className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                          disabled={loading}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          {loading ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-4 w-4" />
+                          )}
                         </Button>
                       </div>
                     </div>
@@ -277,7 +316,7 @@ export default function SavedDocumentsDialog({
         </DialogFooter>
       </DialogContent>
 
-      {/* Dialog para exibir detalhes do documento */}
+      {/* Dialog for viewing document details */}
       {showDetails !== null && (
         <Dialog 
           open={showDetails !== null} 

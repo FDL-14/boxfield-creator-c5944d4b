@@ -73,6 +73,7 @@ export default function DocumentCreator() {
   const [documentTypes, setDocumentTypes] = useState([]);
   const [formValues, setFormValues] = useState({});
   const [documentTitle, setDocumentTitle] = useState("");
+  const [documentDescription, setDocumentDescription] = useState("");
   const [saveDialogOpen, setSaveDialogOpen] = useState(false);
   const [colorPickerOpen, setColorPickerOpen] = useState(false);
   const [currentColorTarget, setCurrentColorTarget] = useState({ type: "", id: "" });
@@ -80,7 +81,9 @@ export default function DocumentCreator() {
     header: "#f97316", // orange-500
     sectionHeader: "#f97316",
     background: "#ffffff",
-    text: "#000000"
+    text: "#000000",
+    accent: "#3b82f6", // blue-500
+    secondary: "#f59e0b", // amber-500
   });
   const [logoImage, setLogoImage] = useState("");
   const [signatureDialogOpen, setSignatureDialogOpen] = useState(false);
@@ -96,6 +99,7 @@ export default function DocumentCreator() {
   });
   const [documentId, setDocumentId] = useState(null);
   const [lockedSections, setLockedSections] = useState([]);
+  const [sectionLockConfig, setSectionLockConfig] = useState({});
   const formRef = useRef(null);
   const [emailDialogOpen, setEmailDialogOpen] = useState(false);
   const [savedDocsDialogOpen, setSavedDocsDialogOpen] = useState(false);
@@ -105,8 +109,10 @@ export default function DocumentCreator() {
   const [isEditingField, setIsEditingField] = useState(false);
   const [currentField, setCurrentField] = useState(null);
   const [editMode, setEditMode] = useState(false);
+  const [isTemplate, setIsTemplate] = useState(false);
+  const [supabaseId, setSupabaseId] = useState(null);
   
-  // New state for add section/field dialogs
+  // State for add section/field dialogs
   const [showAddSectionDialog, setShowAddSectionDialog] = useState(false);
   const [showAddFieldDialog, setShowAddFieldDialog] = useState(false);
   const [selectedBoxId, setSelectedBoxId] = useState(null);
@@ -130,7 +136,10 @@ export default function DocumentCreator() {
           if (foundType) {
             setDocumentTitle(foundType.name || "Novo Documento");
             if (foundType.colors) {
-              setCustomColors(foundType.colors);
+              setCustomColors(prevColors => ({
+                ...prevColors,
+                ...foundType.colors
+              }));
             }
             if (foundType.logo) {
               setLogoImage(foundType.logo);
@@ -142,14 +151,22 @@ export default function DocumentCreator() {
           const locationData = await getLocationData();
           setDocumentMetadata(prevState => ({
             ...prevState,
-            location: {
-              latitude: locationData.latitude,
-              longitude: locationData.longitude,
-              formatted: locationData.formatted
-            }
+            location: locationData
           }));
         } catch (error) {
           console.error("Error getting location:", error);
+          // Try again after a short delay
+          setTimeout(async () => {
+            try {
+              const locationData = await getLocationData();
+              setDocumentMetadata(prevState => ({
+                ...prevState,
+                location: locationData
+              }));
+            } catch (secondError) {
+              console.error("Second attempt to get location failed:", secondError);
+            }
+          }, 2000);
         }
       } catch (error) {
         console.error("Erro ao carregar dados:", error);
@@ -171,6 +188,19 @@ export default function DocumentCreator() {
     const locked = getLockedSections(formValues, boxes, fields);
     setLockedSections(locked);
   }, [formValues, boxes, fields]);
+  
+  // Initialize section lock config for new sections
+  useEffect(() => {
+    if (boxes.length > 0) {
+      const newConfig = { ...sectionLockConfig };
+      boxes.forEach(box => {
+        if (newConfig[box.id] === undefined) {
+          newConfig[box.id] = true; // Default to lock when signed
+        }
+      });
+      setSectionLockConfig(newConfig);
+    }
+  }, [boxes]);
 
   const handleInputChange = (fieldId, value) => {
     setFormValues(prevState => ({
@@ -181,12 +211,17 @@ export default function DocumentCreator() {
     // If this is a signature field that just got a value, show the lock warning
     const field = fields.find(f => f.id === fieldId);
     if (field?.type === 'signature' && value && !formValues[fieldId]) {
-      setShowLockWarning(true);
-      setTimeout(() => setShowLockWarning(false), 5000); // Hide after 5 seconds
+      // Check if section should be locked when signed
+      const shouldLock = sectionLockConfig[field.box_id] !== false;
+      
+      if (shouldLock) {
+        setShowLockWarning(true);
+        setTimeout(() => setShowLockWarning(false), 5000); // Hide after 5 seconds
+      }
     }
   };
 
-  const handleSaveDocument = async (saveAs = false) => {
+  const handleSaveDocument = async (saveAs = false, asTemplate = false) => {
     if (!documentTitle.trim()) {
       toast({
         title: "Título obrigatório",
@@ -202,11 +237,7 @@ export default function DocumentCreator() {
       
       try {
         const newLocationData = await getLocationData();
-        locationData = {
-          latitude: newLocationData.latitude,
-          longitude: newLocationData.longitude,
-          formatted: newLocationData.formatted
-        };
+        locationData = newLocationData;
       } catch (error) {
         console.error("Error updating location before save:", error);
       }
@@ -214,6 +245,7 @@ export default function DocumentCreator() {
       const documentData = {
         id: documentId || Date.now(),
         title: documentTitle,
+        description: documentDescription,
         docType: docType,
         values: formValues,
         colors: customColors,
@@ -224,6 +256,9 @@ export default function DocumentCreator() {
         cancelInfo: cancelInfo,
         lockedSections: lockedSections,
         date: timestamp,
+        isTemplate: asTemplate || isTemplate,
+        sectionLockConfig: sectionLockConfig,
+        supabaseId: supabaseId,
         // Save the current boxes and fields with the document
         boxes: boxes,
         fields: fields
@@ -234,12 +269,17 @@ export default function DocumentCreator() {
         setDocumentId(documentData.id);
       }
       
-      const success = saveFormData(docType || "custom", documentTitle, documentData);
+      // Set the template status
+      if (asTemplate) {
+        setIsTemplate(true);
+      }
+      
+      const success = await saveFormData(docType || "custom", documentTitle, documentData);
       
       if (success) {
         toast({
-          title: "Documento salvo",
-          description: "O documento foi salvo com sucesso"
+          title: asTemplate ? "Modelo salvo" : "Documento salvo",
+          description: `${asTemplate ? "O modelo" : "O documento"} foi salvo com sucesso`
         });
         
         if (!saveAs) {
@@ -371,6 +411,10 @@ export default function DocumentCreator() {
       setCustomColors(prev => ({ ...prev, background: hex }));
     } else if (currentColorTarget.type === "text") {
       setCustomColors(prev => ({ ...prev, text: hex }));
+    } else if (currentColorTarget.type === "accent") {
+      setCustomColors(prev => ({ ...prev, accent: hex }));
+    } else if (currentColorTarget.type === "secondary") {
+      setCustomColors(prev => ({ ...prev, secondary: hex }));
     }
   };
 
@@ -414,9 +458,14 @@ export default function DocumentCreator() {
 
   const handleSelectSavedDocument = (title, data) => {
     setDocumentTitle(title);
+    setDocumentDescription(data.description || "");
     
     if (data.id) {
       setDocumentId(data.id);
+    }
+    
+    if (data.supabaseId) {
+      setSupabaseId(data.supabaseId);
     }
     
     if (data.values) {
@@ -424,7 +473,10 @@ export default function DocumentCreator() {
     }
     
     if (data.colors) {
-      setCustomColors(data.colors);
+      setCustomColors(prevColors => ({
+        ...prevColors,
+        ...data.colors
+      }));
     }
     
     if (data.logo) {
@@ -434,6 +486,10 @@ export default function DocumentCreator() {
     if (data.cancelled) {
       setIsCancelled(data.cancelled);
       setCancelInfo(data.cancelInfo);
+    }
+    
+    if (data.isTemplate !== undefined) {
+      setIsTemplate(data.isTemplate);
     }
 
     // If the document has custom boxes and fields, use them
@@ -445,11 +501,16 @@ export default function DocumentCreator() {
       setFields(data.fields);
     }
 
+    // Load section lock configuration
+    if (data.sectionLockConfig) {
+      setSectionLockConfig(data.sectionLockConfig);
+    }
+
     if (data.lockedSections) {
       setLockedSections(data.lockedSections);
     } else if (data.values) {
       // Compute locked sections based on signature fields
-      const locked = getLockedSections(data.values, boxes, fields);
+      const locked = getLockedSections(data.values, data.boxes || boxes, data.fields || fields);
       setLockedSections(locked);
     }
 
@@ -533,7 +594,7 @@ export default function DocumentCreator() {
     setEditMode(!editMode);
   };
 
-  // New methods for adding sections and fields
+  // Methods for adding sections and fields
   const handleAddSection = async (sectionData) => {
     try {
       setLoading(true);
@@ -550,6 +611,12 @@ export default function DocumentCreator() {
       
       // Add the new section to the list
       setBoxes([...boxes, newSection]);
+      
+      // Set default lock configuration for the new section
+      setSectionLockConfig(prev => ({
+        ...prev,
+        [newSectionId]: true
+      }));
       
       setShowAddSectionDialog(false);
       
@@ -634,6 +701,13 @@ export default function DocumentCreator() {
     
     // Remove all fields for this box
     setFields(fields.filter(field => field.box_id !== boxId));
+    
+    // Remove from section lock config
+    setSectionLockConfig(prev => {
+      const newConfig = { ...prev };
+      delete newConfig[boxId];
+      return newConfig;
+    });
     
     toast({
       title: "Seção removida",
@@ -765,6 +839,19 @@ export default function DocumentCreator() {
       setFields(newFields);
     }
   };
+  
+  const handleToggleSectionLock = (boxId) => {
+    setSectionLockConfig(prev => ({
+      ...prev,
+      [boxId]: !prev[boxId]
+    }));
+    
+    toast({
+      title: "Configuração atualizada",
+      description: `A seção será ${sectionLockConfig[boxId] ? "desbloqueada" : "bloqueada"} quando assinada`,
+      variant: "success"
+    });
+  };
 
   const renderField = (field) => {
     // If we're in editing mode and this field is being edited
@@ -841,16 +928,34 @@ export default function DocumentCreator() {
           </div>
         );
       case "flag":
+        // Multiple selection checkbox list
         return (
           <div className="space-y-2 relative">
             {(field.options || []).map((option, idx) => (
               <div key={idx} className="flex items-center">
                 <input
-                  type="radio"
+                  type="checkbox"
                   id={`${field.id}-${idx}`}
                   name={field.id}
-                  checked={formValues[field.id] === option.text}
-                  onChange={() => handleInputChange(field.id, option.text)}
+                  checked={Array.isArray(formValues[field.id]) ? 
+                    formValues[field.id].includes(option.text) : 
+                    formValues[field.id] === option.text}
+                  onChange={(e) => {
+                    // Handle multiple selections
+                    const currentValues = Array.isArray(formValues[field.id]) ? 
+                      [...formValues[field.id]] : 
+                      formValues[field.id] ? [formValues[field.id]] : [];
+                    
+                    if (e.target.checked) {
+                      // Add the value if not already present
+                      if (!currentValues.includes(option.text)) {
+                        handleInputChange(field.id, [...currentValues, option.text]);
+                      }
+                    } else {
+                      // Remove the value
+                      handleInputChange(field.id, currentValues.filter(v => v !== option.text));
+                    }
+                  }}
                   className="mr-2"
                 />
                 <label htmlFor={`${field.id}-${idx}`}>{option.text}</label>
@@ -1149,12 +1254,15 @@ export default function DocumentCreator() {
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-3xl font-bold text-gray-900">
-                {documentId ? "Editar Documento" : "Criar Documento"}
+              <h1 className="text-3xl font-bold text-gray-900 bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-purple-600">
+                {isTemplate ? "Editor de Modelo" : documentId ? "Editar Documento" : "Criar Documento"}
               </h1>
             </div>
             <p className="text-gray-500 mt-1">
-              Preencha os campos do documento e salve ou exporte
+              {isTemplate ? 
+                "Configure o modelo de documento conforme necessário" : 
+                "Preencha os campos do documento e salve ou exporte"
+              }
             </p>
           </div>
 
@@ -1263,107 +1371,186 @@ export default function DocumentCreator() {
           </Card>
         )}
 
-        <Card className="mb-6">
-          <CardContent className="p-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <Label htmlFor="documentTitle" className="mb-2 block">Título do Documento</Label>
-                <Input
-                  id="documentTitle"
-                  value={documentTitle}
-                  onChange={(e) => setDocumentTitle(e.target.value)}
-                  placeholder="Insira o título do documento"
-                  className="w-full"
-                />
-              </div>
-              <div>
-                <Label className="mb-2 block">Logo da Empresa</Label>
-                <div className="flex items-center gap-2">
-                  {logoImage && (
-                    <div className="h-10 w-20 relative overflow-hidden rounded border">
-                      <img src={logoImage} alt="Logo" className="object-contain h-full w-full" />
-                    </div>
-                  )}
+        <Card className="mb-6 shadow-lg border-0 overflow-hidden">
+          <CardContent className="p-0">
+            <div className="p-6 bg-gradient-to-r from-blue-600 to-purple-700 text-white">
+              <h2 className="text-xl font-bold mb-3">Informações do Documento</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="documentTitle" className="mb-2 block text-white">Título do Documento</Label>
                   <Input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    className="flex-1"
+                    id="documentTitle"
+                    value={documentTitle}
+                    onChange={(e) => setDocumentTitle(e.target.value)}
+                    placeholder="Insira o título do documento"
+                    className="w-full bg-white/10 border-white/20 placeholder-white/60 text-white"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="documentDescription" className="mb-2 block text-white">Descrição</Label>
+                  <Input
+                    id="documentDescription"
+                    value={documentDescription}
+                    onChange={(e) => setDocumentDescription(e.target.value)}
+                    placeholder="Descrição breve do documento"
+                    className="w-full bg-white/10 border-white/20 placeholder-white/60 text-white"
                   />
                 </div>
               </div>
             </div>
             
-            <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-4">
-              <div>
-                <Label className="mb-2 block">Cor do Cabeçalho</Label>
-                <Button
-                  variant="outline"
-                  onClick={() => openColorPicker("header")}
-                  className="w-full"
-                >
-                  <div 
-                    className="h-4 w-4 mr-2 rounded-full" 
-                    style={{ backgroundColor: customColors.header }}
-                  />
-                  Selecionar
-                </Button>
-              </div>
-              <div>
-                <Label className="mb-2 block">Cor das Seções</Label>
-                <Button
-                  variant="outline"
-                  onClick={() => openColorPicker("sectionHeader")}
-                  className="w-full"
-                >
-                  <div 
-                    className="h-4 w-4 mr-2 rounded-full" 
-                    style={{ backgroundColor: customColors.sectionHeader }}
-                  />
-                  Selecionar
-                </Button>
-              </div>
-              <div>
-                <Label className="mb-2 block">Cor de Fundo</Label>
-                <Button
-                  variant="outline"
-                  onClick={() => openColorPicker("background")}
-                  className="w-full"
-                >
-                  <div 
-                    className="h-4 w-4 mr-2 rounded-full" 
-                    style={{ backgroundColor: customColors.background }}
-                  />
-                  Selecionar
-                </Button>
-              </div>
-              <div>
-                <Label className="mb-2 block">Cor do Texto</Label>
-                <Button
-                  variant="outline"
-                  onClick={() => openColorPicker("text")}
-                  className="w-full"
-                >
-                  <div 
-                    className="h-4 w-4 mr-2 rounded-full" 
-                    style={{ backgroundColor: customColors.text }}
-                  />
-                  Selecionar
-                </Button>
+            <div className="p-6 border-t">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div>
+                  <Label className="mb-2 block">Logo da Empresa</Label>
+                  <div className="flex items-center gap-2">
+                    {logoImage ? (
+                      <div className="h-16 w-24 relative overflow-hidden rounded border bg-white flex items-center justify-center p-1">
+                        <img src={logoImage} alt="Logo" className="object-contain h-full w-full" />
+                      </div>
+                    ) : (
+                      <div className="h-16 w-24 border border-dashed rounded flex items-center justify-center bg-gray-50">
+                        <span className="text-xs text-gray-500">Sem Logo</span>
+                      </div>
+                    )}
+                    <div className="flex-1">
+                      <Input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleLogoUpload}
+                        className="flex-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Recomendado: formato PNG com fundo transparente</p>
+                    </div>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <div className="flex-1">
+                    <Label className="mb-2 block">Salvar como Modelo</Label>
+                    <div className="flex items-center">
+                      <input
+                        type="checkbox"
+                        id="isTemplate"
+                        checked={isTemplate}
+                        onChange={(e) => setIsTemplate(e.target.checked)}
+                        className="mr-2 h-4 w-4"
+                      />
+                      <label htmlFor="isTemplate" className="text-sm">
+                        Este documento é um modelo reutilizável
+                      </label>
+                    </div>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Modelos podem ser usados como base para novos documentos
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
             
-            <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 border-t pt-4">
-              <div>
-                <Label className="mb-1 block text-xs text-gray-500">Data e Hora de Criação</Label>
-                <div className="text-sm">
-                  {new Date(documentMetadata.created).toLocaleString()}
+            <div className="p-6 bg-gray-50 border-t">
+              <h3 className="font-medium mb-3">Cores e Estilo</h3>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                <div>
+                  <Label className="mb-2 block text-sm">Cor do Cabeçalho</Label>
+                  <Button
+                    variant="outline"
+                    onClick={() => openColorPicker("header")}
+                    className="w-full flex justify-between items-center"
+                  >
+                    <div 
+                      className="h-4 w-6 mr-2 rounded" 
+                      style={{ backgroundColor: customColors.header }}
+                    />
+                    <span className="text-xs">{customColors.header}</span>
+                  </Button>
+                </div>
+                <div>
+                  <Label className="mb-2 block text-sm">Cor das Seções</Label>
+                  <Button
+                    variant="outline"
+                    onClick={() => openColorPicker("sectionHeader")}
+                    className="w-full flex justify-between items-center"
+                  >
+                    <div 
+                      className="h-4 w-6 mr-2 rounded" 
+                      style={{ backgroundColor: customColors.sectionHeader }}
+                    />
+                    <span className="text-xs">{customColors.sectionHeader}</span>
+                  </Button>
+                </div>
+                <div>
+                  <Label className="mb-2 block text-sm">Cor de Fundo</Label>
+                  <Button
+                    variant="outline"
+                    onClick={() => openColorPicker("background")}
+                    className="w-full flex justify-between items-center"
+                  >
+                    <div 
+                      className="h-4 w-6 mr-2 rounded border" 
+                      style={{ backgroundColor: customColors.background }}
+                    />
+                    <span className="text-xs">{customColors.background}</span>
+                  </Button>
+                </div>
+                <div>
+                  <Label className="mb-2 block text-sm">Cor do Texto</Label>
+                  <Button
+                    variant="outline"
+                    onClick={() => openColorPicker("text")}
+                    className="w-full flex justify-between items-center"
+                  >
+                    <div 
+                      className="h-4 w-6 mr-2 rounded" 
+                      style={{ backgroundColor: customColors.text }}
+                    />
+                    <span className="text-xs">{customColors.text}</span>
+                  </Button>
+                </div>
+                <div>
+                  <Label className="mb-2 block text-sm">Cor de Destaque</Label>
+                  <Button
+                    variant="outline"
+                    onClick={() => openColorPicker("accent")}
+                    className="w-full flex justify-between items-center"
+                  >
+                    <div 
+                      className="h-4 w-6 mr-2 rounded" 
+                      style={{ backgroundColor: customColors.accent }}
+                    />
+                    <span className="text-xs">{customColors.accent}</span>
+                  </Button>
+                </div>
+                <div>
+                  <Label className="mb-2 block text-sm">Cor Secundária</Label>
+                  <Button
+                    variant="outline"
+                    onClick={() => openColorPicker("secondary")}
+                    className="w-full flex justify-between items-center"
+                  >
+                    <div 
+                      className="h-4 w-6 mr-2 rounded" 
+                      style={{ backgroundColor: customColors.secondary }}
+                    />
+                    <span className="text-xs">{customColors.secondary}</span>
+                  </Button>
                 </div>
               </div>
-              <div>
-                <Label className="mb-1 block text-xs text-gray-500">Localização Geográfica</Label>
-                <div className="text-sm">
-                  {documentMetadata.location.formatted}
+            </div>
+            
+            <div className="p-6 border-t">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <Label className="mb-1 block text-xs text-gray-500">Data e Hora de Criação</Label>
+                  <div className="text-sm font-medium">
+                    {new Date(documentMetadata.created).toLocaleString()}
+                  </div>
+                </div>
+                <div>
+                  <Label className="mb-1 block text-xs text-gray-500">Localização Geográfica</Label>
+                  <div className="text-sm font-medium">
+                    {documentMetadata.location.formatted}
+                  </div>
                 </div>
               </div>
             </div>
@@ -1372,7 +1559,8 @@ export default function DocumentCreator() {
 
         {loading ? (
           <div className="flex justify-center p-8">
-            <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+            <div className="animate-spin h-10 w-10 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+            <p className="ml-3 text-blue-500 font-medium">Carregando documento...</p>
           </div>
         ) : (
           <>
@@ -1380,7 +1568,7 @@ export default function DocumentCreator() {
               <div className="mb-6">
                 <Button
                   onClick={() => setShowAddSectionDialog(true)}
-                  className="w-full bg-orange-600 hover:bg-orange-700 text-white"
+                  className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md"
                 >
                   <PlusCircle className="h-4 w-4 mr-2" />
                   Adicionar Nova Seção
@@ -1390,7 +1578,7 @@ export default function DocumentCreator() {
             
             <div 
               ref={formRef}
-              className="bg-white border rounded-lg shadow-sm p-6 mb-6"
+              className="bg-white border rounded-lg shadow-xl p-6 mb-6 print:shadow-none"
               style={{ backgroundColor: customColors.background, color: customColors.text }}
             >
               {isCancelled && (
@@ -1403,22 +1591,23 @@ export default function DocumentCreator() {
                 </div>
               )}
               
-              <div className="flex items-center justify-between mb-6 p-4 rounded-t-lg" style={{ backgroundColor: customColors.header, color: "#fff" }}>
-                <h2 className="text-xl font-bold">{documentTitle}</h2>
+              <div className="flex items-center justify-between mb-6 p-4 rounded-lg shadow-md bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                <h2 className="text-2xl font-bold">{documentTitle}</h2>
                 {logoImage && (
-                  <div className="h-12 w-24 bg-white rounded flex items-center justify-center p-1">
-                    <img src={logoImage} alt="Logo" className="max-h-10 max-w-20 object-contain" />
+                  <div className="h-14 w-28 bg-white rounded flex items-center justify-center p-1 shadow-md">
+                    <img src={logoImage} alt="Logo" className="max-h-12 max-w-24 object-contain" />
                   </div>
                 )}
               </div>
               
               {boxes.length === 0 ? (
-                <div className="text-center p-8 border-2 border-dashed rounded-lg">
-                  <p className="text-gray-500">Nenhum campo configurado para este documento</p>
+                <div className="text-center p-12 border-2 border-dashed rounded-lg bg-gray-50">
+                  <FileText className="h-12 w-12 text-gray-400 mx-auto mb-3" />
+                  <p className="text-gray-500 text-lg mb-4">Nenhuma seção configurada para este documento</p>
                   {editMode && (
                     <Button
                       onClick={() => setShowAddSectionDialog(true)}
-                      className="mt-4 bg-orange-600 hover:bg-orange-700 text-white"
+                      className="bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white shadow-md"
                     >
                       <PlusCircle className="h-4 w-4 mr-2" />
                       Adicionar Seção
@@ -1426,127 +1615,155 @@ export default function DocumentCreator() {
                   )}
                 </div>
               ) : (
-                editMode ? (
-                  // Render with BoxList component in edit mode
-                  <BoxList
-                    boxes={boxes}
-                    fields={fields}
-                    onAddField={handleAddFieldClick}
-                    onDeleteBox={handleDeleteBox}
-                    onDeleteField={handleDeleteField}
-                    onEditField={handleSaveField}
-                    onEditBox={handleSaveSection}
-                    onAddBox={() => setShowAddSectionDialog(true)}
-                    onMoveBox={handleMoveBox}
-                    onMoveField={handleMoveField}
-                    isLoading={loading}
-                    showAddButton={false}
-                  />
-                ) : (
-                  // Render sections and fields for viewing/filling
-                  boxes.map((box) => (
-                    <div key={box.id} className="mb-6">
+                boxes.map((box) => {
+                  const isLocked = checkSectionLocked(box.id);
+                  const shouldLockWhenSigned = sectionLockConfig[box.id] !== false;
+                  
+                  return (
+                    <div key={box.id} className="mb-8">
                       <div 
-                        className={`text-lg font-semibold p-2 mb-3 rounded flex justify-between items-center`} 
-                        style={{ backgroundColor: customColors.sectionHeader, color: "#fff" }}
+                        className={`rounded-lg shadow-md overflow-hidden ${isLocked ? 'border-red-200' : ''}`}
                       >
-                        <span>{box.name}</span>
-                        <div className="flex items-center gap-2">
-                          {checkSectionLocked(box.id) && (
-                            <span className="text-xs bg-white text-orange-700 px-2 py-1 rounded-full flex items-center">
-                              <Lock className="h-3 w-3 mr-1" /> Seção Bloqueada
-                            </span>
-                          )}
-                          {editMode && !checkSectionLocked(box.id) && (
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleEditSection(box.id)}
-                              className="text-white hover:bg-white/20"
-                            >
-                              <Edit className="h-4 w-4" />
-                            </Button>
+                        <div 
+                          className={`text-lg font-semibold p-3 flex justify-between items-center bg-gradient-to-r from-blue-500 to-blue-600 text-white`}
+                          style={{ backgroundColor: customColors.sectionHeader }}
+                        >
+                          <span>{box.name}</span>
+                          <div className="flex items-center gap-2">
+                            {isLocked && (
+                              <span className="text-xs bg-white text-red-600 px-2 py-1 rounded-full flex items-center">
+                                <Lock className="h-3 w-3 mr-1" /> Seção Bloqueada
+                              </span>
+                            )}
+                            {editMode && (
+                              <div className="flex items-center">
+                                {!isLocked && (
+                                  <>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleToggleSectionLock(box.id)}
+                                      className="text-white hover:bg-white/20 mr-1"
+                                      title={shouldLockWhenSigned ? "Seção será bloqueada quando assinada" : "Seção não será bloqueada quando assinada"}
+                                    >
+                                      {shouldLockWhenSigned ? <Lock className="h-4 w-4" /> : <Lock className="h-4 w-4 opacity-50" />}
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleEditSection(box.id)}
+                                      className="text-white hover:bg-white/20 mr-1"
+                                    >
+                                      <Edit className="h-4 w-4" />
+                                    </Button>
+                                    <Button
+                                      variant="ghost"
+                                      size="sm"
+                                      onClick={() => handleDeleteBox(box.id)}
+                                      className="text-white hover:bg-white/20"
+                                    >
+                                      <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                  </>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-5 bg-white">
+                          {fields
+                            .filter(field => field.box_id === box.id)
+                            .sort((a, b) => (a.order || 0) - (b.order || 0))
+                            .map(field => (
+                              <div key={field.id} className={`mb-4 ${field.type === 'long_text' || field.type === 'signature' || field.type === 'image' ? 'col-span-2' : ''}`}>
+                                <Label htmlFor={field.id} className="mb-2 block font-medium">
+                                  {field.label}
+                                  {field.required && <span className="text-red-500 ml-1">*</span>}
+                                </Label>
+                                {renderField(field)}
+                              </div>
+                            ))}
+                            
+                          {editMode && !isLocked && (
+                            <div className="mb-4 col-span-2">
+                              <Button
+                                onClick={() => handleAddFieldClick(box.id)}
+                                variant="outline"
+                                className="w-full"
+                              >
+                                <PlusCircle className="h-4 w-4 mr-2" />
+                                Adicionar Campo
+                              </Button>
+                            </div>
                           )}
                         </div>
                       </div>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2">
-                        {fields
-                          .filter(field => field.box_id === box.id)
-                          .map(field => (
-                            <div key={field.id} className="mb-4">
-                              <Label htmlFor={field.id} className="mb-2 block font-medium">
-                                {field.label}
-                                {field.required && <span className="text-red-500 ml-1">*</span>}
-                              </Label>
-                              {renderField(field)}
-                            </div>
-                          ))}
-                          
-                        {editMode && !checkSectionLocked(box.id) && (
-                          <div className="mb-4 col-span-2">
-                            <Button
-                              onClick={() => handleAddFieldClick(box.id)}
-                              variant="outline"
-                              className="w-full"
-                            >
-                              <PlusCircle className="h-4 w-4 mr-2" />
-                              Adicionar Campo
-                            </Button>
-                          </div>
-                        )}
-                      </div>
                     </div>
-                  ))
-                )
+                  );
+                })
               )}
               
-              <div className="mt-8 border-t pt-4">
-                <h3 className="text-lg font-semibold mb-2">Informações do Documento</h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-medium">Data e Hora: </span>
-                    {new Date(documentMetadata.created).toLocaleString()}
-                  </div>
-                  <div>
-                    <span className="font-medium">Localização: </span>
-                    {documentMetadata.location.formatted}
-                  </div>
-                </div>
-                
-                {isCancelled && cancelInfo && (
-                  <div className="mt-4 border-t pt-4 border-red-300">
-                    <h3 className="text-lg font-semibold text-red-600 mb-2">Documento Cancelado</h3>
-                    <div className="text-sm">
-                      <div className="mb-2">
-                        <span className="font-medium">Data de Cancelamento: </span>
-                        {new Date(cancelInfo.timestamp).toLocaleString()}
-                      </div>
-                      <div className="mb-2">
-                        <span className="font-medium">Motivo: </span>
-                        {cancelInfo.reason}
-                      </div>
+              <div className="mt-8 border-t pt-8">
+                <div className="bg-gray-50 rounded-lg p-5 shadow-inner">
+                  <h3 className="text-lg font-semibold mb-3 border-b pb-2">Informações do Documento</h3>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-medium">Data e Hora: </span>
+                      {new Date(documentMetadata.created).toLocaleString()}
+                    </div>
+                    <div>
+                      <span className="font-medium">Localização: </span>
+                      {documentMetadata.location.formatted}
+                    </div>
+                    {documentId && (
                       <div>
-                        <span className="font-medium">Aprovadores: </span>
-                        <ul className="list-disc ml-5">
-                          {cancelInfo.approvers && cancelInfo.approvers.map((approver, idx) => (
-                            <li key={idx}>
-                              {approver.name} ({approver.role})
-                              {approver.signature && (
-                                <div className="mt-1 mb-2">
-                                  <img 
-                                    src={approver.signature} 
-                                    alt={`Assinatura de ${approver.name}`} 
-                                    className="h-10 ml-2" 
-                                  />
-                                </div>
-                              )}
-                            </li>
-                          ))}
-                        </ul>
+                        <span className="font-medium">ID do Documento: </span>
+                        <span className="font-mono text-xs bg-gray-100 p-1 rounded">{documentId}</span>
+                      </div>
+                    )}
+                    {isTemplate && (
+                      <div>
+                        <span className="font-medium">Tipo: </span>
+                        <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">Modelo</span>
+                      </div>
+                    )}
+                  </div>
+                  
+                  {isCancelled && cancelInfo && (
+                    <div className="mt-4 border-t pt-4 border-red-300">
+                      <h3 className="text-lg font-semibold text-red-600 mb-2">Documento Cancelado</h3>
+                      <div className="text-sm">
+                        <div className="mb-2">
+                          <span className="font-medium">Data de Cancelamento: </span>
+                          {new Date(cancelInfo.timestamp).toLocaleString()}
+                        </div>
+                        <div className="mb-2">
+                          <span className="font-medium">Motivo: </span>
+                          {cancelInfo.reason}
+                        </div>
+                        <div>
+                          <span className="font-medium">Aprovadores: </span>
+                          <ul className="list-disc ml-5">
+                            {cancelInfo.approvers && cancelInfo.approvers.map((approver, idx) => (
+                              <li key={idx}>
+                                {approver.name} ({approver.role})
+                                {approver.signature && (
+                                  <div className="mt-1 mb-2">
+                                    <img 
+                                      src={approver.signature} 
+                                      alt={`Assinatura de ${approver.name}`} 
+                                      className="h-10 ml-2" 
+                                    />
+                                  </div>
+                                )}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           </>
@@ -1566,6 +1783,15 @@ export default function DocumentCreator() {
                 value={documentTitle}
                 onChange={(e) => setDocumentTitle(e.target.value)}
                 placeholder="Insira o título do documento"
+              />
+            </div>
+            <div>
+              <Label htmlFor="save-description" className="mb-2 block">Descrição</Label>
+              <Input
+                id="save-description"
+                value={documentDescription}
+                onChange={(e) => setDocumentDescription(e.target.value)}
+                placeholder="Descrição breve do documento"
               />
             </div>
             <div>
@@ -1590,12 +1816,24 @@ export default function DocumentCreator() {
                 </SelectContent>
               </Select>
             </div>
+            <div className="flex items-center mt-2">
+              <input
+                type="checkbox"
+                id="save-as-template"
+                checked={isTemplate}
+                onChange={(e) => setIsTemplate(e.target.checked)}
+                className="mr-2 h-4 w-4"
+              />
+              <label htmlFor="save-as-template" className="text-sm">
+                Salvar como modelo reutilizável
+              </label>
+            </div>
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button onClick={() => handleSaveDocument(true)}>
+            <Button onClick={() => handleSaveDocument(true, isTemplate)}>
               Salvar
             </Button>
           </DialogFooter>
@@ -1610,6 +1848,8 @@ export default function DocumentCreator() {
               {currentColorTarget.type === "sectionHeader" && "Escolher Cor das Seções"}
               {currentColorTarget.type === "background" && "Escolher Cor de Fundo"}
               {currentColorTarget.type === "text" && "Escolher Cor do Texto"}
+              {currentColorTarget.type === "accent" && "Escolher Cor de Destaque"}
+              {currentColorTarget.type === "secondary" && "Escolher Cor Secundária"}
             </DialogTitle>
           </DialogHeader>
           <div className="py-4 flex justify-center">
@@ -1618,6 +1858,8 @@ export default function DocumentCreator() {
                 currentColorTarget.type === "header" ? customColors.header :
                 currentColorTarget.type === "sectionHeader" ? customColors.sectionHeader :
                 currentColorTarget.type === "background" ? customColors.background :
+                currentColorTarget.type === "accent" ? customColors.accent :
+                currentColorTarget.type === "secondary" ? customColors.secondary :
                 customColors.text
               }
               onChange={handleColorChange}
