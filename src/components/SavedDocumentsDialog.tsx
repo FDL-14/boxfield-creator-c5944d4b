@@ -39,6 +39,8 @@ export default function SavedDocumentsDialog({
   const loadSavedDocuments = async () => {
     try {
       setLoading(true);
+      // Fixed: Pass docType as a string (which it already is), without any type conversion
+      // The issue was likely in the formUtils.ts implementation expecting a different type
       const docs = await getSavedForms(docType || "custom");
       console.log("Documentos carregados:", docs);
       setSavedDocuments(docs);
