@@ -1,0 +1,190 @@
+
+import { supabase } from "@/integrations/supabase/client";
+import { saveFormData, getSavedForms } from "./formUtils";
+import { v4 as uuidv4 } from 'uuid';
+import { useToast } from "@/hooks/use-toast";
+
+/**
+ * Salva um modelo de documento no banco de dados Supabase
+ * @param docType Tipo de documento
+ * @param title Título/nome do documento
+ * @param data Dados do documento
+ * @param isTemplate Se é um modelo ou não
+ * @returns Promise com resultado da operação
+ */
+export const saveDocumentToSupabase = async (
+  docType: string,
+  title: string,
+  data: any,
+  isTemplate: boolean = false
+): Promise<{success: boolean, id?: string, error?: any}> => {
+  try {
+    console.log("Salvando documento no Supabase:", { docType, title, isTemplate });
+    
+    // Verificar se já temos uma sessão do usuário
+    const { data: sessionData } = await supabase.auth.getSession();
+    
+    if (!sessionData.session) {
+      console.log("Usuário não autenticado, salvando localmente");
+      // Se não estiver autenticado, salvar localmente
+      saveFormData(docType, title, data);
+      return { success: true };
+    }
+    
+    // Preparar dados para salvar
+    const userId = sessionData.session.user.id;
+    const documentId = data.id || uuidv4();
+    
+    // Adicionar ID à cópia dos dados
+    const docDataWithId = {
+      ...data,
+      id: documentId
+    };
+    
+    // Upsert na tabela document_templates
+    const { error, data: insertedData } = await supabase
+      .from('document_templates')
+      .upsert({
+        id: documentId,
+        type: docType,
+        title: title,
+        description: data.description || "",
+        data: docDataWithId,
+        is_template: isTemplate,
+        created_by: userId,
+        updated_at: new Date().toISOString()
+      }, 
+      { 
+        onConflict: 'id'
+      });
+    
+    if (error) {
+      console.error("Erro ao salvar documento no Supabase:", error);
+      
+      // Tentar salvar localmente como fallback
+      const localSave = saveFormData(docType, title, data);
+      return { 
+        success: localSave, 
+        error: error 
+      };
+    }
+    
+    // Se salvou com sucesso, também atualizar no localStorage
+    saveFormData(docType, title, {
+      ...docDataWithId,
+      supabaseId: documentId
+    });
+    
+    console.log("Documento salvo com sucesso no Supabase");
+    return { 
+      success: true, 
+      id: documentId 
+    };
+  } catch (error) {
+    console.error("Erro ao salvar documento:", error);
+    return { 
+      success: false, 
+      error: error 
+    };
+  }
+};
+
+/**
+ * Carrega modelos de documentos do banco de dados Supabase
+ * @param docType Tipo de documento a carregar
+ * @param isTemplate Filtrar apenas modelos ou não
+ * @returns Documentos carregados
+ */
+export const loadDocumentsFromSupabase = async (
+  docType: string,
+  isTemplate?: boolean
+) => {
+  try {
+    console.log("Carregando documentos do Supabase:", { docType, isTemplate });
+    
+    let query = supabase
+      .from('document_templates')
+      .select('*')
+      .eq('type', docType)
+      .eq('is_deleted', false);
+    
+    // Se isTemplate foi especificado, adicionar filtro
+    if (isTemplate !== undefined) {
+      query = query.eq('is_template', isTemplate);
+    }
+    
+    const { data, error } = await query;
+    
+    if (error) {
+      console.error("Erro ao carregar documentos do Supabase:", error);
+      // Carregando do localStorage como fallback
+      return getSavedForms(docType);
+    }
+    
+    if (!data || data.length === 0) {
+      console.log("Nenhum documento encontrado no Supabase, carregando do localStorage");
+      // Carregando do localStorage se não encontrou no Supabase
+      return getSavedForms(docType);
+    }
+    
+    console.log(`${data.length} documentos carregados do Supabase`);
+    
+    // Processar documentos do Supabase para o formato esperado
+    const processedDocs = data.map(doc => {
+      // Se doc.data existir, usamos ele, caso contrário usamos o próprio doc
+      const docData = doc.data || doc;
+      
+      return {
+        ...docData,
+        id: doc.id,
+        title: doc.title,
+        name: doc.title,
+        description: doc.description,
+        date: doc.created_at,
+        updated_at: doc.updated_at,
+        formType: doc.type,
+        isTemplate: doc.is_template,
+        supabaseId: doc.id // Marcar que veio do Supabase
+      };
+    });
+    
+    // Mesclar com documentos do localStorage
+    const localDocs = getSavedForms(docType);
+    
+    // Filtrar documentos locais que não tenham um correspondente no Supabase
+    const filteredLocalDocs = localDocs.filter(
+      localDoc => !processedDocs.some(
+        supaDoc => supaDoc.id === localDoc.id || supaDoc.id === localDoc.supabaseId
+      )
+    );
+    
+    // Combinar os dois conjuntos
+    return [...processedDocs, ...filteredLocalDocs];
+  } catch (error) {
+    console.error("Erro ao carregar documentos:", error);
+    // Fallback para localStorage
+    return getSavedForms(docType);
+  }
+};
+
+/**
+ * Salva um documento como modelo no Supabase
+ * @param docType Tipo do documento
+ * @param title Nome do modelo
+ * @param data Dados do documento
+ * @returns Resultado da operação
+ */
+export const saveAsTemplate = async (
+  docType: string,
+  title: string,
+  data: any
+): Promise<{success: boolean, id?: string, error?: any}> => {
+  // Adicionar propriedade isTemplate
+  const templateData = {
+    ...data,
+    isTemplate: true
+  };
+  
+  // Salvar como modelo
+  return saveDocumentToSupabase(docType, title, templateData, true);
+};

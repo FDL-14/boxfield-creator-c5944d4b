@@ -9,17 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
+import FaceRegistrationDialog from "./FaceRegistrationDialog";
+import { loadRegisteredFaces, compareFaces, FaceRegistration } from "@/utils/faceRecognition";
 
 interface BiometricSignatureProps {
   onCapture: (type: "face" | "fingerprint", data: string, additionalData?: any) => void;
   onCancel: () => void;
-}
-
-interface FaceRegistration {
-  image: string;
-  name: string;
-  role: string;
-  timestamp: string;
 }
 
 // Define profile type to match the database
@@ -59,83 +54,25 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
   const [hasRegisteredFace, setHasRegisteredFace] = useState(false);
   const [registeredFaceImage, setRegisteredFaceImage] = useState<string | null>(null);
   const [showFaceRegisterDialog, setShowFaceRegisterDialog] = useState(false);
-  const [registrationName, setRegistrationName] = useState("");
-  const [registrationRole, setRegistrationRole] = useState("");
   const [registeredFaces, setRegisteredFaces] = useState<FaceRegistration[]>([]);
   const [recognizedFaceData, setRecognizedFaceData] = useState<FaceRegistration | null>(null);
   
-  // Check local storage for registered faces on component mount
+  // Check for registered faces on component mount
   useEffect(() => {
-    loadRegisteredFaces();
+    loadRegisteredFacesData();
   }, []);
   
-  const loadRegisteredFaces = () => {
+  const loadRegisteredFacesData = async () => {
     try {
-      // Load from localStorage
-      const storedFaces = localStorage.getItem('registeredFaces');
-      if (storedFaces) {
-        const parsedFaces = JSON.parse(storedFaces) as FaceRegistration[];
-        setRegisteredFaces(parsedFaces);
-        
-        // If there's at least one registered face, consider faces as registered
-        if (parsedFaces.length > 0) {
-          setHasRegisteredFace(true);
-          setRegisteredFaceImage(parsedFaces[0].image);
-        }
-      }
+      const faces = await loadRegisteredFaces();
+      setRegisteredFaces(faces);
       
-      // Try to get from Supabase if connected
-      tryLoadFacesFromSupabase();
+      if (faces.length > 0) {
+        setHasRegisteredFace(true);
+        setRegisteredFaceImage(faces[0].image);
+      }
     } catch (error) {
       console.error("Erro ao carregar faces registradas:", error);
-    }
-  };
-  
-  const tryLoadFacesFromSupabase = async () => {
-    try {
-      // Check if supabase is initialized and user is authenticated
-      const session = await supabase.auth.getSession();
-      if (session && session.data.session) {
-        const { data, error } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('is_face_registered', true);
-        
-        if (error) {
-          console.error("Erro ao carregar faces do Supabase:", error);
-          return;
-        }
-        
-        if (data && data.length > 0) {
-          // Type assertion to ensure data is treated as Profile[]
-          const profiles = data as Profile[];
-          
-          // Convert to our format
-          const faces = profiles
-            .filter(d => d.face_image) // Only include profiles with face_image
-            .map(d => ({
-              image: d.face_image || '',
-              name: d.name || '',
-              role: d.role || '',
-              timestamp: d.updated_at || new Date().toISOString()
-            }));
-          
-          // Merge with local storage data, prioritizing Supabase data
-          const mergedFaces = [...faces];
-          setRegisteredFaces(mergedFaces);
-          
-          // Update localStorage with the merged data
-          localStorage.setItem('registeredFaces', JSON.stringify(mergedFaces));
-          
-          // Set registered face state
-          if (faces.length > 0) {
-            setHasRegisteredFace(true);
-            setRegisteredFaceImage(faces[0].image);
-          }
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao tentar carregar do Supabase:", error);
     }
   };
   
@@ -202,173 +139,51 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
     }
   };
   
-  const openFaceRegistrationDialog = async () => {
-    if (!cameraActive) {
-      startCamera();
-    }
+  const openFaceRegistrationDialog = () => {
     setShowFaceRegisterDialog(true);
   };
   
-  const registerNewFace = async () => {
-    if (!cameraActive) {
-      startCamera();
-      return;
+  const handleFaceRegistered = (success: boolean) => {
+    if (success) {
+      // Recarregar faces registradas
+      loadRegisteredFacesData();
     }
-    
-    if (!registrationName || !registrationRole) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Por favor, preencha o nome e cargo para registrar a face",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setCaptureStatus("capturing");
-    
-    try {
-      if (videoRef.current && canvasRef.current) {
-        const video = videoRef.current;
-        const canvas = canvasRef.current;
-        
-        // Set canvas dimensions to match video
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        
-        // Draw video frame to canvas
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-          
-          // Convert canvas to data URL
-          const imageData = canvas.toDataURL('image/png');
-          
-          // Create new face registration object
-          const newFace: FaceRegistration = {
-            image: imageData,
-            name: registrationName,
-            role: registrationRole,
-            timestamp: new Date().toISOString()
-          };
-          
-          // Update registered faces
-          const updatedFaces = [...registeredFaces, newFace];
-          setRegisteredFaces(updatedFaces);
-          
-          // Store in localStorage for future use
-          localStorage.setItem('registeredFaces', JSON.stringify(updatedFaces));
-          setRegisteredFaceImage(imageData);
-          setHasRegisteredFace(true);
-          
-          // Try to save to Supabase if connected
-          trySaveToSupabase(newFace);
-          
-          // Stop camera stream
-          if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-            setCameraActive(false);
-          }
-          
-          // Set status and return data
-          setCaptureStatus("success");
-          setBase64Data(imageData);
-          setShowFaceRegisterDialog(false);
-          
-          // Reset form fields
-          setRegistrationName("");
-          setRegistrationRole("");
-          
-          toast({
-            title: "Face registrada",
-            description: "Seu rosto foi registrado com sucesso para uso futuro."
-          });
-        }
-      }
-    } catch (error) {
-      console.error("Erro na captura facial:", error);
-      setCaptureStatus("failed");
-      
-      toast({
-        title: "Falha no registro",
-        description: "Ocorreu um erro ao tentar registrar sua face.",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  const trySaveToSupabase = async (faceData: FaceRegistration) => {
-    try {
-      // Check if supabase is initialized and user is authenticated
-      const session = await supabase.auth.getSession();
-      if (session && session.data.session) {
-        // Update or insert the profile with face data
-        const { error } = await supabase
-          .from('profiles')
-          .update({
-            face_image: faceData.image,
-            name: faceData.name,
-            role: faceData.role,
-            is_face_registered: true
-          })
-          .eq('id', session.data.session.user.id);
-        
-        if (error) {
-          console.error("Erro ao salvar face no Supabase:", error);
-          // Continue anyway since we saved to localStorage
-        } else {
-          console.log("Face salva com sucesso no Supabase");
-        }
-      }
-    } catch (error) {
-      console.error("Erro ao tentar salvar no Supabase:", error);
-      // Continue anyway since we saved to localStorage
-    }
-  };
-  
-  // Function to compare faces and find a match
-  const recognizeFace = (capturedImage: string): FaceRegistration | null => {
-    // In a real app, this would use a face comparison API
-    // For this demo, we'll just check if we have registered faces and return the first one
-    if (registeredFaces.length > 0) {
-      return registeredFaces[0];
-    }
-    return null;
   };
   
   const handleCapture = async () => {
     setCaptureStatus("capturing");
     
     if (activeTab === "face" && cameraActive) {
-      // Real camera capture
+      // Captura real da câmera
       try {
         if (videoRef.current && canvasRef.current) {
           const video = videoRef.current;
           const canvas = canvasRef.current;
           
-          // Set canvas dimensions to match video
+          // Configurar dimensões do canvas para corresponder ao vídeo
           canvas.width = video.videoWidth;
           canvas.height = video.videoHeight;
           
-          // Draw video frame to canvas
+          // Desenhar quadro do vídeo no canvas
           const ctx = canvas.getContext('2d');
           if (ctx) {
             ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
             
-            // Convert canvas to data URL
+            // Converter canvas para data URL
             const imageData = canvas.toDataURL('image/png');
             setBase64Data(imageData);
             
-            // Try to recognize the face
-            const recognizedFace = recognizeFace(imageData);
+            // Tentar reconhecer a face comparando com faces registradas
+            const recognizedFace = compareFaces(imageData, registeredFaces);
             setRecognizedFaceData(recognizedFace);
             
-            // Stop camera stream
+            // Parar stream da câmera
             if (stream) {
               stream.getTracks().forEach(track => track.stop());
               setCameraActive(false);
             }
             
-            // Set status and return data with additional info if recognized
+            // Definir status e retornar dados com informações adicionais se reconhecida
             setCaptureStatus("success");
             
             if (recognizedFace) {
@@ -402,10 +217,10 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
         });
       }
     } else if (activeTab === "fingerprint") {
-      // Simulate fingerprint reader with a timer (for demo purposes)
+      // Simular leitor de impressão digital com um temporizador (para fins de demonstração)
       setTimeout(() => {
-        // In a real implementation, this would connect to actual biometric hardware/APIs
-        if (Math.random() > 0.2) { // 80% success rate for demo
+        // Em uma implementação real, isso se conectaria a hardware/APIs biométricos reais
+        if (Math.random() > 0.2) { // Taxa de sucesso de 80% para demonstração
           const mockFingerprintData = `data:image/fingerprint;base64,${btoa(Date.now().toString())}`;
           setBase64Data(mockFingerprintData);
           setCaptureStatus("success");
@@ -515,7 +330,7 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
               <User className="h-20 w-20 text-gray-300" />
             )}
             
-            {/* Video element for camera capture */}
+            {/* Elemento de vídeo para captura da câmera */}
             <video 
               ref={videoRef}
               className={`w-full h-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
@@ -524,7 +339,7 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
               muted
             />
             
-            {/* Hidden canvas for capturing frames */}
+            {/* Canvas oculto para captura de quadros */}
             <canvas 
               ref={canvasRef} 
               className="hidden" 
@@ -678,91 +493,6 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
         </TabsContent>
       </Tabs>
       
-      {/* Dialog para cadastro de face */}
-      <Dialog open={showFaceRegisterDialog} onOpenChange={setShowFaceRegisterDialog}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Cadastro de Face</DialogTitle>
-            <DialogDescription>
-              Registre seu rosto com nome e cargo para reconhecimento futuro.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 py-4">
-            <div className="w-full flex justify-center">
-              {cameraActive ? (
-                <div className="relative w-64 h-64 rounded-lg overflow-hidden border-2 border-gray-200">
-                  <video 
-                    ref={videoRef}
-                    className="w-full h-full object-cover"
-                    autoPlay 
-                    playsInline
-                    muted
-                  />
-                  <Button 
-                    size="icon"
-                    variant="secondary"
-                    className="absolute bottom-2 right-2 rounded-full"
-                    onClick={switchCamera}
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div>
-              ) : (
-                <div className="w-64 h-64 border-2 border-dashed rounded-lg flex items-center justify-center">
-                  <Button
-                    onClick={startCamera}
-                    variant="outline"
-                  >
-                    <Camera className="h-4 w-4 mr-2" />
-                    Ativar Câmera
-                  </Button>
-                </div>
-              )}
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="registration-name">Nome Completo</Label>
-              <Input
-                id="registration-name"
-                value={registrationName}
-                onChange={(e) => setRegistrationName(e.target.value)}
-                placeholder="Ex: João da Silva"
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label htmlFor="registration-role">Cargo/Função</Label>
-              <Input
-                id="registration-role"
-                value={registrationRole}
-                onChange={(e) => setRegistrationRole(e.target.value)}
-                placeholder="Ex: Técnico de Segurança"
-              />
-            </div>
-          </div>
-          <DialogFooter className="flex justify-between items-center">
-            <Button 
-              variant="outline" 
-              onClick={() => {
-                setShowFaceRegisterDialog(false);
-                if (stream) {
-                  stream.getTracks().forEach(track => track.stop());
-                  setCameraActive(false);
-                }
-              }}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={registerNewFace}
-              disabled={!cameraActive || !registrationName || !registrationRole}
-            >
-              Registrar Face
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
       {/* Dialog para exibir código Base64 */}
       <Dialog open={showBase64} onOpenChange={setShowBase64}>
         <DialogContent className="sm:max-w-md">
@@ -787,6 +517,13 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Componente de cadastro de face */}
+      <FaceRegistrationDialog
+        open={showFaceRegisterDialog}
+        onClose={() => setShowFaceRegisterDialog(false)}
+        onRegister={handleFaceRegistered}
+      />
     </div>
   );
 };

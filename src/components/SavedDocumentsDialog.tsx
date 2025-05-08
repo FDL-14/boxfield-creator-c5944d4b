@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { getSavedForms, prepareFormTemplate, deleteSavedForm } from "@/utils/formUtils";
+import { loadDocumentsFromSupabase } from "@/utils/documentUtils";
 import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck, Copy, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,8 +40,8 @@ export default function SavedDocumentsDialog({
   const loadSavedDocuments = async () => {
     try {
       setLoading(true);
-      // Get saved forms using the docType string
-      const docs = await getSavedForms(docType || "custom");
+      // Tentar carregar do Supabase primeiro e depois fallback para localStorage
+      const docs = await loadDocumentsFromSupabase(docType);
       console.log("Documentos carregados:", docs);
       setSavedDocuments(docs);
     } catch (error) {
