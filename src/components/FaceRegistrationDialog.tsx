@@ -202,6 +202,12 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
     setCaptureStatus("capturing");
     
     try {
+      console.log("Enviando dados para registro:", {
+        nome: registrationName,
+        cargo: registrationRole,
+        temImagem: !!capturedImage
+      });
+      
       const result = await registerFace({
         image: capturedImage,
         name: registrationName,

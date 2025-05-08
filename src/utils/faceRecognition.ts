@@ -19,10 +19,17 @@ export interface FaceRegistration {
  */
 export const registerFace = async (faceData: FaceRegistration): Promise<{success: boolean, error?: any}> => {
   try {
+    console.log("Iniciando registro da face com dados:", { 
+      nome: faceData.name, 
+      cargo: faceData.role,
+      tempoImagem: faceData.timestamp
+    });
+    
     // Verificar se estamos logados
     const { data: sessionData } = await supabase.auth.getSession();
     
     if (sessionData && sessionData.session) {
+      console.log("Usuário autenticado, salvando no perfil");
       // Update or insert the profile with face data
       const { error } = await supabase
         .from('profiles')
@@ -43,6 +50,7 @@ export const registerFace = async (faceData: FaceRegistration): Promise<{success
         return { success: true };
       }
     } else {
+      console.log("Usuário não autenticado, salvando localmente");
       // Salvar apenas localmente
       const storedFaces = localStorage.getItem('registeredFaces');
       let faces: FaceRegistration[] = storedFaces ? JSON.parse(storedFaces) : [];
@@ -53,6 +61,7 @@ export const registerFace = async (faceData: FaceRegistration): Promise<{success
       // Salvar de volta no localStorage
       localStorage.setItem('registeredFaces', JSON.stringify(faces));
       
+      console.log("Face salva localmente");
       return { success: true };
     }
   } catch (error) {
