@@ -50,7 +50,7 @@ export const getLocationData = async () => {
     return {
       latitude,
       longitude,
-      formatted: `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`
+      formatted: `Longitude: ${longitude.toFixed(6)}, Latitude: ${latitude.toFixed(6)}`
     };
   } catch (error) {
     console.error("Geolocation error:", error);

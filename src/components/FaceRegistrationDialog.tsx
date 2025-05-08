@@ -209,6 +209,12 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
     }
   };
   
+  // Calcular se o botão deve ser habilitado - CORRIGIDO
+  const isRegisterButtonEnabled = capturedImage !== null && 
+                                 registrationName.trim() !== "" && 
+                                 registrationRole.trim() !== "" &&
+                                 captureStatus !== "capturing";
+  
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
@@ -324,7 +330,7 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
           
           <Button 
             onClick={handleRegister}
-            disabled={captureStatus === "capturing" || !capturedImage || !registrationName || !registrationRole}
+            disabled={!isRegisterButtonEnabled}
           >
             {captureStatus === "capturing" ? "Processando..." : "Registrar Face"}
           </Button>

@@ -62,8 +62,9 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
   }, []);
   
   const handleCopyCoordinates = () => {
-    if (location?.formatted) {
-      navigator.clipboard.writeText(location.formatted).then(() => {
+    if (location) {
+      const coordinates = `Longitude: ${location.longitude}, Latitude: ${location.latitude}`;
+      navigator.clipboard.writeText(coordinates).then(() => {
         toast({
           title: "Coordenadas copiadas",
           description: "Coordenadas copiadas para a área de transferência"
@@ -159,7 +160,7 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
             <div className="space-y-1">
               <div className="text-sm font-medium">Coordenadas:</div>
               <div className="text-xs bg-gray-50 p-2 rounded font-mono">
-                {location.formatted}
+                Longitude: {location.longitude}, Latitude: {location.latitude}
               </div>
             </div>
             
@@ -175,13 +176,8 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
                   
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Formato decimal:</span>
-                      <span className="font-mono">{location.formatted}</span>
-                    </div>
-                    
-                    <div className="flex justify-between">
-                      <span className="text-gray-500">Formato DMS:</span>
-                      <span className="font-mono">{location.dmsFormatted}</span>
+                      <span className="text-gray-500">Longitude:</span>
+                      <span className="font-mono">{location.longitude}</span>
                     </div>
                     
                     <div className="flex justify-between">
@@ -190,8 +186,13 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
                     </div>
                     
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Longitude:</span>
-                      <span className="font-mono">{location.longitude}</span>
+                      <span className="text-gray-500">Formato DMS:</span>
+                      <span className="font-mono">{location.dmsFormatted}</span>
+                    </div>
+                    
+                    <div className="flex justify-between">
+                      <span className="text-gray-500">Endereço:</span>
+                      <span className="font-mono">{location.formatted}</span>
                     </div>
                     
                     {location.accuracy && (

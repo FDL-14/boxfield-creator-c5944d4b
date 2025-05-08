@@ -125,7 +125,7 @@ export const loadRegisteredFaces = async (): Promise<FaceRegistration[]> => {
 };
 
 /**
- * Função simples para comparar faces
+ * Função para comparar faces
  * Nota: Em um ambiente de produção, deve-se usar uma API de reconhecimento facial
  * como AWS Rekognition, Azure Face API, ou uma biblioteca específica
  * 
