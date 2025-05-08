@@ -22,6 +22,7 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const faceGuideRef = useRef<HTMLDivElement>(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [registrationName, setRegistrationName] = useState("");
   const [registrationRole, setRegistrationRole] = useState("");
@@ -112,12 +113,46 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
       // Desenhar quadro do vídeo no canvas
       const ctx = canvas.getContext('2d');
       if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Converter canvas para data URL
-        const imageData = canvas.toDataURL('image/png');
-        setCapturedImage(imageData);
-        setCaptureStatus("success");
+        // Se houver um guia de face, usar suas dimensões para captura padronizada
+        if (faceGuideRef.current) {
+          const guideRect = faceGuideRef.current.getBoundingClientRect();
+          const videoRect = video.getBoundingClientRect();
+          
+          // Calcular coordenadas relativas ao vídeo
+          const scaleX = video.videoWidth / videoRect.width;
+          const scaleY = video.videoHeight / videoRect.height;
+          
+          const startX = (guideRect.left - videoRect.left) * scaleX;
+          const startY = (guideRect.top - videoRect.top) * scaleY;
+          const width = guideRect.width * scaleX;
+          const height = guideRect.height * scaleY;
+          
+          // Criar um canvas temporário para a face recortada com tamanho padronizado
+          const tempCanvas = document.createElement('canvas');
+          tempCanvas.width = 300; // Largura padronizada
+          tempCanvas.height = 300; // Altura padronizada
+          const tempCtx = tempCanvas.getContext('2d');
+          
+          if (tempCtx) {
+            // Desenhar apenas a região da face no canvas temporário
+            tempCtx.drawImage(
+              video, 
+              startX, startY, width, height, // área de origem
+              0, 0, 300, 300 // área de destino (padronizada)
+            );
+            
+            // Usar a imagem padronizada
+            const imageData = tempCanvas.toDataURL('image/png');
+            setCapturedImage(imageData);
+            setCaptureStatus("success");
+          }
+        } else {
+          // Captura normal se não houver guia
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = canvas.toDataURL('image/png');
+          setCapturedImage(imageData);
+          setCaptureStatus("success");
+        }
         
         toast({
           title: "Face capturada",
@@ -209,7 +244,7 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
     }
   };
   
-  // Calcular se o botão deve ser habilitado - CORRIGIDO
+  // Calcular se o botão deve ser habilitado
   const isRegisterButtonEnabled = capturedImage !== null && 
                                  registrationName.trim() !== "" && 
                                  registrationRole.trim() !== "" &&
@@ -238,6 +273,15 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
                       playsInline
                       muted
                     />
+                    {/* Guia de posicionamento do rosto */}
+                    <div 
+                      ref={faceGuideRef}
+                      className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 border-2 border-dashed border-blue-400 rounded-full opacity-70"
+                    >
+                      <div className="absolute inset-0 flex items-center justify-center text-xs text-blue-500 font-medium text-center">
+                        Posicione seu rosto aqui
+                      </div>
+                    </div>
                     <Button 
                       size="icon"
                       variant="secondary"

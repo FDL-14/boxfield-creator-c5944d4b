@@ -9,7 +9,7 @@ export interface FaceRegistration {
   name: string;
   role: string;
   timestamp: string;
-  userId?: string; // Tornar opcional para compatibilidade
+  userId?: string; // Campo opcional para compatibilidade
 }
 
 /**
