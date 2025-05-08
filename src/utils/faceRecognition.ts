@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -24,6 +23,11 @@ export const registerFace = async (faceData: FaceRegistration): Promise<{success
       cargo: faceData.role,
       tempoImagem: faceData.timestamp
     });
+    
+    if (!faceData.name || !faceData.role) {
+      console.error("Nome ou cargo não fornecidos para registro facial");
+      return { success: false, error: "Nome e cargo são obrigatórios" };
+    }
     
     // Verificar se estamos logados
     const { data: sessionData } = await supabase.auth.getSession();
@@ -154,4 +158,13 @@ export const compareFaces = (
   }
   
   return null;
+};
+
+/**
+ * Retorna o código Base64 da imagem da assinatura
+ * @param signatureImage Imagem da assinatura 
+ * @returns String com o código Base64
+ */
+export const getSignatureBase64 = (signatureImage: string): string => {
+  return signatureImage;
 };

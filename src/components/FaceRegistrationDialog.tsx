@@ -14,6 +14,12 @@ interface FaceRegistrationDialogProps {
   onRegister: (success: boolean) => void;
 }
 
+// Dimensões padronizadas para captura facial
+const FACE_CAPTURE_SIZE = {
+  width: 300,
+  height: 300
+};
+
 const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
   open,
   onClose,
@@ -106,11 +112,11 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
       const video = videoRef.current;
       const canvas = canvasRef.current;
       
-      // Definir dimensões do canvas para corresponder ao vídeo
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+      // Definir dimensões do canvas para captura padronizada
+      canvas.width = FACE_CAPTURE_SIZE.width;
+      canvas.height = FACE_CAPTURE_SIZE.height;
       
-      // Desenhar quadro do vídeo no canvas
+      // Desenhar quadro do vídeo no canvas de forma padronizada
       const ctx = canvas.getContext('2d');
       if (ctx) {
         // Se houver um guia de face, usar suas dimensões para captura padronizada
@@ -127,28 +133,33 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
           const width = guideRect.width * scaleX;
           const height = guideRect.height * scaleY;
           
-          // Criar um canvas temporário para a face recortada com tamanho padronizado
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = 300; // Largura padronizada
-          tempCanvas.height = 300; // Altura padronizada
-          const tempCtx = tempCanvas.getContext('2d');
+          // Desenhar apenas a região da face no canvas com tamanho padronizado
+          ctx.drawImage(
+            video, 
+            startX, startY, width, height, // área de origem
+            0, 0, FACE_CAPTURE_SIZE.width, FACE_CAPTURE_SIZE.height // área de destino padronizada
+          );
           
-          if (tempCtx) {
-            // Desenhar apenas a região da face no canvas temporário
-            tempCtx.drawImage(
-              video, 
-              startX, startY, width, height, // área de origem
-              0, 0, 300, 300 // área de destino (padronizada)
-            );
-            
-            // Usar a imagem padronizada
-            const imageData = tempCanvas.toDataURL('image/png');
-            setCapturedImage(imageData);
-            setCaptureStatus("success");
-          }
+          const imageData = canvas.toDataURL('image/png');
+          setCapturedImage(imageData);
+          setCaptureStatus("success");
         } else {
-          // Captura normal se não houver guia
-          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          // Captura com redimensionamento para tamanho padronizado
+          const centerX = video.videoWidth / 2;
+          const centerY = video.videoHeight / 2;
+          const smallerDimension = Math.min(video.videoWidth, video.videoHeight);
+          const captureSize = smallerDimension * 0.7; // 70% da dimensão menor
+          
+          const startX = centerX - (captureSize / 2);
+          const startY = centerY - (captureSize / 2);
+          
+          // Desenhar no canvas com tamanho padronizado
+          ctx.drawImage(
+            video,
+            startX, startY, captureSize, captureSize,
+            0, 0, FACE_CAPTURE_SIZE.width, FACE_CAPTURE_SIZE.height
+          );
+          
           const imageData = canvas.toDataURL('image/png');
           setCapturedImage(imageData);
           setCaptureStatus("success");
@@ -231,9 +242,10 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
         onRegister(true);
         onClose();
       } else {
+        console.error("Erro no registro:", result.error);
         toast({
           title: "Erro no cadastro",
-          description: "Não foi possível completar o cadastro. Tente novamente.",
+          description: result.error?.message || "Não foi possível completar o cadastro. Tente novamente.",
           variant: "destructive"
         });
         setCaptureStatus("failed");
@@ -279,7 +291,7 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
                       playsInline
                       muted
                     />
-                    {/* Guia de posicionamento do rosto */}
+                    {/* Guia de posicionamento do rosto - tamanho padronizado */}
                     <div 
                       ref={faceGuideRef}
                       className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 border-2 border-dashed border-blue-400 rounded-full opacity-70"
@@ -303,10 +315,12 @@ const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
                   </div>
                 )}
                 
-                {/* Canvas oculto para captura */}
+                {/* Canvas oculto para captura padronizada */}
                 <canvas 
                   ref={canvasRef} 
                   className="hidden" 
+                  width={FACE_CAPTURE_SIZE.width}
+                  height={FACE_CAPTURE_SIZE.height}
                 />
               </div>
             ) : (
