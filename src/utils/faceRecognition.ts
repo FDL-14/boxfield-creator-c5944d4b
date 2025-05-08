@@ -9,7 +9,7 @@ export interface FaceRegistration {
   name: string;
   role: string;
   timestamp: string;
-  userId?: string;
+  userId?: string; // Tornar opcional para compatibilidade
 }
 
 /**
@@ -102,7 +102,7 @@ export const loadRegisteredFaces = async (): Promise<FaceRegistration[]> => {
         role: profile.role || '',
         timestamp: profile.updated_at || new Date().toISOString(),
         userId: profile.id
-      }));
+      } as FaceRegistration));
     
     // Mesclar com faces locais, dando prioridade às do Supabase
     const allFaces = [...supabaseFaces];

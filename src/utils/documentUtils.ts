@@ -131,8 +131,8 @@ export const loadDocumentsFromSupabase = async (
     
     // Processar documentos do Supabase para o formato esperado
     const processedDocs = data.map(doc => {
-      // Se doc.data existir, usamos ele, caso contrário usamos o próprio doc
-      const docData = doc.data || {};
+      // Se doc.data existir e for um objeto, usamos ele, caso contrário usamos um objeto vazio
+      const docData = doc.data && typeof doc.data === 'object' ? doc.data : {};
       
       return {
         ...docData,
