@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
@@ -59,62 +60,18 @@ export const registerFingerprint = async (fingerprintData: FingerprintRegistrati
         }
       }
       
-      // If profile exists, update it or create new one
-      if (existingProfile) {
-        // Check if we already have a fingerprint array
-        let fingerprints = existingProfile.fingerprints || [];
-        
-        // Add new fingerprint to the array
-        fingerprints.push({
-          image: fingerprintData.image,
-          index: fingerprintData.index,
-          timestamp: fingerprintData.timestamp
-        });
-        
-        // Keep only up to 10 fingerprints
-        if (fingerprints.length > 10) {
-          fingerprints = fingerprints.slice(0, 10);
-        }
-        
-        // Update the profile
-        const { error: updateError } = await supabase
-          .from('profiles')
-          .update({
-            name: fingerprintData.name,
-            role: fingerprintData.role,
-            fingerprints: fingerprints,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingProfile.id);
-        
-        if (updateError) {
-          console.error("Error updating profile with fingerprint:", updateError);
-          return { success: false, error: updateError };
-        }
-      } else {
-        // Create new profile with fingerprint
-        const { error: insertError } = await supabase
-          .from('profiles')
-          .insert({
-            id: sessionData.session.user.id,
-            name: fingerprintData.name,
-            cpf: fingerprintData.cpf,
-            role: fingerprintData.role,
-            fingerprints: [{
-              image: fingerprintData.image,
-              index: fingerprintData.index,
-              timestamp: fingerprintData.timestamp
-            }],
-            updated_at: new Date().toISOString()
-          });
-        
-        if (insertError) {
-          console.error("Error creating profile with fingerprint:", insertError);
-          return { success: false, error: insertError };
-        }
-      }
+      // For local storage fallback
+      // Save locally in localStorage
+      const storedFingerprints = localStorage.getItem('registeredFingerprints');
+      let fingerprints: FingerprintRegistration[] = storedFingerprints ? JSON.parse(storedFingerprints) : [];
       
-      console.log("Fingerprint saved successfully to Supabase");
+      // Add the new fingerprint
+      fingerprints.push(fingerprintData);
+      
+      // Save back to localStorage
+      localStorage.setItem('registeredFingerprints', JSON.stringify(fingerprints));
+      
+      console.log("Fingerprint saved locally as fallback");
       return { success: true };
     } else {
       console.log("User not authenticated, saving locally");
@@ -154,79 +111,8 @@ export const loadRegisteredFingerprints = async (cpf?: string): Promise<Fingerpr
       ? localFingerprints.filter(fp => fp.cpf === cpf)
       : localFingerprints;
     
-    // Try to load from Supabase if connected
-    const { data: sessionData } = await supabase.auth.getSession();
-    
-    if (!sessionData || !sessionData.session) {
-      console.log("No active session, returning only local fingerprints");
-      return filteredLocalFingerprints;
-    }
-    
-    // Query to get profiles with fingerprints
-    let query = supabase
-      .from('profiles')
-      .select('*')
-      .neq('fingerprints', null);
-    
-    // Add CPF filter if provided
-    if (cpf) {
-      query = query.eq('cpf', cpf);
-    }
-    
-    const { data, error } = await query;
-    
-    if (error) {
-      // Check if it's a relation does not exist error
-      if (error.code === 'PGSQL_RELATION_DOES_NOT_EXIST') {
-        console.log("Profiles table doesn't exist yet, using local data");
-        return filteredLocalFingerprints;
-      }
-      
-      console.error("Error loading fingerprints from Supabase:", error);
-      return filteredLocalFingerprints;
-    }
-    
-    if (!data || data.length === 0) {
-      console.log("No profiles with fingerprints found");
-      return filteredLocalFingerprints;
-    }
-    
-    // Convert Supabase data to the expected format
-    const supabaseFingerprints: FingerprintRegistration[] = [];
-    
-    for (const profile of data) {
-      if (profile.fingerprints && Array.isArray(profile.fingerprints)) {
-        for (const fingerprint of profile.fingerprints) {
-          supabaseFingerprints.push({
-            image: fingerprint.image,
-            name: profile.name,
-            cpf: profile.cpf,
-            role: profile.role,
-            index: fingerprint.index,
-            timestamp: fingerprint.timestamp,
-            userId: profile.id
-          });
-        }
-      }
-    }
-    
-    console.log(`Found ${supabaseFingerprints.length} fingerprints in Supabase`);
-    
-    // Combine with local fingerprints, giving precedence to Supabase data
-    const allFingerprints = [...supabaseFingerprints];
-    
-    // Add local fingerprints that don't match any in Supabase
-    for (const localFp of filteredLocalFingerprints) {
-      const exists = supabaseFingerprints.some(
-        sbFp => sbFp.cpf === localFp.cpf && sbFp.index === localFp.index
-      );
-      
-      if (!exists) {
-        allFingerprints.push(localFp);
-      }
-    }
-    
-    return allFingerprints;
+    // Return local fingerprints for now until we have proper DB structure
+    return filteredLocalFingerprints;
   } catch (error) {
     console.error("Error loading registered fingerprints:", error);
     

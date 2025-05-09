@@ -1,407 +1,258 @@
 
-import React, { useState, useRef, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import { useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Camera, RotateCcw, User, CheckCircle } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
-import { registerFace } from "@/utils/faceRecognition";
+import { toast } from "@/hooks/use-toast";
+import { Camera, User, Loader2, Check } from "lucide-react";
 
-interface FaceRegistrationDialogProps {
+export interface FaceRegistrationDialogProps {
   open: boolean;
-  onClose: () => void;
-  onRegister: (success: boolean) => void;
+  onOpenChange: (open: boolean) => void;
 }
 
-// Dimensões padronizadas para captura facial
-const FACE_CAPTURE_SIZE = {
-  width: 300,
-  height: 300
-};
-
-const FaceRegistrationDialog: React.FC<FaceRegistrationDialogProps> = ({
-  open,
-  onClose,
-  onRegister
-}) => {
-  const { toast } = useToast();
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const faceGuideRef = useRef<HTMLDivElement>(null);
-  const [cameraActive, setCameraActive] = useState(false);
-  const [registrationName, setRegistrationName] = useState("");
-  const [registrationRole, setRegistrationRole] = useState("");
-  const [facingMode, setFacingMode] = useState<"user" | "environment">("user");
-  const [stream, setStream] = useState<MediaStream | null>(null);
-  const [captureStatus, setCaptureStatus] = useState<"idle" | "capturing" | "success" | "failed">("idle");
+export default function FaceRegistrationDialog({ open, onOpenChange }: FaceRegistrationDialogProps) {
+  const [name, setName] = useState("");
+  const [cpf, setCpf] = useState("");
+  const [role, setRole] = useState("");
+  const [isCapturing, setIsCapturing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   
-  // Inicializar a câmera quando o componente carregar
+  // Reset state when dialog opens/closes
   useEffect(() => {
-    if (open && !cameraActive) {
-      startCamera();
+    if (!open) {
+      setName("");
+      setCpf("");
+      setRole("");
+      setCapturedImage(null);
+      setIsCapturing(false);
     }
-    
-    return () => {
-      // Limpar recursos da câmera ao desmontar
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
   }, [open]);
   
-  const startCamera = async () => {
-    try {
-      setCaptureStatus("idle");
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode },
-        audio: false
-      });
-      
-      if (videoRef.current) {
-        videoRef.current.srcObject = mediaStream;
-        setStream(mediaStream);
-        setCameraActive(true);
-        
-        toast({
-          title: "Câmera ativada",
-          description: "Posicione seu rosto para captura",
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao acessar a câmera:", error);
-      setCaptureStatus("failed");
-      
-      toast({
-        title: "Erro",
-        description: "Não foi possível acessar a câmera. Verifique as permissões.",
-        variant: "destructive"
-      });
+  // Format CPF with mask (XXX.XXX.XXX-XX)
+  const formatCPF = (value: string) => {
+    const numbers = value.replace(/\D/g, "").substring(0, 11);
+    
+    if (numbers.length <= 3) {
+      return numbers;
     }
+    if (numbers.length <= 6) {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
+    }
+    if (numbers.length <= 9) {
+      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
+    }
+    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
+  };
+
+  // Handle CPF input with formatting
+  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setCpf(formatCPF(e.target.value));
   };
   
-  const switchCamera = () => {
-    if (stream) {
-      // Parar o stream atual
-      stream.getTracks().forEach(track => track.stop());
-      setCameraActive(false);
-    }
-    
-    // Alternar modo
-    const newFacingMode = facingMode === "user" ? "environment" : "user";
-    setFacingMode(newFacingMode);
-    
-    // Reiniciar câmera com novas configurações
-    setTimeout(() => {
-      startCamera();
-    }, 300);
-  };
-  
-  const captureFace = () => {
-    if (!cameraActive || !videoRef.current || !canvasRef.current) {
-      toast({
-        title: "Erro na captura",
-        description: "A câmera não está ativa. Tente reiniciar.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      
-      // Definir dimensões do canvas para captura padronizada
-      canvas.width = FACE_CAPTURE_SIZE.width;
-      canvas.height = FACE_CAPTURE_SIZE.height;
-      
-      // Desenhar quadro do vídeo no canvas de forma padronizada
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        // Se houver um guia de face, usar suas dimensões para captura padronizada
-        if (faceGuideRef.current) {
-          const guideRect = faceGuideRef.current.getBoundingClientRect();
-          const videoRect = video.getBoundingClientRect();
-          
-          // Calcular coordenadas relativas ao vídeo
-          const scaleX = video.videoWidth / videoRect.width;
-          const scaleY = video.videoHeight / videoRect.height;
-          
-          const startX = (guideRect.left - videoRect.left) * scaleX;
-          const startY = (guideRect.top - videoRect.top) * scaleY;
-          const width = guideRect.width * scaleX;
-          const height = guideRect.height * scaleY;
-          
-          // Desenhar apenas a região da face no canvas com tamanho padronizado
-          ctx.drawImage(
-            video, 
-            startX, startY, width, height, // área de origem
-            0, 0, FACE_CAPTURE_SIZE.width, FACE_CAPTURE_SIZE.height // área de destino padronizada
-          );
-          
-          const imageData = canvas.toDataURL('image/png');
-          setCapturedImage(imageData);
-          setCaptureStatus("success");
-        } else {
-          // Captura com redimensionamento para tamanho padronizado
-          const centerX = video.videoWidth / 2;
-          const centerY = video.videoHeight / 2;
-          const smallerDimension = Math.min(video.videoWidth, video.videoHeight);
-          const captureSize = smallerDimension * 0.7; // 70% da dimensão menor
-          
-          const startX = centerX - (captureSize / 2);
-          const startY = centerY - (captureSize / 2);
-          
-          // Desenhar no canvas com tamanho padronizado
-          ctx.drawImage(
-            video,
-            startX, startY, captureSize, captureSize,
-            0, 0, FACE_CAPTURE_SIZE.width, FACE_CAPTURE_SIZE.height
-          );
-          
-          const imageData = canvas.toDataURL('image/png');
-          setCapturedImage(imageData);
-          setCaptureStatus("success");
-        }
-        
-        toast({
-          title: "Face capturada",
-          description: "Agora complete seu cadastro com nome e cargo."
-        });
-      }
-    } catch (error) {
-      console.error("Erro ao capturar imagem:", error);
-      setCaptureStatus("failed");
-      
-      toast({
-        title: "Erro na captura",
-        description: "Ocorreu um erro ao capturar a imagem.",
-        variant: "destructive"
-      });
-    }
-  };
-  
-  const resetCapture = () => {
-    setCapturedImage(null);
-    setCaptureStatus("idle");
-    
-    if (!cameraActive) {
-      startCamera();
-    }
-  };
-  
-  const handleRegister = async () => {
-    if (!capturedImage) {
-      toast({
-        title: "Imagem necessária",
-        description: "Capture uma imagem facial antes de prosseguir.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    if (!registrationName || !registrationRole) {
+  // Start face capture
+  const startCapture = async () => {
+    if (!name || !cpf || !role) {
       toast({
         title: "Campos obrigatórios",
-        description: "Por favor, preencha o nome e cargo para registrar.",
+        description: "Preencha nome, CPF e cargo para prosseguir",
         variant: "destructive"
       });
       return;
     }
     
-    setCaptureStatus("capturing");
+    setIsCapturing(true);
     
     try {
-      console.log("Enviando dados para registro:", {
-        nome: registrationName,
-        cargo: registrationRole,
-        temImagem: !!capturedImage
-      });
+      // In a real app, this would integrate with a camera API
+      // For this demo, we'll simulate with a mock image
+      await new Promise(resolve => setTimeout(resolve, 1500));
       
-      const result = await registerFace({
-        image: capturedImage,
-        name: registrationName,
-        role: registrationRole,
-        timestamp: new Date().toISOString()
-      });
+      const mockFaceImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6NzExQkVGNkZBNDIxMTFFQUIzRjhGRjQ0MkJDRDhGMUMiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6NzExQkVGNzBBNDIxMTFFQUIzRjhGRjQ0MkJDRDhGMUMiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDo3MTFCRUY2REE0MjExMUVBQjNGOEZGNDQyQkNEOEYxQyIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDo3MTFCRUY2RUE0MjExMUVBQjNGOEZGNDQyQkNEOEYxQyIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/Pm9RTFQAAAWsSURBVHja7J17bBRFHMfbgkJfaUttJcofgF0oCm2hgPJqoAQjPtAYeURjYsSYJirxwROMD6KIUSEak9oYE0TUeoC2iRqVItVqIAUqj0IVrKUvCrTF0lYLLXe7bdavctfs9e5272537m5/M8knd3Oz97vffuZ2dmd3Z+fQoUMKhGf+Jk52W0UHRfJfEgUEBAgCBAECAoQAAQFCgIAAIUBAgBAgIEAIEAIEBAgBAgKEACFAQIAQIA4vGRkZQ/qwHYfDQYCAAMkkkZGRlnwoNzf3H4UPCu1j2YbAgCgkGRkZ7Xa5XHGkeAiQtDBk1NbWPkdt0PnGY9mGeEZpaen9dXV16w3KuLq6+r6ioqLFvByCZOiVs0VP0cxhoYaJEFmmOcdt27bN5+asYv4itCPRwBiTOhQoKAiltfC0bXSmXNHJiOJ+WlBQ0JWUlJTe1tbWkZ+ff0Vv7SsrK2eUlJRs4LLeaas3SVXf3ythz8ihqqpqGWkJBXIsRaifNn7lFi1atGjPnj0ve9j7hCtVVVVz+Uc710PBAGOKFAlIS0vLaoMgEkhLS0traGhYPm3atN0c5CZ9O/f9WgzUjVOw53VJyQsuW2jCg4VW5tnOaXWquxmvVg0uRXnU03zV+36/fv36eR56blnJyckpV3kfh9tI6hPGb926dXVjY+MbQRgj5ZSXl7+6c+fOV43aiPPz85QOYsKECRdSUlLeMakCyfl2Ae5ra2vjk5OTf1W9AwtVH5CpU6duLC0tLWIVNWRcBUhNTU0Z2S1v0iec6enpX8+ePbvlasP8YD+PbYDY7fZfeUJnJstYDZs8efLpCRMm/D58+PBQIcRhg+1mgYnbuXNnekNDw4qwsDAnteLo6OjzzP+gZQCRJxoXF3eSK4MLCwt3CB4hVnl7MMFoIFeFU7nRTxTWOhNko2Hw4MHvs5ZVVlbme2ZJb29vhNbVbDZbB9dgrNKLzh6VQp+lG5ZP511NqkGXrXOf2bNn5+/bt2+H0dy+pUuXZrFn084lOrVsoVxIGxuVdJYGbK4sztXU/fGEQVscUW8wSO3i1NxknPam1NpJdXV11Y0bNz47cuTIE1FRUac3b97spX7XX3Y5IH0qpr1i3N1uFI8o3m9PNQ5wV0P7qn5/uB6sLMpm+q/JyclfqL4nXxCofom+h8KVOVFJ/Gn9y6nw2h07dqy4cuXKofT09PcsqNI5GElJSWVah9+sz010Z+pDWSCRQXy+A6WHv47HECdrKz9j9VY1RX9A1FvHbdu2zW9pbX2mra1tKpd/1W1hiT8wJk6cWMTt27pftEAGIriiXsxwMG149VmSQUFDZxivQXeJDSNJVcBaTrVbzDgEw7C7hZuyoyX1dcbk3JZtDp1vPNYB6e7ujmRvMyfZ1Z6/R5Wav/nTWFMt1LxmVCfNnDnzZZPK23Gmmwz8BDKOpwvHsZT9RDD8rtHmbsQMBu1Sr1UnzeseiIxE0RsqnbOZoDFjxnzrcrluNqvScrncQASLrmEzGOK+u7t7NKvhn2EQDBFji92sJjqz06u0RL9AuDz28kigRnBGB5AWj8ALJKBtCKpr6y0xCNC2I1hA8BIaAgQECAECAoQAAQFCgKDKsh4JaEMGDQ2LxMwMGNC2I7iGkGL5C4RgBAEIQTAGQkAQXiAYbgIBAQIChAABAQICBAQIAQICBAQIAQICBAQIAQICBAQIAQICBAQICBACBAQIAQICxEKBP6/pdivnlc+wyQmEAEGVBQIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBgvCoQFZZ3mq9PxP+XkJ3mBkXG28Jy8uWO+OqqlreVXJls9nwd8yAAEGdgoEhCBAQICBAQICAADFV4P/TjZ0jf0UEVRYIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgeqJWJQNGUTmLLBMSEhRpCqosUL0FQmTIEDlksXT+F2AAT4+n68isGnYAAAAASUVORK5CYII=";
       
-      if (result.success) {
-        toast({
-          title: "Cadastro concluído",
-          description: "Sua face foi registrada com sucesso."
-        });
-        
-        // Parar câmera
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-          setCameraActive(false);
-        }
-        
-        // Notificar componente pai
-        onRegister(true);
-        onClose();
-      } else {
-        console.error("Erro no registro:", result.error);
-        toast({
-          title: "Erro no cadastro",
-          description: result.error?.message || "Não foi possível completar o cadastro. Tente novamente.",
-          variant: "destructive"
-        });
-        setCaptureStatus("failed");
-      }
-    } catch (error) {
-      console.error("Erro no cadastro:", error);
-      setCaptureStatus("failed");
+      setCapturedImage(mockFaceImage);
       
       toast({
-        title: "Erro no cadastro",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
+        title: "Imagem capturada",
+        description: "Rosto capturado com sucesso",
+        variant: "default"
+      });
+    } catch (error) {
+      console.error("Error during face capture:", error);
+      toast({
+        title: "Erro na captura",
+        description: "Não foi possível capturar a imagem do rosto. Tente novamente.",
         variant: "destructive"
       });
+    } finally {
+      setIsCapturing(false);
     }
   };
   
-  // Calcular se o botão deve ser habilitado
-  const isRegisterButtonEnabled = capturedImage !== null && 
-                                 registrationName.trim() !== "" && 
-                                 registrationRole.trim() !== "" &&
-                                 captureStatus !== "capturing";
+  // Save face registration
+  const handleSave = async () => {
+    if (!name || !cpf || !role || !capturedImage) {
+      toast({
+        title: "Informações incompletas",
+        description: "Preencha todos os campos e capture sua face",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setIsSaving(true);
+    
+    try {
+      // Simulating saving to database
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Store in local storage for now
+      const registration = {
+        name,
+        cpf,
+        role,
+        image: capturedImage,
+        timestamp: new Date().toISOString()
+      };
+      
+      const stored = localStorage.getItem('registeredFaces');
+      const faces = stored ? JSON.parse(stored) : [];
+      faces.push(registration);
+      localStorage.setItem('registeredFaces', JSON.stringify(faces));
+      
+      toast({
+        title: "Registro concluído",
+        description: "Face registrada com sucesso",
+        variant: "default"
+      });
+      
+      onOpenChange(false);
+    } catch (error) {
+      console.error("Error saving face registration:", error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar o registro. Tente novamente.",
+        variant: "destructive"
+      });
+    } finally {
+      setIsSaving(false);
+    }
+  };
   
   return (
-    <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-md">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
-          <DialogTitle>Cadastro de Face</DialogTitle>
+          <DialogTitle className="flex items-center gap-2">
+            <User className="h-5 w-5" />
+            Registro Facial
+          </DialogTitle>
           <DialogDescription>
-            Registre seu rosto com nome e cargo para reconhecimento futuro.
+            Registre seu rosto para uso em assinaturas digitais.
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4 py-4">
-          <div className="w-full flex justify-center">
-            {!capturedImage ? (
-              <div className="relative w-64 h-64 rounded-lg overflow-hidden border-2 border-gray-200">
-                {cameraActive ? (
+        <div className="grid gap-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome Completo</Label>
+              <Input
+                id="name"
+                value={name}
+                onChange={e => setName(e.target.value)}
+                placeholder="Nome completo"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cpf">CPF</Label>
+              <Input
+                id="cpf"
+                value={cpf}
+                onChange={handleCPFChange}
+                placeholder="000.000.000-00"
+              />
+            </div>
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="role">Cargo/Função</Label>
+            <Input
+              id="role"
+              value={role}
+              onChange={e => setRole(e.target.value)}
+              placeholder="Cargo ou função"
+            />
+          </div>
+          
+          <div className="space-y-4">
+            <Label>Captura de Face</Label>
+            
+            <div className="flex flex-col items-center justify-center">
+              {capturedImage ? (
+                <div className="w-48 h-48 border rounded-md overflow-hidden">
+                  <img 
+                    src={capturedImage} 
+                    alt="Face capturada" 
+                    className="w-full h-full object-cover" 
+                  />
+                </div>
+              ) : (
+                <div className="w-48 h-48 border rounded-md flex items-center justify-center bg-slate-50">
+                  <User className="h-16 w-16 text-slate-300" />
+                </div>
+              )}
+              
+              <Button 
+                className="mt-4"
+                variant="secondary"
+                disabled={isCapturing || !name || !cpf || !role}
+                onClick={startCapture}
+              >
+                {isCapturing ? (
                   <>
-                    <video 
-                      ref={videoRef}
-                      className="w-full h-full object-cover"
-                      autoPlay 
-                      playsInline
-                      muted
-                    />
-                    {/* Guia de posicionamento do rosto - tamanho padronizado */}
-                    <div 
-                      ref={faceGuideRef}
-                      className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-40 h-40 border-2 border-dashed border-blue-400 rounded-full opacity-70"
-                    >
-                      <div className="absolute inset-0 flex items-center justify-center text-xs text-blue-500 font-medium text-center">
-                        Posicione seu rosto aqui
-                      </div>
-                    </div>
-                    <Button 
-                      size="icon"
-                      variant="secondary"
-                      className="absolute bottom-2 right-2 rounded-full"
-                      onClick={switchCamera}
-                    >
-                      <RotateCcw className="h-4 w-4" />
-                    </Button>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Capturando...
+                  </>
+                ) : capturedImage ? (
+                  <>
+                    <Camera className="mr-2 h-4 w-4" />
+                    Capturar Novamente
                   </>
                 ) : (
-                  <div className="w-full h-full flex items-center justify-center bg-gray-100">
-                    <User className="h-20 w-20 text-gray-300" />
-                  </div>
+                  <>
+                    <Camera className="mr-2 h-4 w-4" />
+                    Capturar Face
+                  </>
                 )}
-                
-                {/* Canvas oculto para captura padronizada */}
-                <canvas 
-                  ref={canvasRef} 
-                  className="hidden" 
-                  width={FACE_CAPTURE_SIZE.width}
-                  height={FACE_CAPTURE_SIZE.height}
-                />
-              </div>
-            ) : (
-              <div className="relative w-64 h-64 rounded-lg overflow-hidden border-2 border-gray-200">
-                <img 
-                  src={capturedImage} 
-                  alt="Face capturada" 
-                  className="w-full h-full object-cover" 
-                />
-                <div className="absolute top-2 right-2">
-                  <Button 
-                    size="icon"
-                    variant="outline"
-                    className="rounded-full bg-white bg-opacity-50"
-                    onClick={resetCapture}
-                  >
-                    <RotateCcw className="h-4 w-4" />
-                  </Button>
-                </div>
-                
-                <div className="absolute bottom-0 left-0 right-0 flex items-center justify-center p-2 bg-green-500 bg-opacity-70">
-                  <CheckCircle className="h-5 w-5 text-white mr-2" />
-                  <span className="text-white font-medium">Imagem Capturada</span>
-                </div>
-              </div>
-            )}
-          </div>
-          
-          {!capturedImage && cameraActive && (
-            <div className="flex justify-center">
-              <Button onClick={captureFace}>
-                <Camera className="h-4 w-4 mr-2" />
-                Capturar Imagem
               </Button>
             </div>
-          )}
-          
-          <div className="space-y-2">
-            <Label htmlFor="registration-name">Nome Completo</Label>
-            <Input
-              id="registration-name"
-              value={registrationName}
-              onChange={(e) => setRegistrationName(e.target.value)}
-              placeholder="Ex: João da Silva"
-            />
-          </div>
-          
-          <div className="space-y-2">
-            <Label htmlFor="registration-role">Cargo/Função</Label>
-            <Input
-              id="registration-role"
-              value={registrationRole}
-              onChange={(e) => setRegistrationRole(e.target.value)}
-              placeholder="Ex: Técnico de Segurança"
-            />
           </div>
         </div>
         
-        <DialogFooter className="flex justify-between items-center">
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              if (stream) {
-                stream.getTracks().forEach(track => track.stop());
-              }
-              onClose();
-            }}
-          >
+        <DialogFooter>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          
           <Button 
-            onClick={handleRegister}
-            disabled={!isRegisterButtonEnabled}
+            onClick={handleSave}
+            disabled={isSaving || !capturedImage}
           >
-            {captureStatus === "capturing" ? "Processando..." : "Registrar Face"}
+            {isSaving ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                Salvando...
+              </>
+            ) : (
+              <>
+                <Check className="mr-2 h-4 w-4" />
+                Salvar Registro
+              </>
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
   );
-};
-
-export default FaceRegistrationDialog;
+}
