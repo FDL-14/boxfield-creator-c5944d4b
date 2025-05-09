@@ -63,7 +63,7 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
   
   const handleCopyCoordinates = () => {
     if (location) {
-      const coordinates = `Longitude: ${location.longitude}, Latitude: ${location.latitude}`;
+      const coordinates = `${location.latitude}, ${location.longitude}`;
       navigator.clipboard.writeText(coordinates).then(() => {
         toast({
           title: "Coordenadas copiadas",
@@ -157,19 +157,18 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
               </div>
             </div>
             
-            {/* Exibindo longitude e latitude em formato mais claro e separado */}
-            <div className="space-y-1">
+            <div className="space-y-2">
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <div className="text-xs text-gray-500">Longitude:</div>
-                  <div className="font-mono text-sm bg-gray-50 p-2 rounded">
-                    {location.longitude}
+                  <div className="text-xs text-gray-500 font-semibold">Latitude:</div>
+                  <div className="font-mono text-sm bg-gray-50 p-2 rounded border border-gray-100">
+                    {location.latitude}
                   </div>
                 </div>
                 <div>
-                  <div className="text-xs text-gray-500">Latitude:</div>
-                  <div className="font-mono text-sm bg-gray-50 p-2 rounded">
-                    {location.latitude}
+                  <div className="text-xs text-gray-500 font-semibold">Longitude:</div>
+                  <div className="font-mono text-sm bg-gray-50 p-2 rounded border border-gray-100">
+                    {location.longitude}
                   </div>
                 </div>
               </div>
@@ -187,13 +186,13 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
                   
                   <div className="space-y-1 text-xs">
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Longitude:</span>
-                      <span className="font-mono">{location.longitude}</span>
+                      <span className="text-gray-500">Latitude:</span>
+                      <span className="font-mono">{location.latitude}</span>
                     </div>
                     
                     <div className="flex justify-between">
-                      <span className="text-gray-500">Latitude:</span>
-                      <span className="font-mono">{location.latitude}</span>
+                      <span className="text-gray-500">Longitude:</span>
+                      <span className="font-mono">{location.longitude}</span>
                     </div>
                     
                     <div className="flex justify-between">
@@ -203,7 +202,7 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
                     
                     <div className="flex justify-between">
                       <span className="text-gray-500">Endereço:</span>
-                      <span className="font-mono">{location.formatted}</span>
+                      <span className="font-mono text-right flex-1 ml-2">{location.formatted}</span>
                     </div>
                     
                     {location.accuracy && (

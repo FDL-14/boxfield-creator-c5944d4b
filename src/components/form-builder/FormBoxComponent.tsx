@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -102,9 +103,12 @@ export default function FormBoxComponent({
     return { textAlign: box.layout?.alignment || 'left' };
   };
 
+  const hasSignatureFields = fields.some(field => field.type === 'signature' && field.value);
+  const shouldBeLocked = isLocked || (hasSignatureFields && box.lockWhenSigned !== false);
+
   return (
     <Card 
-      className={`section-container mx-auto`}
+      className={`section-container mx-auto ${shouldBeLocked ? 'border-amber-200 bg-amber-50/30' : ''}`}
       style={{ 
         width: `${box.layout?.width || 100}%`,
         margin: `${box.layout?.margin || 0}px auto`
@@ -113,11 +117,15 @@ export default function FormBoxComponent({
       data-width={box.layout?.width || 100}
       data-padding={box.layout?.padding || 2}
       data-margin={box.layout?.margin || 2}
+      data-locked={shouldBeLocked}
     >
       <CardHeader className="pb-2 flex flex-row items-center justify-between">
-        <CardTitle className="text-lg">{box.name}</CardTitle>
+        <CardTitle className="text-lg flex items-center gap-2">
+          {shouldBeLocked && <Lock className="h-4 w-4 text-amber-500" />}
+          {box.name}
+        </CardTitle>
         <div className="flex space-x-2">
-          {!isLocked && (
+          {!shouldBeLocked && (
             <>
               {onMoveUp && (
                 <Button
@@ -308,8 +316,9 @@ export default function FormBoxComponent({
               </Button>
             </>
           )}
-          {isLocked && (
-            <div className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full">
+          {shouldBeLocked && (
+            <div className="bg-amber-100 text-amber-800 text-xs px-2 py-1 rounded-full flex items-center gap-1">
+              <Lock className="h-3 w-3" />
               Seção Bloqueada
             </div>
           )}
@@ -323,18 +332,24 @@ export default function FormBoxComponent({
           className={`field-container grid ${getColumnClass()} gap-4`}
           data-columns={box.layout?.columns || 2}
         >
-          {fields.map((field, index) => (
-            <FieldComponent
-              key={field.id}
-              field={field}
-              onDelete={() => onDeleteField(field.id)}
-              onEdit={(newData) => onEditField(field.id, newData)}
-              onMoveUp={index > 0 && onMoveField && !isLocked ? () => onMoveField(field.id, 'up') : undefined}
-              onMoveDown={index < fields.length - 1 && onMoveField && !isLocked ? () => onMoveField(field.id, 'down') : undefined}
-              isLoading={isLoading}
-              isLocked={isLocked}
-            />
-          ))}
+          {fields.map((field, index) => {
+            // Determine if this specific field should be locked
+            // Signature fields that haven't been signed yet should remain editable
+            const fieldLocked = shouldBeLocked && !(field.type === 'signature' && !field.value);
+            
+            return (
+              <FieldComponent
+                key={field.id}
+                field={field}
+                onDelete={() => onDeleteField(field.id)}
+                onEdit={(newData) => onEditField(field.id, newData)}
+                onMoveUp={index > 0 && onMoveField && !fieldLocked ? () => onMoveField(field.id, 'up') : undefined}
+                onMoveDown={index < fields.length - 1 && onMoveField && !fieldLocked ? () => onMoveField(field.id, 'down') : undefined}
+                isLoading={isLoading}
+                isLocked={fieldLocked}
+              />
+            );
+          })}
 
           {fields.length === 0 && (
             <div className="text-center p-4 border-2 border-dashed rounded-lg">
@@ -344,7 +359,7 @@ export default function FormBoxComponent({
             </div>
           )}
 
-          {!isLocked && (
+          {!shouldBeLocked && (
             <div className="pt-2">
               <Button
                 onClick={onAddField}

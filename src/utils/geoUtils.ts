@@ -28,7 +28,7 @@ export const getLocationData = async () => {
       });
     });
 
-    const { latitude, longitude } = position.coords;
+    const { latitude, longitude, accuracy } = position.coords;
     
     // Try to get readable address from coordinates
     try {
@@ -39,6 +39,7 @@ export const getLocationData = async () => {
         return {
           latitude,
           longitude,
+          accuracy,
           formatted: data.display_name
         };
       }
@@ -50,13 +51,15 @@ export const getLocationData = async () => {
     return {
       latitude,
       longitude,
-      formatted: `Longitude: ${longitude.toFixed(6)}, Latitude: ${latitude.toFixed(6)}`
+      accuracy,
+      formatted: `Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`
     };
   } catch (error) {
     console.error("Geolocation error:", error);
     return {
       latitude: 0,
       longitude: 0,
+      accuracy: null,
       formatted: "Não foi possível obter sua localização"
     };
   }
@@ -88,7 +91,7 @@ export const getLocationWithRetry = async (maxRetries = 3): Promise<any> => {
         timestamp,
         mapsUrl,
         dmsFormatted: `${latDMS}, ${lonDMS}`,
-        accuracy: null
+        accuracy: locationData.accuracy
       };
     } catch (error) {
       lastError = error;
