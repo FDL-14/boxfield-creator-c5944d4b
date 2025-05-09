@@ -9,10 +9,11 @@ import { Camera, User, Loader2, Check } from "lucide-react";
 
 export interface FaceRegistrationDialogProps {
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onClose: () => void;
+  onRegister: (success: boolean) => void;
 }
 
-export default function FaceRegistrationDialog({ open, onOpenChange }: FaceRegistrationDialogProps) {
+export default function FaceRegistrationDialog({ open, onClose, onRegister }: FaceRegistrationDialogProps) {
   const [name, setName] = useState("");
   const [cpf, setCpf] = useState("");
   const [role, setRole] = useState("");
@@ -128,7 +129,8 @@ export default function FaceRegistrationDialog({ open, onOpenChange }: FaceRegis
         variant: "default"
       });
       
-      onOpenChange(false);
+      onClose();
+      onRegister(true);
     } catch (error) {
       console.error("Error saving face registration:", error);
       toast({
@@ -136,13 +138,14 @@ export default function FaceRegistrationDialog({ open, onOpenChange }: FaceRegis
         description: "Não foi possível salvar o registro. Tente novamente.",
         variant: "destructive"
       });
+      onRegister(false);
     } finally {
       setIsSaving(false);
     }
   };
   
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -232,7 +235,7 @@ export default function FaceRegistrationDialog({ open, onOpenChange }: FaceRegis
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={onClose}>
             Cancelar
           </Button>
           <Button 

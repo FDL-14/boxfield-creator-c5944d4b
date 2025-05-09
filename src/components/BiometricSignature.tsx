@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { supabase } from "@/integrations/supabase/client";
 import FaceRegistrationDialog from "./FaceRegistrationDialog";
-import { loadRegisteredFaces, compareFaces, FaceRegistration } from "@/utils/faceRecognition";
+import { loadRegisteredFaces, verifyFace, compareFaces, FaceRegistration } from "@/utils/faceRecognition";
 
 interface BiometricSignatureProps {
   onCapture: (type: "face" | "fingerprint", data: string, additionalData?: any) => void;
@@ -286,102 +286,12 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
           </TabsTrigger>
         </TabsList>
         
+        {/* Face recognition tab */}
         <TabsContent value="face" className="border rounded-lg p-6 flex flex-col items-center">
-          {hasRegisteredFace && (
-            <div className="mb-4 p-4 bg-green-50 border border-green-200 rounded-lg w-full">
-              <div className="flex items-center gap-2 mb-2">
-                <CheckCircle className="h-5 w-5 text-green-500" />
-                <p className="font-medium text-green-700">Face já registrada</p>
-              </div>
-              {registeredFaceImage && (
-                <div className="mt-2 flex items-center justify-center">
-                  <img 
-                    src={registeredFaceImage} 
-                    alt="Face registrada" 
-                    className="w-24 h-24 object-cover rounded-full border-2 border-green-300"
-                  />
-                </div>
-              )}
-              <p className="text-sm text-green-600 mt-2">
-                Você já possui uma face registrada. Você pode usar esta mesma face ou registrar uma nova.
-              </p>
-              
-              {registeredFaces.length > 0 && (
-                <div className="mt-2 text-sm text-green-700">
-                  <p className="font-medium">Faces registradas ({registeredFaces.length}):</p>
-                  <ul className="mt-1">
-                    {registeredFaces.slice(0, 3).map((face, index) => (
-                      <li key={index} className="flex items-center gap-2">
-                        <User className="h-3 w-3" />
-                        {face.name} - {face.role}
-                      </li>
-                    ))}
-                    {registeredFaces.length > 3 && (
-                      <li className="text-xs italic">...e mais {registeredFaces.length - 3} registros</li>
-                    )}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
+          {/* ... keep existing code (registered face display) */}
           
           <div className="w-64 h-64 mb-4 border-2 rounded-lg flex items-center justify-center bg-gray-50 relative overflow-hidden">
-            {captureStatus === "idle" && !cameraActive && (
-              <User className="h-20 w-20 text-gray-300" />
-            )}
-            
-            {/* Elemento de vídeo para captura da câmera */}
-            <video 
-              ref={videoRef}
-              className={`w-full h-full object-cover ${cameraActive ? 'block' : 'hidden'}`}
-              autoPlay 
-              playsInline
-              muted
-            />
-            
-            {/* Canvas oculto para captura de quadros */}
-            <canvas 
-              ref={canvasRef} 
-              className="hidden" 
-            />
-            
-            {captureStatus === "capturing" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50">
-                <Camera className="h-20 w-20 text-blue-500 animate-pulse" />
-                <p className="mt-2 text-sm text-white">Escaneando...</p>
-              </div>
-            )}
-            
-            {captureStatus === "success" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50">
-                <CheckCircle className="h-20 w-20 text-green-500" />
-                <p className="mt-2 text-sm text-white">Reconhecimento bem sucedido!</p>
-                {recognizedFaceData && (
-                  <div className="mt-2 text-white text-center">
-                    <p className="font-medium">{recognizedFaceData.name}</p>
-                    <p className="text-xs">{recognizedFaceData.role}</p>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {captureStatus === "failed" && (
-              <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-50">
-                <AlertCircle className="h-20 w-20 text-red-500" />
-                <p className="mt-2 text-sm text-white">Falha no reconhecimento!</p>
-              </div>
-            )}
-            
-            {cameraActive && (
-              <Button 
-                size="icon"
-                variant="secondary"
-                className="absolute bottom-2 left-2 rounded-full"
-                onClick={switchCamera}
-              >
-                <RotateCcw className="h-4 w-4" />
-              </Button>
-            )}
+            {/* ... keep existing code (camera display) */}
           </div>
           
           <p className="text-sm text-gray-500 text-center mb-6">
@@ -404,26 +314,7 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
               Cadastrar Nova Face
             </Button>
             
-            {!cameraActive && captureStatus !== "success" ? (
-              <Button 
-                onClick={startCamera}
-                disabled={captureStatus === "capturing"}
-                variant="default"
-              >
-                <Camera className="h-4 w-4 mr-2" />
-                Ativar Câmera
-              </Button>
-            ) : (
-              <Button 
-                onClick={handleCapture}
-                disabled={captureStatus === "capturing" || !cameraActive || captureStatus === "success"}
-                variant={captureStatus === "success" ? "outline" : "default"}
-              >
-                {captureStatus === "capturing" ? "Processando..." : 
-                 captureStatus === "success" ? "Capturado" : 
-                 captureStatus === "failed" ? "Tentar Novamente" : "Capturar"}
-              </Button>
-            )}
+            {/* ... keep existing code (camera buttons) */}
             
             {captureStatus === "success" && (
               <Button 
@@ -437,59 +328,9 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
           </div>
         </TabsContent>
         
+        {/* Fingerprint tab */}
         <TabsContent value="fingerprint" className="border rounded-lg p-6 flex flex-col items-center">
-          <div className="w-64 h-64 mb-4 border-2 rounded-lg flex items-center justify-center bg-gray-50">
-            {captureStatus === "idle" && (
-              <Fingerprint className="h-20 w-20 text-gray-300" />
-            )}
-            {captureStatus === "capturing" && (
-              <div className="flex flex-col items-center">
-                <Fingerprint className="h-20 w-20 text-blue-500 animate-pulse" />
-                <p className="mt-2 text-sm text-gray-500">Escaneando...</p>
-              </div>
-            )}
-            {captureStatus === "success" && (
-              <div className="flex flex-col items-center">
-                <Fingerprint className="h-20 w-20 text-green-500" />
-                <p className="mt-2 text-sm text-green-600">Digital reconhecida!</p>
-              </div>
-            )}
-            {captureStatus === "failed" && (
-              <div className="flex flex-col items-center">
-                <Fingerprint className="h-20 w-20 text-red-500" />
-                <p className="mt-2 text-sm text-red-600">Falha no reconhecimento!</p>
-              </div>
-            )}
-          </div>
-          
-          <p className="text-sm text-gray-500 text-center mb-6">
-            Posicione seu dedo no leitor biométrico para capturar sua impressão digital
-          </p>
-          
-          <div className="flex gap-2">
-            <Button variant="outline" onClick={onCancel}>
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleCapture}
-              disabled={captureStatus === "capturing"}
-              variant={captureStatus === "success" ? "outline" : "default"}
-            >
-              {captureStatus === "capturing" ? "Processando..." : 
-               captureStatus === "success" ? "Capturado" : 
-               captureStatus === "failed" ? "Tentar Novamente" : "Capturar"}
-            </Button>
-            
-            {captureStatus === "success" && (
-              <Button 
-                onClick={() => setShowBase64(true)}
-                variant="secondary"
-              >
-                <Copy className="h-4 w-4 mr-2" />
-                Ver Base64
-              </Button>
-            )}
-          </div>
+          {/* ... keep existing code (fingerprint content) */}
         </TabsContent>
       </Tabs>
       
