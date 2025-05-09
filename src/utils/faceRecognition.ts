@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -172,10 +171,17 @@ export const compareFaces = (
 };
 
 /**
- * Retorna o código Base64 da imagem da assinatura
- * @param signatureImage Imagem da assinatura 
+ * Retorna o código Base64 de qualquer tipo de assinatura
+ * @param signatureImage Imagem da assinatura (pode ser desenho, face ou digital)
  * @returns String com o código Base64
  */
 export const getSignatureBase64 = (signatureImage: string): string => {
-  return signatureImage;
+  // Verifica se a imagem já está no formato base64
+  if (signatureImage && signatureImage.startsWith('data:')) {
+    return signatureImage;
+  }
+  
+  // Se não estiver no formato base64, retorna uma string vazia
+  console.error("Imagem de assinatura não está no formato base64");
+  return '';
 };
