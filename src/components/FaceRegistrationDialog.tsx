@@ -9,11 +9,11 @@ import { Camera, User, Loader2, Check } from "lucide-react";
 
 export interface FaceRegistrationDialogProps {
   open: boolean;
-  onClose: () => void;
-  onRegister: (success: boolean) => void;
+  onOpenChange: (open: boolean) => void;
+  onRegister?: (success: boolean) => void;
 }
 
-export default function FaceRegistrationDialog({ open, onClose, onRegister }: FaceRegistrationDialogProps) {
+export default function FaceRegistrationDialog({ open, onOpenChange, onRegister }: FaceRegistrationDialogProps) {
   const [name, setName] = useState("");
   const [cpf, setCpf] = useState("");
   const [role, setRole] = useState("");
@@ -71,7 +71,7 @@ export default function FaceRegistrationDialog({ open, onClose, onRegister }: Fa
       // For this demo, we'll simulate with a mock image
       await new Promise(resolve => setTimeout(resolve, 1500));
       
-      const mockFaceImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6NzExQkVGNkZBNDIxMTFFQUIzRjhGRjQ0MkJDRDhGMUMiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6NzExQkVGNzBBNDIxMTFFQUIzRjhGRjQ0MkJDRDhGMUMiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDo3MTFCRUY2REE0MjExMUVBQjNGOEZGNDQyQkNEOEYxQyIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDo3MTFCRUY2RUE0MjExMUVBQjNGOEZGNDQyQkNEOEYxQyIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/Pm9RTFQAAAWsSURBVHja7J17bBRFHMfbgkJfaUttJcofgF0oCm2hgPJqoAQjPtAYeURjYsSYJirxwROMD6KIUSEak9oYE0TUeoC2iRqVItVqIAUqj0IVrKUvCrTF0lYLLXe7bdavctfs9e5272537m5/M8knd3Oz97vffuZ2dmd3Z+fQoUMKhGf+Jk52W0UHRfJfEgUEBAgCBAECAoQAAQFCgIAAIUBAgBAgIEAIEAIEBAgBAgKEACFAQIAQIA4vGRkZQ/qwHYfDQYCAAMkkkZGRlnwoNzf3H4UPCu1j2YbAgCgkGRkZ7Xa5XHGkeAiQtDBk1NbWPkdt0PnGY9mGeEZpaen9dXV16w3KuLq6+r6ioqLFvByCZOiVs0VP0cxhoYaJEFmmOcdt27bN5+asYv4itCPRwBiTOhQoKAiltfC0bXSmXNHJiOJ+WlBQ0JWUlJTe1tbWkZ+ff0Vv7SsrK2eUlJRs4LLeaas3SVXf3ythz8ihqqpqGWkJBXIsRaifNn7lFi1atGjPnj0ve9j7hCtVVVVz+Uc710PBAGOKFAlIS0vLaoMgEkhLS0traGhYPm3atN0c5CZ9O/f9WgzUjVOw53VJyQsuW2jCg4VW5tnOaXWquxmvVg0uRXnU03zV+36/fv36eR56blnJyckpV3kfh9tI6hPGb926dXVjY+MbQRgj5ZSXl7+6c+fOV43aiPPz85QOYsKECRdSUlLeMakCyfl2Ae5ra2vjk5OTf1W9AwtVH5CpU6duLC0tLWIVNWRcBUhNTU0Z2S1v0iec6enpX8+ePbvlasP8YD+PbYDY7fZfeUJnJstYDZs8efLpCRMm/D58+PBQIcRhg+1mgYnbuXNnekNDw4qwsDAnteLo6OjzzP+gZQCRJxoXF3eSK4MLCwt3CB4hVnl7MMFoIFeFU7nRTxTWOhNko2Hw4MHvs5ZVVlbme2ZJb29vhNbVbDZbB9dgrNKLzh6VQp+lG5ZP511NqkGXrXOf2bNn5+/bt2+H0dy+pUuXZrFn084lOrVsoVxIGxuVdJYGbK4sztXU/fGEQVscUW8wSO3i1NxknPam1NpJdXV11Y0bNz47cuTIE1FRUac3b97spX7XX3Y5IH0qpr1i3N1uFI8o3m9PNQ5wV0P7qn5/uB6sLMpm+q/JyclfqL4nXxCofom+h8KVOVFJ/Gn9y6nw2h07dqy4cuXKofT09PcsqNI5GElJSWVah9+sz010Z+pDWSCRQXy+A6WHv47HECdrKz9j9VY1RX9A1FvHbdu2zW9pbX2mra1tKpd/1W1hiT8wJk6cWMTt27pftEAGIriiXsxwMG149VmSQUFDZxivQXeJDSNJVcBaTrVbzDgEw7C7hZuyoyX1dcbk3JZtDp1vPNYB6e7ujmRvMyfZ1Z6/R5Wav/nTWFMt1LxmVCfNnDnzZZPK23Gmmwz8BDKOpwvHsZT9RDD8rtHmbsQMBu1Sr1UnzeseiIxE0RsqnbOZoDFjxnzrcrluNqvScrncQASLrmEzGOK+u7t7NKvhn2EQDBFji92sJjqz06u0RL9AuDz28kigRnBGB5AWj8ALJKBtCKpr6y0xCNC2I1hA8BIaAgQECAECAoQAAQFCgKDKsh4JaEMGDQ2LxMwMGNC2I7iGkGL5C4RgBAEIQTAGQkAQXiAYbgIBAQIChAABAQICBAQIAQICBAQIAQICBAQIAQICBAQIAQICBAQICBACBAQIAQICxEKBP6/pdivnlc+wyQmEAEGVBQIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBgvCoQFZZ3mq9PxP+XkJ3mBkXG28Jy8uWO+OqqlreVXJls9nwd8yAAEGdgoEhCBAQICBAQICAADFV4P/TjZ0jf0UEVRYIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgeqJWJQNGUTmLLBMSEhRpCqosUL0FQmTIEDlksXT+F2AAT4+n68isGnYAAAAASUVORK5CYII=";
+      const mockFaceImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6NzExQkVGNkZBNDIxMTFFQUIzRjhGRjQ0MkJDRDhGMUMiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6NzExQkVGNzBBNDIxMTFFQUIzRjhGRjQ0MkJDRDhGMUMiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDo3MTFCRUY2REE0MjExMUVBQjNGOEZGNDQyQkNEOEYxQyIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDo3MTFCRUY2RUE0MjExMUVBQjNGOEZGNDQyQkNEOEYxQyIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/Pm9RTFQAAAWsSURBVHja7J17bBRFHMfbgkJfaUttJcofgF0oCm2hgPJqoAQjPtAYeURjYsSYJirxwROMD6KIUSEak9oYE0TUeoC2iRqVItVqIAUqj0IVrKUvCrTF0lYLLXe7bdavctfs9e5272537m5/M8knd3Oz97vffuZ2dmd3Z+fQoUMKhGf+Jk52W0UHRfJfEgUEBAgCBAECAoQAAQFCgIAAIUBAgBAgIEAIEAIEBAgBAgKEACFAQIAQIA4vGRkZ/XqwHYfDQYCAAMkkkZGRlnwoNzf3H4UPCu1j2YbAgCgkGRkZ7Xa5XHGkeAiQtDBk1NbWPkdt0PnGY9mGeEZpaen9dXV16w3KuLq6+r6ioqLFvByCZOiVs0VP0cxhoYaJEFmmOcdt27bN5+asYv4itCPRwBiTOhQoKAiltfC0bXSmXNHJiOJ+WlBQ0JWUlJTe1tbWkZ+ff0Vv7SsrK2eUlJRs4LLeaas3SVXf3ythz8ihqqpqGWkJBXIsRaifNn7lFi1atGjPnj0ve9j7hCtVVVVz+Uc710PBAGOKFAlIS0vLaoMgEkhLS0traGhYPm3atN0c5CZ9O/f9WgzUjVOw53VJyQsuW2jCg4VW5tnOaXWquxmvVg0uRXnU03zV+36/fv36eR56blnJyckpV3kfh9tI6hPGb926dXVjY+MbQRgj5ZSXl7+6c+fOV43aiPPz85QOYsKECRdSUlLeMakCyfl2Ae5ra2vjk5OTf1W9AwtVH5CpU6duLC0tLWIVNWRcBUhNTU0Z2S1v0iec6enpX8+ePbvlasP8YD+PbYDY7fZfeUJnJstYDZs8efLpCRMm/D58+PBQIcRhg+1mgYnbuXNnekNDw4qwsDAnteLo6OjzzP+gZQCRJxoXF3eSK4MLCwt3CB4hVnl7MMFoIFeFU7nRTxTWOhNko2Hw4MHvs5ZVVlbme2ZJb29vhNbVbDZbB9dgrNKLzh6VQp+lG5ZP511NqkGXrXOf2bNn5+/bt2+H0dy+pUuXZrFn084lOrVsoVxIGxuVdJYGbK4sztXU/fGEQVscUW8wSO3i1NxknPam1NpJdXV11Y0bNz47cuTIE1FRUac3b97spX7XX3Y5IH0qpr1i3N1uFI8o3m9PNQ5wV0P7qn5/uB6sLMpm+q/JyclfqL4nXxCofom+h8KVOVFJ/Gn9y6nw2h07dqy4cuXKofT09PcsqNI5GElJSWVah9+sz010Z+pDWSCRQXy+A6WHv47HECdrKz9j9VY1RX9A1FvHbdu2zW9pbX2mra1tKpd/1W1hiT8wJk6cWMTt27pftEAGIriiXsxwMG149VmSQUFDZxivQXeJDSNJVcBaTrVbzDgEw7C7hZuyoyX1dcbk3JZtDp1vPNYB6e7ujmRvMyfZ1Z6/R5Wav/nTWFMt1LxmVCfNnDnzZZPK23Gmmwz8BDKOpwvHsZT9RDD8rtHmbsQMBu1Sr1UnzeseiIxE0RsqnbOZoDFjxnzrcrluNqvScrncQASLrmEzGOK+u7t7NKvhn2EQDBFji92sJjqz06u0RL9AuDz28kigRnBGB5AWj8ALJKBtCKpr6y0xCNC2I1hA8BIaAgQECAECAoQAAQFCgKDKsh4JaEMGDQ2LxMwMGNC2I7iGkGL5C4RgBAEIQTAGQkAQXiAYbgIBAQIChAABAQICBAQIAQICBAQIAQICBAQIAQICBAQIAQICBAQICBACBAQIAQICxEKBP6/pdivnlc+wyQmEAEGVBQIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBgvCoQFZZ3mq9PxP+XkJ3mBkXG28Jy8uWO+OqqlreVXJls9nwd8yAAEGdgoEhCBAQICBAQICAADFV4P/TjZ0jf0UEVRYIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgeqJWJQNGUTmLLBMSEhRpCqosUL0FQmTIEDlksXT+F2AAT4+n68isGnYAAAAASUVORK5CYII=";
       
       setCapturedImage(mockFaceImage);
       
@@ -129,8 +129,8 @@ export default function FaceRegistrationDialog({ open, onClose, onRegister }: Fa
         variant: "default"
       });
       
-      onClose();
-      onRegister(true);
+      onOpenChange(false);
+      if (onRegister) onRegister(true);
     } catch (error) {
       console.error("Error saving face registration:", error);
       toast({
@@ -138,14 +138,14 @@ export default function FaceRegistrationDialog({ open, onClose, onRegister }: Fa
         description: "Não foi possível salvar o registro. Tente novamente.",
         variant: "destructive"
       });
-      onRegister(false);
+      if (onRegister) onRegister(false);
     } finally {
       setIsSaving(false);
     }
   };
   
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -235,7 +235,7 @@ export default function FaceRegistrationDialog({ open, onClose, onRegister }: Fa
         </div>
         
         <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
           <Button 
