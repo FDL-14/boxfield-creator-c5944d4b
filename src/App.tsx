@@ -12,6 +12,7 @@ import RelatoriosAnaliseRisco from "./pages/RelatoriosAnaliseRisco";
 import NotFound from "./pages/NotFound";
 import DocumentCreator from "./pages/DocumentCreator";
 import DocumentTypes from "./pages/DocumentTypes";
+import BiometricsManager from "./pages/BiometricsManager";
 
 const queryClient = new QueryClient();
 
@@ -29,6 +30,7 @@ const App = () => {
             <Route path="/document-types" element={<DocumentTypes />} />
             <Route path="/document-creator" element={<DocumentCreator />} />
             <Route path="/document-creator/:docType" element={<DocumentCreator />} />
+            <Route path="/biometrics" element={<BiometricsManager />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

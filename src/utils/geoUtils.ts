@@ -30,29 +30,12 @@ export const getLocationData = async () => {
 
     const { latitude, longitude, accuracy } = position.coords;
     
-    // Try to get readable address from coordinates
-    try {
-      const response = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}&zoom=18&addressdetails=1`);
-      const data = await response.json();
-      
-      if (data && data.display_name) {
-        return {
-          latitude,
-          longitude,
-          accuracy,
-          formatted: data.display_name
-        };
-      }
-    } catch (error) {
-      console.error("Error fetching location name:", error);
-    }
-
-    // Return coordinates if address lookup fails
+    // Return coordinates as formatted string
     return {
       latitude,
       longitude,
       accuracy,
-      formatted: `Latitude: ${latitude.toFixed(6)}, Longitude: ${longitude.toFixed(6)}`
+      formatted: `Longitude: ${longitude.toFixed(6)}, Latitude: ${latitude.toFixed(6)}`
     };
   } catch (error) {
     console.error("Geolocation error:", error);
@@ -90,7 +73,7 @@ export const getLocationWithRetry = async (maxRetries = 3): Promise<any> => {
         ...locationData,
         timestamp,
         mapsUrl,
-        dmsFormatted: `${latDMS}, ${lonDMS}`,
+        dmsFormatted: `${lonDMS}, ${latDMS}`,
         accuracy: locationData.accuracy
       };
     } catch (error) {

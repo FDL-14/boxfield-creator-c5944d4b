@@ -1,9 +1,9 @@
-
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { FileText, FileEdit, ClipboardList, LineChart, PlusCircle } from "lucide-react";
+import { Link } from "react-router-dom";
 
 export default function Index() {
   const navigate = useNavigate();
@@ -47,7 +47,24 @@ export default function Index() {
   ];
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 animate-fade-in">
+    <div className="min-h-screen flex flex-col">
+      <header className="border-b p-4 bg-white shadow-sm">
+        <div className="container flex justify-between items-center">
+          <h1 className="text-xl font-bold">Sistema de Documentação</h1>
+          <nav className="flex gap-2">
+            <Button variant="outline" asChild>
+              <Link to="/document-types">Tipos de Documento</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/form-builder">Construtor de Formulários</Link>
+            </Button>
+            <Button variant="outline" asChild>
+              <Link to="/biometrics">Gerenciar Biometria</Link>
+            </Button>
+          </nav>
+        </div>
+      </header>
+      
       <div className="max-w-6xl mx-auto">
         <div className="mb-8 text-center animate-slide-down">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">Sistema de Gestão de Documentos</h1>

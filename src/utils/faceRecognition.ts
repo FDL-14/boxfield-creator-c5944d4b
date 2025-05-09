@@ -2,7 +2,7 @@
 import { supabase } from "@/integrations/supabase/client";
 
 /**
- * Interface para representar um cadastro de face
+ * Interface for representing a face registration
  */
 export interface FaceRegistration {
   image: string;
@@ -13,9 +13,9 @@ export interface FaceRegistration {
 }
 
 /**
- * Registra uma face no Supabase
- * @param faceData Dados da face a ser registrada
- * @returns Resultado da operação
+ * Registers a face in Supabase
+ * @param faceData Face data to be registered
+ * @returns Operation result
  */
 export const registerFace = async (faceData: FaceRegistration): Promise<{success: boolean, error?: any}> => {
   try {
@@ -81,8 +81,8 @@ export const registerFace = async (faceData: FaceRegistration): Promise<{success
 };
 
 /**
- * Carrega faces registradas
- * @returns Array de registros de faces
+ * Loads registered faces
+ * @returns Array of face registrations
  */
 export const loadRegisteredFaces = async (): Promise<FaceRegistration[]> => {
   try {
@@ -148,23 +148,23 @@ export const loadRegisteredFaces = async (): Promise<FaceRegistration[]> => {
 };
 
 /**
- * Função para comparar faces
- * Nota: Em um ambiente de produção, deve-se usar uma API de reconhecimento facial
- * como AWS Rekognition, Azure Face API, ou uma biblioteca específica
+ * Compares faces
+ * Note: In a production environment, use a facial recognition API
+ * like AWS Rekognition, Azure Face API, or a specific library
  * 
- * @param capturedImage Imagem capturada para comparação
- * @param registeredFaces Array de faces registradas
- * @returns Face mais similar ou null se não encontrada
+ * @param capturedImage Captured image for comparison
+ * @param registeredFaces Array of registered faces
+ * @returns Most similar face or null if not found
  */
 export const compareFaces = (
   capturedImage: string,
   registeredFaces: FaceRegistration[]
 ): FaceRegistration | null => {
-  // Em um sistema real, esta função usaria um algoritmo de comparação facial
-  // Para esta demonstração, retornamos a primeira face registrada se houver
+  // In a real system, this function would use a facial comparison algorithm
+  // For this demo, we return the first registered face if available
   if (registeredFaces.length > 0) {
-    console.log("Faces disponíveis para comparação:", registeredFaces.length);
-    // Simulando uma comparação bem-sucedida
+    console.log("Faces available for comparison:", registeredFaces.length);
+    // Simulating a successful comparison
     return registeredFaces[0];
   }
   
@@ -172,17 +172,17 @@ export const compareFaces = (
 };
 
 /**
- * Retorna o código Base64 de qualquer tipo de assinatura
- * @param signatureImage Imagem da assinatura (pode ser desenho, face ou digital)
- * @returns String com o código Base64
+ * Returns the Base64 code of any type of signature
+ * @param signatureImage Signature image (can be drawing, face or fingerprint)
+ * @returns String with the Base64 code
  */
 export const getSignatureBase64 = (signatureImage: string): string => {
-  // Verifica se a imagem já está no formato base64
+  // Checks if the image is already in base64 format
   if (signatureImage && signatureImage.startsWith('data:')) {
     return signatureImage;
   }
   
-  // Se não estiver no formato base64, retorna uma string vazia
-  console.error("Imagem de assinatura não está no formato base64");
+  // If not in base64 format, returns an empty string
+  console.error("Signature image is not in base64 format");
   return '';
 };
