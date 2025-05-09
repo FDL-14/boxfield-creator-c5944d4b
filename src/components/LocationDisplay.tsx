@@ -157,7 +157,7 @@ const LocationDisplay: React.FC<LocationDisplayProps> = ({
               </div>
             </div>
             
-            {/* Mudança principal: exibindo apenas longitude e latitude */}
+            {/* Exibindo longitude e latitude em formato mais claro e separado */}
             <div className="space-y-1">
               <div className="grid grid-cols-2 gap-2">
                 <div>
