@@ -286,12 +286,39 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
           </TabsTrigger>
         </TabsList>
         
-        {/* Face recognition tab */}
         <TabsContent value="face" className="border rounded-lg p-6 flex flex-col items-center">
-          {/* ... keep existing code (registered face display) */}
+          {hasRegisteredFace ? (
+            <div className="mb-4">
+              <p className="text-sm text-gray-500 text-center">Face registrada:</p>
+              <div className="w-32 h-32 rounded-full overflow-hidden mx-auto mt-2">
+                {registeredFaceImage && (
+                  <img
+                    src={registeredFaceImage}
+                    alt="Face Registrada"
+                    className="w-full h-full object-cover"
+                  />
+                )}
+              </div>
+            </div>
+          ) : (
+            <div className="mb-4">
+              <p className="text-sm text-gray-500 text-center">Nenhuma face registrada.</p>
+            </div>
+          )}
           
           <div className="w-64 h-64 mb-4 border-2 rounded-lg flex items-center justify-center bg-gray-50 relative overflow-hidden">
-            {/* ... keep existing code (camera display) */}
+            {cameraActive ? (
+              <video
+                ref={videoRef}
+                autoPlay
+                muted
+                className="w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 bg-gray-50 flex items-center justify-center">
+                <Camera className="h-12 w-12 text-gray-300" />
+              </div>
+            )}
           </div>
           
           <p className="text-sm text-gray-500 text-center mb-6">
@@ -314,7 +341,42 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
               Cadastrar Nova Face
             </Button>
             
-            {/* ... keep existing code (camera buttons) */}
+            <Button
+              onClick={startCamera}
+              disabled={cameraActive}
+              className="flex items-center gap-2"
+            >
+              <Camera className="h-4 w-4" />
+              {cameraActive ? "Câmera Ativa" : "Ativar Câmera"}
+            </Button>
+            
+            <Button
+              onClick={switchCamera}
+              disabled={!cameraActive}
+              variant="secondary"
+              className="flex items-center gap-2"
+            >
+              <RotateCcw className="h-4 w-4" />
+              Trocar Câmera
+            </Button>
+            
+            <Button
+              onClick={handleCapture}
+              disabled={captureStatus === "capturing" || !cameraActive}
+              className="flex items-center gap-2"
+            >
+              {captureStatus === "capturing" ? (
+                <>
+                  <AlertCircle className="h-4 w-4 animate-spin" />
+                  Capturando...
+                </>
+              ) : (
+                <>
+                  <Camera className="h-4 w-4" />
+                  Capturar
+                </>
+              )}
+            </Button>
             
             {captureStatus === "success" && (
               <Button 
@@ -328,13 +390,57 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
           </div>
         </TabsContent>
         
-        {/* Fingerprint tab */}
         <TabsContent value="fingerprint" className="border rounded-lg p-6 flex flex-col items-center">
-          {/* ... keep existing code (fingerprint content) */}
+          <p className="text-sm text-gray-500 text-center mb-6">
+            Clique no botão abaixo para simular a leitura da impressão digital.
+          </p>
+          
+          <Button
+            onClick={handleCapture}
+            disabled={captureStatus === "capturing"}
+            className="flex items-center gap-2"
+          >
+            {captureStatus === "capturing" ? (
+              <>
+                <AlertCircle className="h-4 w-4 animate-spin" />
+                Verificando...
+              </>
+            ) : (
+              <>
+                <Fingerprint className="h-4 w-4" />
+                Verificar Digital
+              </>
+            )}
+          </Button>
+          
+          {captureStatus === "success" && (
+            <div className="mt-4">
+              <CheckCircle className="h-6 w-6 text-green-500 mx-auto mb-2" />
+              <p className="text-sm text-gray-500 text-center">
+                Impressão digital verificada com sucesso!
+              </p>
+              <Button 
+                onClick={() => setShowBase64(true)}
+                variant="secondary"
+                className="mt-4"
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Ver Base64
+              </Button>
+            </div>
+          )}
+          
+          {captureStatus === "failed" && (
+            <div className="mt-4">
+              <AlertCircle className="h-6 w-6 text-red-500 mx-auto mb-2" />
+              <p className="text-sm text-gray-500 text-center">
+                Falha ao verificar a impressão digital. Tente novamente.
+              </p>
+            </div>
+          )}
         </TabsContent>
       </Tabs>
       
-      {/* Dialog para exibir código Base64 */}
       <Dialog open={showBase64} onOpenChange={setShowBase64}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -359,12 +465,14 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
         </DialogContent>
       </Dialog>
       
-      {/* Componente de cadastro de face */}
       <FaceRegistrationDialog
         open={showFaceRegisterDialog}
+        onOpenChange={setShowFaceRegisterDialog}
         onClose={() => setShowFaceRegisterDialog(false)}
         onRegister={handleFaceRegistered}
       />
+      
+      <canvas ref={canvasRef} className="hidden" />
     </div>
   );
 };
