@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -27,6 +28,11 @@ export const registerFace = async (faceData: FaceRegistration): Promise<{success
     if (!faceData.name || !faceData.role) {
       console.error("Nome ou cargo não fornecidos para registro facial");
       return { success: false, error: "Nome e cargo são obrigatórios" };
+    }
+    
+    if (!faceData.image) {
+      console.error("Imagem não fornecida para registro facial");
+      return { success: false, error: "Imagem é obrigatória" };
     }
     
     // Verificar se estamos logados
@@ -65,7 +71,7 @@ export const registerFace = async (faceData: FaceRegistration): Promise<{success
       // Salvar de volta no localStorage
       localStorage.setItem('registeredFaces', JSON.stringify(faces));
       
-      console.log("Face salva localmente");
+      console.log("Face salva localmente com sucesso");
       return { success: true };
     }
   } catch (error) {
@@ -88,6 +94,7 @@ export const loadRegisteredFaces = async (): Promise<FaceRegistration[]> => {
     const { data: sessionData } = await supabase.auth.getSession();
     
     if (!sessionData || !sessionData.session) {
+      console.log("Sem sessão ativa, retornando apenas faces locais");
       return localFaces;
     }
     
@@ -103,6 +110,7 @@ export const loadRegisteredFaces = async (): Promise<FaceRegistration[]> => {
     }
     
     if (!data || data.length === 0) {
+      console.log("Nenhum perfil com face registrada encontrado");
       return localFaces;
     }
     
@@ -116,6 +124,8 @@ export const loadRegisteredFaces = async (): Promise<FaceRegistration[]> => {
         timestamp: profile.updated_at || new Date().toISOString(),
         userId: profile.id
       } as FaceRegistration));
+    
+    console.log(`Encontradas ${supabaseFaces.length} faces registradas no Supabase`);
     
     // Mesclar com faces locais, dando prioridade às do Supabase
     const allFaces = [...supabaseFaces];
@@ -153,6 +163,7 @@ export const compareFaces = (
   // Em um sistema real, esta função usaria um algoritmo de comparação facial
   // Para esta demonstração, retornamos a primeira face registrada se houver
   if (registeredFaces.length > 0) {
+    console.log("Faces disponíveis para comparação:", registeredFaces.length);
     // Simulando uma comparação bem-sucedida
     return registeredFaces[0];
   }
