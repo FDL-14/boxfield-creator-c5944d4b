@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -64,6 +65,36 @@ export const saveFingerprintRegistration = async (fingerprintData: FingerprintRe
     return true;
   } catch (error) {
     console.error("Error saving fingerprint registration:", error);
+    return false;
+  }
+};
+
+/**
+ * Register a new fingerprint
+ * @param fingerprint - The fingerprint data to register
+ * @returns boolean - Success status
+ */
+export const registerFingerprint = async (fingerprint: {
+  image: string;
+  name: string;
+  cpf: string;
+  role: string;
+  index: number;
+  timestamp: string;
+}): Promise<boolean> => {
+  try {
+    const fingerprintData: FingerprintRegistration = {
+      name: fingerprint.name,
+      cpf: fingerprint.cpf,
+      role: fingerprint.role,
+      template: fingerprint.image, // Using the image as template
+      finger: `Finger ${fingerprint.index + 1}`, // Converting index to finger name
+      timestamp: fingerprint.timestamp
+    };
+
+    return await saveFingerprintRegistration(fingerprintData);
+  } catch (error) {
+    console.error("Error registering fingerprint:", error);
     return false;
   }
 };

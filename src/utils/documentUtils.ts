@@ -131,9 +131,11 @@ export const loadDocumentsFromSupabase = async (
   try {
     console.log("Carregando documentos do Supabase:", { docType, isTemplate });
     
+    // Modifique a consulta para não selecionar export_format explicitamente,
+    // já que a coluna ainda não existe na tabela
     let query = supabase
       .from('document_templates')
-      .select('*, section_locks:document_section_locks(*), export_format')
+      .select('*, section_locks:document_section_locks(*)')
       .eq('type', docType)
       .eq('is_deleted', false);
     
@@ -173,7 +175,7 @@ export const loadDocumentsFromSupabase = async (
         updated_at: doc.updated_at,
         formType: doc.type,
         isTemplate: doc.is_template,
-        export_format: doc.export_format || 'PDF',
+        export_format: docData.export_format || 'PDF', // Use data from the docData or default to PDF
         section_locks: doc.section_locks || [],
         supabaseId: doc.id // Marcar que veio do Supabase
       };
