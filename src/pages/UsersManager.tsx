@@ -28,6 +28,7 @@ export default function UsersManager() {
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<any>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
   
   // Form fields
   const [name, setName] = useState("");
@@ -74,8 +75,29 @@ export default function UsersManager() {
     const { data } = await supabase.auth.getSession();
     if (!data.session) {
       navigate('/auth');
-    } else {
-      setCurrentUserId(data.session.user.id);
+      return;
+    }
+    
+    setCurrentUserId(data.session.user.id);
+    
+    // Check if current user has permission to access this page
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('*, permissions:user_permissions(*)')
+      .eq('id', data.session.user.id)
+      .single();
+      
+    setCurrentUserProfile(userProfile);
+    
+    // Check if user has permission to create users
+    if (!userProfile?.is_admin && !userProfile?.is_master && 
+        (!userProfile?.permissions || !userProfile?.permissions[0]?.can_create_user)) {
+      toast({
+        title: "Acesso negado",
+        description: "Você não tem permissão para gerenciar usuários.",
+        variant: "destructive"
+      });
+      navigate('/');
     }
   };
   
@@ -129,6 +151,19 @@ export default function UsersManager() {
   };
   
   const handleOpenDialog = () => {
+    // Check if current user can create users
+    if (currentUserProfile && 
+        !currentUserProfile.is_admin && 
+        !currentUserProfile.is_master && 
+        (!currentUserProfile.permissions || !currentUserProfile.permissions[0]?.can_create_user)) {
+      toast({
+        title: "Permissão negada",
+        description: "Você não tem permissão para criar novos usuários",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setEditingUser(null);
     setName("");
     setEmail("");
@@ -141,6 +176,19 @@ export default function UsersManager() {
   };
   
   const handleOpenPermissions = (user: any) => {
+    // Check if current user can set permissions
+    if (currentUserProfile && 
+        !currentUserProfile.is_admin && 
+        !currentUserProfile.is_master && 
+        (!currentUserProfile.permissions || !currentUserProfile.permissions[0]?.can_set_user_permissions)) {
+      toast({
+        title: "Permissão negada",
+        description: "Você não tem permissão para modificar permissões de usuários",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setEditingUser(user);
     
     // Initialize permissions
@@ -159,11 +207,37 @@ export default function UsersManager() {
   };
   
   const handleResetPassword = (user: any) => {
+    // Check if current user can modify users
+    if (currentUserProfile && 
+        !currentUserProfile.is_admin && 
+        !currentUserProfile.is_master && 
+        (!currentUserProfile.permissions || !currentUserProfile.permissions[0]?.can_edit_user)) {
+      toast({
+        title: "Permissão negada",
+        description: "Você não tem permissão para redefinir senhas",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setEditingUser(user);
     setResetPasswordDialogOpen(true);
   };
   
   const handleEditUser = (user: any) => {
+    // Check if current user can edit users
+    if (currentUserProfile && 
+        !currentUserProfile.is_admin && 
+        !currentUserProfile.is_master && 
+        (!currentUserProfile.permissions || !currentUserProfile.permissions[0]?.can_edit_user)) {
+      toast({
+        title: "Permissão negada",
+        description: "Você não tem permissão para editar usuários",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setEditingUser(user);
     setName(user.name || "");
     setEmail(user.email || "");
@@ -185,8 +259,22 @@ export default function UsersManager() {
     setIsSubmitting(true);
     
     try {
-      // In a production environment, you would implement actual password reset functionality
-      // This is just a placeholder
+      // Generate the CPF email format
+      const loginEmail = `${editingUser.cpf.replace(/\D/g, '')}@cpflogin.local`;
+      
+      // Get user auth ID
+      const { data: authData, error: authError } = await supabase.auth.admin.getUserByEmail(loginEmail);
+      
+      if (authError) throw authError;
+      
+      // Reset the password
+      const { error: resetError } = await supabase.auth.admin.updateUserById(
+        authData?.user.id || editingUser.id,
+        { password: '@54321' }
+      );
+      
+      if (resetError) throw resetError;
+      
       toast({
         title: "Senha redefinida",
         description: `A senha de ${editingUser.name} foi redefinida para o padrão @54321`
@@ -208,10 +296,10 @@ export default function UsersManager() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!name.trim() || !email.trim() || !cpf.trim()) {
+    if (!name.trim() || !cpf.trim()) {
       toast({
         title: "Campos obrigatórios",
-        description: "Por favor, preencha nome, email e CPF",
+        description: "Por favor, preencha nome e CPF",
         variant: "destructive"
       });
       return;
@@ -220,9 +308,31 @@ export default function UsersManager() {
     setIsSubmitting(true);
     
     try {
-      // If creating a new user (not implemented fully here - would require Supabase auth API)
+      // If creating a new user
       if (!editingUser) {
-        // In a real implementation, you would create the user and then update the profile
+        // Generate the CPF email format for login
+        const loginEmail = `${cpf.replace(/\D/g, '')}@cpflogin.local`;
+        
+        // Create user in Supabase Auth
+        const { data: authData, error: authError } = await supabase.auth.admin.createUser({
+          email: loginEmail,
+          password: password,
+          email_confirm: true,
+          user_metadata: {
+            name,
+            cpf,
+            real_email: email,
+            is_admin: isAdmin,
+            is_master: false,
+            company_ids: selectedCompanies,
+            client_ids: selectedClients
+          }
+        });
+        
+        if (authError) throw authError;
+        
+        // The trigger will create the profile and permissions
+        
         toast({
           title: "Novo usuário",
           description: `O usuário ${name} foi criado com senha padrão @54321`,
@@ -293,8 +403,14 @@ export default function UsersManager() {
     setIsSubmitting(true);
     
     try {
-      // In a real implementation, you would delete the user
-      // This is just a placeholder
+      // Generate the CPF email format
+      const loginEmail = `${editingUser.cpf.replace(/\D/g, '')}@cpflogin.local`;
+      
+      // Delete user from Supabase Auth
+      const { error } = await supabase.auth.admin.deleteUser(editingUser.id);
+      
+      if (error) throw error;
+      
       toast({
         title: "Usuário excluído",
         description: `${editingUser.name} foi excluído com sucesso!`
@@ -419,6 +535,37 @@ export default function UsersManager() {
     setPermissions(noPermissions);
   };
   
+  // Check if current user has permission to view this page
+  const hasUserManagementPermission = () => {
+    if (!currentUserProfile) return false;
+    
+    return (
+      currentUserProfile.is_admin || 
+      currentUserProfile.is_master || 
+      (currentUserProfile.permissions && 
+       currentUserProfile.permissions[0] && 
+       currentUserProfile.permissions[0].can_create_user)
+    );
+  };
+  
+  // Check if the current user can manage a specific user
+  const canManageUser = (user: any) => {
+    if (!currentUserProfile) return false;
+    
+    // Master users and admins can manage everyone except master users
+    if (currentUserProfile.is_master) return true;
+    if (currentUserProfile.is_admin) return !user.is_master;
+    
+    // Users with can_create_user permission can manage regular users
+    if (currentUserProfile.permissions && 
+        currentUserProfile.permissions[0] && 
+        currentUserProfile.permissions[0].can_create_user) {
+      return !user.is_admin && !user.is_master;
+    }
+    
+    return false;
+  };
+  
   return (
     <div className="container mx-auto py-8">
       <div className="flex justify-between items-center mb-6">
@@ -426,10 +573,12 @@ export default function UsersManager() {
           <h1 className="text-2xl font-bold">Gerenciamento de Usuários</h1>
           <p className="text-gray-500">Cadastre e gerencie todos os usuários do sistema</p>
         </div>
-        <Button onClick={handleOpenDialog} className="flex items-center">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Novo Usuário
-        </Button>
+        {hasUserManagementPermission() && (
+          <Button onClick={handleOpenDialog} className="flex items-center">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Novo Usuário
+          </Button>
+        )}
       </div>
       
       {loading ? (
@@ -473,45 +622,47 @@ export default function UsersManager() {
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="h-8"
-                        onClick={() => handleEditUser(user)}
-                        disabled={user.is_master && user.id !== currentUserId}
-                      >
-                        <Pencil className="h-4 w-4 mr-1" />
-                        Editar
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="h-8"
-                        onClick={() => handleOpenPermissions(user)}
-                        disabled={user.is_master && user.id !== currentUserId}
-                      >
-                        <Shield className="h-4 w-4 mr-1" />
-                        Permissões
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        className="h-8"
-                        onClick={() => handleResetPassword(user)}
-                        disabled={user.is_master && user.id !== currentUserId}
-                      >
-                        <Key className="h-4 w-4 mr-1" />
-                        Senha
-                      </Button>
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        className="h-8 w-8 p-0 text-red-500 hover:text-red-700" 
-                        onClick={() => handleDeleteConfirm(user)}
-                        disabled={user.is_master || user.id === currentUserId}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      {canManageUser(user) && (
+                        <>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="h-8"
+                            onClick={() => handleEditUser(user)}
+                          >
+                            <Pencil className="h-4 w-4 mr-1" />
+                            Editar
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="h-8"
+                            onClick={() => handleOpenPermissions(user)}
+                          >
+                            <Shield className="h-4 w-4 mr-1" />
+                            Permissões
+                          </Button>
+                          <Button 
+                            variant="outline" 
+                            size="sm"
+                            className="h-8"
+                            onClick={() => handleResetPassword(user)}
+                          >
+                            <Key className="h-4 w-4 mr-1" />
+                            Senha
+                          </Button>
+                          {!user.is_master && user.id !== currentUserId && (
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-8 w-8 p-0 text-red-500 hover:text-red-700" 
+                              onClick={() => handleDeleteConfirm(user)}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -527,10 +678,12 @@ export default function UsersManager() {
             <p className="text-gray-500 mb-6">
               Cadastre seu primeiro usuário para começar a gerenciar documentos.
             </p>
-            <Button onClick={handleOpenDialog}>
-              <PlusCircle className="mr-2 h-4 w-4" />
-              Cadastrar Usuário
-            </Button>
+            {hasUserManagementPermission() && (
+              <Button onClick={handleOpenDialog}>
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Cadastrar Usuário
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}
@@ -562,26 +715,32 @@ export default function UsersManager() {
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="cpf">CPF *</Label>
+                  <Label htmlFor="cpf">CPF * (Login)</Label>
                   <Input
                     id="cpf"
                     value={cpf}
                     onChange={handleCPFChange}
                     placeholder="000.000.000-00"
                     required
+                    disabled={editingUser !== null} // Can't change CPF of existing user
                   />
+                  <p className="text-xs text-muted-foreground">
+                    O CPF será utilizado como login do usuário
+                  </p>
                 </div>
                 
                 <div className="space-y-2">
-                  <Label htmlFor="email">E-mail *</Label>
+                  <Label htmlFor="email">E-mail</Label>
                   <Input
                     id="email"
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="email@example.com"
-                    required
                   />
+                  <p className="text-xs text-muted-foreground">
+                    E-mail para contato (opcional)
+                  </p>
                 </div>
                 
                 {!editingUser && (
@@ -605,6 +764,7 @@ export default function UsersManager() {
                     id="is-admin" 
                     checked={isAdmin}
                     onCheckedChange={(checked) => setIsAdmin(checked === true)}
+                    disabled={!currentUserProfile?.is_master && editingUser?.is_master}
                   />
                   <Label htmlFor="is-admin">Usuário Administrador</Label>
                 </div>
