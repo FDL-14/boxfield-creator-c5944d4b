@@ -26,7 +26,7 @@ export const processUserProfile = (profile: any) => {
   const metadata = profile.raw_user_meta_data || profile.user_metadata || {};
   
   // Special case: if the CPF is 80243088191, this is the master user who should have all permissions
-  const isMasterCPF = profile.cpf === '802.430.881-91' || profile.cpf === '80243088191';
+  const isMasterCPF = profile.cpf === '802.430.881-91' || profile.cpf === '80243088191' || cleanCPF(profile.cpf || '') === '80243088191';
   
   // Make sure we have is_admin and is_master properties
   // Check both direct properties (from database columns) and metadata

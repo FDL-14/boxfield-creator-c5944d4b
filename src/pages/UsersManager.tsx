@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -7,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { supabase, processUserProfile } from "@/integrations/supabase/client";
+import { supabase, processUserProfile, cleanCPF } from "@/integrations/supabase/client";
 import { User, PlusCircle, Pencil, Trash2, Shield, Mail, Key, Loader2, Check, X, RotateCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -88,6 +89,7 @@ export default function UsersManager() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
+  const [authCheckComplete, setAuthCheckComplete] = useState(false);
   
   // Form fields
   const [name, setName] = useState("");
@@ -129,37 +131,68 @@ export default function UsersManager() {
   
   useEffect(() => {
     checkAuth();
-    loadData();
   }, []);
+
+  useEffect(() => {
+    // Only load data after authentication check is complete and user has permission
+    if (authCheckComplete && hasUserManagementPermission()) {
+      loadData();
+    }
+  }, [authCheckComplete]);
   
   const checkAuth = async () => {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
-      navigate('/auth');
-      return;
-    }
+    setLoading(true);
     
-    setCurrentUserId(data.session.user.id);
-    
-    // Check if current user has permission to access this page
-    const { data: userProfile } = await supabase
-      .from('profiles')
-      .select('*, permissions:user_permissions(*)')
-      .eq('id', data.session.user.id)
-      .single();
+    try {
+      // Check if user is logged in
+      const { data } = await supabase.auth.getSession();
+      if (!data.session) {
+        navigate('/auth');
+        return;
+      }
       
-    // Use the processUserProfile helper to ensure all required properties exist
-    setCurrentUserProfile(processUserProfile(userProfile));
-    
-    // Check if user has permission to create users
-    if (!currentUserProfile?.is_admin && !currentUserProfile?.is_master && 
-        (!currentUserProfile?.permissions || !currentUserProfile?.permissions[0]?.can_create_user)) {
+      setCurrentUserId(data.session.user.id);
+      
+      // Fetch the user profile
+      const { data: userProfile, error } = await supabase
+        .from('profiles')
+        .select('*, permissions:user_permissions(*)')
+        .eq('id', data.session.user.id)
+        .single();
+        
+      if (error) {
+        throw error;
+      }
+      
+      // Use the processUserProfile helper to ensure all required properties exist
+      const processedProfile = processUserProfile(userProfile);
+      setCurrentUserProfile(processedProfile);
+      
+      // Check if user has permission to access this page
+      if (!processedProfile?.is_admin && 
+          !processedProfile?.is_master && 
+          (!processedProfile?.permissions || !processedProfile?.permissions[0]?.can_create_user)) {
+        toast({
+          title: "Acesso negado",
+          description: "Você não tem permissão para gerenciar usuários.",
+          variant: "destructive"
+        });
+        navigate('/');
+        return;
+      }
+      
+      // Authentication check is complete and user has permission
+      setAuthCheckComplete(true);
+    } catch (error: any) {
+      console.error("Error checking auth:", error);
       toast({
-        title: "Acesso negado",
-        description: "Você não tem permissão para gerenciar usuários.",
+        title: "Erro de autenticação",
+        description: error.message || "Ocorreu um erro ao verificar suas permissões",
         variant: "destructive"
       });
       navigate('/');
+    } finally {
+      setLoading(false);
     }
   };
   
@@ -596,6 +629,13 @@ export default function UsersManager() {
   const hasUserManagementPermission = () => {
     if (!currentUserProfile) return false;
     
+    // Special case for master user with CPF 80243088191
+    if (currentUserProfile.cpf === '80243088191' || 
+        currentUserProfile.cpf === '802.430.881-91' ||
+        cleanCPF(currentUserProfile.cpf || '') === '80243088191') {
+      return true;
+    }
+    
     return (
       currentUserProfile.is_admin || 
       currentUserProfile.is_master || 
@@ -608,6 +648,13 @@ export default function UsersManager() {
   // Check if the current user can manage a specific user
   const canManageUser = (user: UserProfile) => {
     if (!currentUserProfile) return false;
+    
+    // Special case for master user with CPF 80243088191
+    if (currentUserProfile.cpf === '80243088191' || 
+        currentUserProfile.cpf === '802.430.881-91' ||
+        cleanCPF(currentUserProfile.cpf || '') === '80243088191') {
+      return true;
+    }
     
     // Master users and admins can manage everyone except master users
     if (currentUserProfile.is_master) return true;
@@ -1086,3 +1133,4 @@ export default function UsersManager() {
     </div>
   );
 }
+
