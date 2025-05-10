@@ -943,4 +943,141 @@ export default function UsersManager() {
               </Button>
             </div>
             
-            <div className="grid grid-cols-1
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Permission checkboxes */}
+              {Object.keys(permissions).map((permission) => (
+                <div key={permission} className="flex items-center space-x-2 border p-2 rounded">
+                  <Checkbox 
+                    id={`perm-${permission}`}
+                    checked={permissions[permission]}
+                    onCheckedChange={(checked) => {
+                      setPermissions({
+                        ...permissions,
+                        [permission]: checked === true
+                      });
+                    }}
+                  />
+                  <Label htmlFor={`perm-${permission}`} className="flex-1 text-sm">
+                    {permission.split('_').map(word => word.charAt(0).toUpperCase() + word.slice(1)).join(' ')}
+                  </Label>
+                </div>
+              ))}
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setPermissionsDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="button"
+              onClick={handleSavePermissions}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Salvando...
+                </>
+              ) : (
+                'Salvar Permissões'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Reset Password Dialog */}
+      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Redefinir Senha</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p>
+              Tem certeza que deseja redefinir a senha de <strong>{editingUser?.name}</strong>?
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              A senha será redefinida para o padrão: <strong>@54321</strong>
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setResetPasswordDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="button"
+              onClick={performPasswordReset}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Redefinindo...
+                </>
+              ) : (
+                'Confirmar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      {/* Delete Confirm Dialog */}
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir Usuário</DialogTitle>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p>
+              Tem certeza que deseja excluir o usuário <strong>{editingUser?.name}</strong>?
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Esta ação não poderá ser desfeita.
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              type="button" 
+              variant="outline" 
+              onClick={() => setConfirmDialogOpen(false)}
+              disabled={isSubmitting}
+            >
+              Cancelar
+            </Button>
+            <Button 
+              type="button"
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isSubmitting}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Excluindo...
+                </>
+              ) : (
+                'Confirmar Exclusão'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
