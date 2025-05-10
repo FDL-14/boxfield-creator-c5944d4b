@@ -13,6 +13,10 @@ import NotFound from "./pages/NotFound";
 import DocumentCreator from "./pages/DocumentCreator";
 import DocumentTypes from "./pages/DocumentTypes";
 import BiometricsManager from "./pages/BiometricsManager";
+import Auth from "./pages/Auth";
+import CompaniesManager from "./pages/CompaniesManager";
+import ClientsManager from "./pages/ClientsManager";
+import UsersManager from "./pages/UsersManager";
 
 const queryClient = new QueryClient();
 
@@ -31,6 +35,10 @@ const App = () => {
             <Route path="/document-creator" element={<DocumentCreator />} />
             <Route path="/document-creator/:docType" element={<DocumentCreator />} />
             <Route path="/biometrics" element={<BiometricsManager />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/companies" element={<CompaniesManager />} />
+            <Route path="/clients" element={<ClientsManager />} />
+            <Route path="/users" element={<UsersManager />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

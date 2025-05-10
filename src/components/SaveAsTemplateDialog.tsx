@@ -7,9 +7,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { saveDocumentToSupabase, saveAsTemplate } from "@/utils/documentUtils";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2 } from "lucide-react";
+import { Loader2, FileText } from "lucide-react";
 
 interface SaveAsTemplateDialogProps {
   open: boolean;
@@ -30,6 +31,7 @@ export default function SaveAsTemplateDialog({
   const [title, setTitle] = useState(initialData?.title || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [saveAsModel, setSaveAsModel] = useState(false);
+  const [exportFormat, setExportFormat] = useState(initialData?.export_format || "pdf");
   const [saving, setSaving] = useState(false);
   
   const handleSave = async () => {
@@ -50,6 +52,7 @@ export default function SaveAsTemplateDialog({
         ...initialData,
         title,
         description,
+        export_format: exportFormat,
         updated_at: new Date().toISOString()
       };
       
@@ -114,6 +117,26 @@ export default function SaveAsTemplateDialog({
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Descrição opcional do documento"
             />
+          </div>
+          
+          <div className="space-y-2">
+            <Label htmlFor="export-format">Formato para exportação</Label>
+            <Select
+              value={exportFormat}
+              onValueChange={setExportFormat}
+            >
+              <SelectTrigger id="export-format">
+                <SelectValue placeholder="Selecione o formato" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="pdf">PDF</SelectItem>
+                <SelectItem value="excel">Excel</SelectItem>
+                <SelectItem value="word">Word</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1">
+              Este será o único formato disponível para download deste documento.
+            </p>
           </div>
           
           <div className="flex items-center space-x-2">
