@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,20 +8,52 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, UserPlus, LogIn, KeyRound } from "lucide-react";
+import { Loader2, UserPlus, LogIn, KeyRound, AlertCircle, CheckCircle } from "lucide-react";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function Auth() {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  
   const [loading, setLoading] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [cpf, setCpf] = useState("");
   const [name, setName] = useState("");
   const [session, setSession] = useState<any>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
   
+  // Check for verification action from URL
   useEffect(() => {
-    // Check for existing session
+    const verifyToken = async () => {
+      const token = searchParams.get('token');
+      const type = searchParams.get('type');
+      
+      if (type === 'signup' && token) {
+        setLoading(true);
+        
+        const { error } = await supabase.auth.verifyOtp({
+          token_hash: token,
+          type: 'signup',
+        });
+        
+        setLoading(false);
+        
+        if (error) {
+          setErrorMessage('Erro ao verificar o e-mail: ' + error.message);
+        } else {
+          setSuccessMessage('E-mail verificado com sucesso! Agora você pode fazer login.');
+        }
+      }
+    };
+    
+    verifyToken();
+  }, [searchParams]);
+  
+  // Check for existing session
+  useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session) navigate('/');
@@ -43,9 +75,10 @@ export default function Auth() {
     if (!validateInputs("signup")) return;
     
     setLoading(true);
+    setErrorMessage(null);
     
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -58,17 +91,16 @@ export default function Auth() {
       
       if (error) throw error;
       
-      toast({
-        title: "Cadastro realizado",
-        description: "Usuário cadastrado com sucesso!"
-      });
+      setSuccessMessage(
+        "Cadastro realizado! Verifique seu e-mail para confirmar sua conta."
+      );
       
     } catch (error: any) {
-      toast({
-        title: "Erro ao cadastrar",
-        description: error.message || "Ocorreu um erro durante o cadastro",
-        variant: "destructive"
-      });
+      if (error.message.includes('Email not confirmed')) {
+        setErrorMessage("E-mail ainda não confirmado. Verifique sua caixa de entrada para ativar sua conta.");
+      } else {
+        setErrorMessage(error.message || "Ocorreu um erro durante o cadastro");
+      }
     } finally {
       setLoading(false);
     }
@@ -79,21 +111,49 @@ export default function Auth() {
     if (!validateInputs("signin")) return;
     
     setLoading(true);
+    setErrorMessage(null);
     
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
       
-      if (error) throw error;
+      if (error) {
+        if (error.message.includes('Email not confirmed')) {
+          throw new Error("E-mail ainda não confirmado. Verifique sua caixa de entrada para ativar sua conta.");
+        }
+        throw error;
+      }
       
     } catch (error: any) {
-      toast({
-        title: "Erro ao entrar",
-        description: error.message || "Credenciais inválidas",
-        variant: "destructive"
+      setErrorMessage(error.message || "Credenciais inválidas");
+      setLoading(false);
+    }
+  };
+  
+  const resendConfirmationEmail = async () => {
+    if (!email) {
+      setErrorMessage("Informe seu e-mail para reenviar o link de confirmação");
+      return;
+    }
+    
+    setLoading(true);
+    setErrorMessage(null);
+    
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
       });
+      
+      if (error) throw error;
+      
+      setSuccessMessage("E-mail de confirmação reenviado. Verifique sua caixa de entrada.");
+      
+    } catch (error: any) {
+      setErrorMessage(error.message || "Ocorreu um erro ao reenviar o e-mail de confirmação");
+    } finally {
       setLoading(false);
     }
   };
@@ -101,15 +161,12 @@ export default function Auth() {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) {
-      toast({
-        title: "Email necessário",
-        description: "Por favor, informe seu e-mail para receber o link de redefinição",
-        variant: "destructive"
-      });
+      setErrorMessage("Por favor, informe seu e-mail para receber o link de redefinição");
       return;
     }
     
     setLoading(true);
+    setErrorMessage(null);
     
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -118,58 +175,37 @@ export default function Auth() {
       
       if (error) throw error;
       
-      toast({
-        title: "E-mail enviado",
-        description: "Verifique sua caixa de entrada para redefinir sua senha"
-      });
+      setSuccessMessage("E-mail enviado. Verifique sua caixa de entrada para redefinir sua senha");
       
     } catch (error: any) {
-      toast({
-        title: "Erro ao enviar e-mail",
-        description: error.message || "Não foi possível enviar o e-mail de redefinição",
-        variant: "destructive"
-      });
+      setErrorMessage(error.message || "Não foi possível enviar o e-mail de redefinição");
     } finally {
       setLoading(false);
     }
   };
   
   const validateInputs = (type: "signin" | "signup") => {
+    setErrorMessage(null);
+    
     if (type === "signup") {
       if (!name) {
-        toast({
-          title: "Nome necessário",
-          description: "Por favor, informe seu nome completo",
-          variant: "destructive"
-        });
+        setErrorMessage("Por favor, informe seu nome completo");
         return false;
       }
       
       if (!cpf) {
-        toast({
-          title: "CPF necessário",
-          description: "Por favor, informe seu CPF",
-          variant: "destructive"
-        });
+        setErrorMessage("Por favor, informe seu CPF");
         return false;
       }
     }
     
     if (!email) {
-      toast({
-        title: "E-mail necessário",
-        description: "Por favor, informe seu e-mail",
-        variant: "destructive"
-      });
+      setErrorMessage("Por favor, informe seu e-mail");
       return false;
     }
     
     if (!password) {
-      toast({
-        title: "Senha necessária",
-        description: "Por favor, informe sua senha",
-        variant: "destructive"
-      });
+      setErrorMessage("Por favor, informe sua senha");
       return false;
     }
     
@@ -209,6 +245,35 @@ export default function Auth() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {errorMessage && (
+            <Alert variant="destructive" className="mb-4">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Erro</AlertTitle>
+              <AlertDescription>{errorMessage}</AlertDescription>
+            </Alert>
+          )}
+          
+          {successMessage && (
+            <Alert className="mb-4 border-green-500 bg-green-50 text-green-800">
+              <CheckCircle className="h-4 w-4 text-green-500" />
+              <AlertTitle>Sucesso</AlertTitle>
+              <AlertDescription>{successMessage}</AlertDescription>
+            </Alert>
+          )}
+          
+          {errorMessage?.includes('não confirmado') && (
+            <div className="mb-4 flex justify-center">
+              <Button 
+                variant="outline" 
+                onClick={resendConfirmationEmail}
+                disabled={loading}
+                className="text-xs"
+              >
+                Reenviar e-mail de confirmação
+              </Button>
+            </div>
+          )}
+          
           <Tabs defaultValue="signin" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-4">
               <TabsTrigger value="signin">Entrar</TabsTrigger>
@@ -337,9 +402,12 @@ export default function Auth() {
             </TabsContent>
           </Tabs>
         </CardContent>
-        <CardFooter className="flex justify-center">
-          <p className="text-xs text-center text-muted-foreground">
+        <CardFooter className="flex flex-col justify-center">
+          <p className="text-xs text-center text-muted-foreground mb-2">
             Ao entrar você concorda com nossos termos e política de privacidade.
+          </p>
+          <p className="text-xs text-center text-amber-600">
+            É necessário confirmar seu e-mail após o cadastro para poder acessar o sistema.
           </p>
         </CardFooter>
       </Card>
