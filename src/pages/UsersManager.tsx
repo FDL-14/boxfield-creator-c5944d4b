@@ -26,8 +26,8 @@ type UserProfile = {
   company_ids: string[] | null;
   face_image: string | null;
   is_face_registered: boolean | null;
-  is_admin: boolean;  // Add this property
-  is_master: boolean; // Add this property
+  is_admin: boolean;
+  is_master: boolean;
   permissions?: UserPermission[];
 };
 
@@ -49,27 +49,27 @@ type UserPermission = {
   view_only_assigned_actions: boolean | null;
   can_delete_company: boolean | null;
   can_delete_client: boolean | null;
-  can_create_user: boolean | null; // Add this property
-  can_edit_user_status: boolean | null; // Add this property
-  can_set_user_permissions: boolean | null; // Add this property
-  can_create_section: boolean | null; // Add this property
-  can_edit_section: boolean | null; // Add this property
-  can_delete_section: boolean | null; // Add this property
-  can_create_field: boolean | null; // Add this property
-  can_edit_field: boolean | null; // Add this property
-  can_delete_field: boolean | null; // Add this property
-  can_fill_field: boolean | null; // Add this property
-  can_sign: boolean | null; // Add this property
-  can_insert_logo: boolean | null; // Add this property
-  can_insert_photo: boolean | null; // Add this property
-  can_save: boolean | null; // Add this property
-  can_save_as: boolean | null; // Add this property
-  can_download: boolean | null; // Add this property
-  can_open: boolean | null; // Add this property
-  can_print: boolean | null; // Add this property
-  can_edit_document: boolean | null; // Add this property
-  can_cancel_document: boolean | null; // Add this property
-  can_view: boolean | null; // Add this property
+  can_create_user: boolean | null;
+  can_edit_user_status: boolean | null;
+  can_set_user_permissions: boolean | null;
+  can_create_section: boolean | null;
+  can_edit_section: boolean | null;
+  can_delete_section: boolean | null;
+  can_create_field: boolean | null;
+  can_edit_field: boolean | null;
+  can_delete_field: boolean | null;
+  can_fill_field: boolean | null;
+  can_sign: boolean | null;
+  can_insert_logo: boolean | null;
+  can_insert_photo: boolean | null;
+  can_save: boolean | null;
+  can_save_as: boolean | null;
+  can_download: boolean | null;
+  can_open: boolean | null;
+  can_print: boolean | null;
+  can_edit_document: boolean | null;
+  can_cancel_document: boolean | null;
+  can_view: boolean | null;
 };
 
 export default function UsersManager() {
@@ -144,6 +144,7 @@ export default function UsersManager() {
       .eq('id', data.session.user.id)
       .single();
       
+    // Use the processUserProfile helper to ensure all required properties exist
     setCurrentUserProfile(processUserProfile(userProfile) as UserProfile);
     
     // Check if user has permission to create users
@@ -172,7 +173,10 @@ export default function UsersManager() {
         .order('name');
         
       if (usersError) throw usersError;
-      setUsers(usersData || []);
+      
+      // Process each user profile to ensure all required properties exist
+      const processedUsers = usersData?.map(user => processUserProfile(user)) as UserProfile[];
+      setUsers(processedUsers || []);
       
       // Load companies
       const { data: companiesData, error: companiesError } = await supabase
@@ -939,330 +943,4 @@ export default function UsersManager() {
               </Button>
             </div>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="font-medium">Usuários</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_create_user" 
-                      checked={permissions.can_create_user}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_create_user: checked === true})}
-                    />
-                    <Label htmlFor="can_create_user">Criar Usuários</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_edit_user" 
-                      checked={permissions.can_edit_user}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_edit_user: checked === true})}
-                    />
-                    <Label htmlFor="can_edit_user">Editar Usuários</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_edit_user_status" 
-                      checked={permissions.can_edit_user_status}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_edit_user_status: checked === true})}
-                    />
-                    <Label htmlFor="can_edit_user_status">Alterar Status de Usuários</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_set_user_permissions" 
-                      checked={permissions.can_set_user_permissions}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_set_user_permissions: checked === true})}
-                    />
-                    <Label htmlFor="can_set_user_permissions">Definir Permissões</Label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="font-medium">Formulários</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_create_section" 
-                      checked={permissions.can_create_section}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_create_section: checked === true})}
-                    />
-                    <Label htmlFor="can_create_section">Criar Seções</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_edit_section" 
-                      checked={permissions.can_edit_section}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_edit_section: checked === true})}
-                    />
-                    <Label htmlFor="can_edit_section">Editar Seções</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_delete_section" 
-                      checked={permissions.can_delete_section}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_delete_section: checked === true})}
-                    />
-                    <Label htmlFor="can_delete_section">Excluir Seções</Label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="font-medium">Campos</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_create_field" 
-                      checked={permissions.can_create_field}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_create_field: checked === true})}
-                    />
-                    <Label htmlFor="can_create_field">Criar Campos</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_edit_field" 
-                      checked={permissions.can_edit_field}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_edit_field: checked === true})}
-                    />
-                    <Label htmlFor="can_edit_field">Editar Campos</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_delete_field" 
-                      checked={permissions.can_delete_field}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_delete_field: checked === true})}
-                    />
-                    <Label htmlFor="can_delete_field">Excluir Campos</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_fill_field" 
-                      checked={permissions.can_fill_field}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_fill_field: checked === true})}
-                    />
-                    <Label htmlFor="can_fill_field">Preencher Campos</Label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="font-medium">Documentos</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_sign" 
-                      checked={permissions.can_sign}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_sign: checked === true})}
-                    />
-                    <Label htmlFor="can_sign">Assinar Documentos</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_insert_logo" 
-                      checked={permissions.can_insert_logo}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_insert_logo: checked === true})}
-                    />
-                    <Label htmlFor="can_insert_logo">Inserir Logo</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_insert_photo" 
-                      checked={permissions.can_insert_photo}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_insert_photo: checked === true})}
-                    />
-                    <Label htmlFor="can_insert_photo">Inserir Foto</Label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="font-medium">Operações de Arquivo</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_save" 
-                      checked={permissions.can_save}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_save: checked === true})}
-                    />
-                    <Label htmlFor="can_save">Salvar</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_save_as" 
-                      checked={permissions.can_save_as}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_save_as: checked === true})}
-                    />
-                    <Label htmlFor="can_save_as">Salvar Como</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_download" 
-                      checked={permissions.can_download}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_download: checked === true})}
-                    />
-                    <Label htmlFor="can_download">Download</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_open" 
-                      checked={permissions.can_open}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_open: checked === true})}
-                    />
-                    <Label htmlFor="can_open">Abrir</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_print" 
-                      checked={permissions.can_print}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_print: checked === true})}
-                    />
-                    <Label htmlFor="can_print">Imprimir</Label>
-                  </div>
-                </div>
-              </div>
-              
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="font-medium">Gerenciamento</h3>
-                <div className="space-y-2">
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_edit_document" 
-                      checked={permissions.can_edit_document}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_edit_document: checked === true})}
-                    />
-                    <Label htmlFor="can_edit_document">Editar Documentos</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_cancel_document" 
-                      checked={permissions.can_cancel_document}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_cancel_document: checked === true})}
-                    />
-                    <Label htmlFor="can_cancel_document">Cancelar Documentos</Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <Checkbox 
-                      id="can_view" 
-                      checked={permissions.can_view}
-                      onCheckedChange={(checked) => setPermissions({...permissions, can_view: checked === true})}
-                    />
-                    <Label htmlFor="can_view">Visualizar</Label>
-                  </div>
-                </div>
-              </div>
-            </div>
-            
-            <DialogFooter className="mt-6">
-              <Button 
-                type="button" 
-                variant="outline" 
-                onClick={() => setPermissionsDialogOpen(false)}
-                disabled={isSubmitting}
-              >
-                Cancelar
-              </Button>
-              <Button 
-                type="button" 
-                onClick={handleSavePermissions}
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Salvando...
-                  </>
-                ) : (
-                  'Salvar Permissões'
-                )}
-              </Button>
-            </DialogFooter>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Confirm Delete Dialog */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirmar Exclusão</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>
-              Tem certeza que deseja excluir o usuário <strong>{editingUser?.name}</strong>?
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              Esta ação não pode ser desfeita e removerá o usuário e todos os seus dados associados.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setConfirmDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="button" 
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Excluindo...
-                </>
-              ) : (
-                'Excluir'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Reset Password Dialog */}
-      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Redefinir Senha</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>
-              Tem certeza que deseja redefinir a senha do usuário <strong>{editingUser?.name}</strong>?
-            </p>
-            <p className="text-sm text-muted-foreground mt-2">
-              A senha será redefinida para o valor padrão: <strong>@54321</strong>
-            </p>
-          </div>
-          <DialogFooter>
-            <Button 
-              type="button" 
-              variant="outline" 
-              onClick={() => setResetPasswordDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              type="button" 
-              onClick={performPasswordReset}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Redefinindo...
-                </>
-              ) : (
-                'Redefinir Senha'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
+            <div className="grid grid-cols-1
