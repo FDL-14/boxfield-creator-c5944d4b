@@ -1,353 +1,317 @@
 
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { ArrowLeft, Plus, Edit, Trash2, FileText } from "lucide-react";
-import { DocumentType } from "@/entities/all";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, Plus, Pencil } from "lucide-react";
+import { supabase, processUserProfile } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
+import Header from "@/components/Header";
 
 export default function DocumentTypes() {
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const [documentTypes, setDocumentTypes] = useState([]);
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editingType, setEditingType] = useState(null);
-  const [formValues, setFormValues] = useState({
-    name: "",
-    description: "",
-    slug: ""
-  });
-
+  const [documentTypes, setDocumentTypes] = useState([]);
+  const [showDialog, setShowDialog] = useState(false);
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  
   useEffect(() => {
+    checkAuth();
     loadDocumentTypes();
   }, []);
-
+  
+  const checkAuth = async () => {
+    const { data } = await supabase.auth.getSession();
+    
+    if (!data.session) {
+      navigate('/auth');
+      return;
+    }
+    
+    // Get user profile info
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*, permissions:user_permissions(*)')
+      .eq('id', data.session.user.id)
+      .single();
+      
+    if (profileData) {
+      const processedProfile = processUserProfile({
+        ...profileData,
+        id: data.session.user.id
+      });
+      
+      setCurrentUser(processedProfile);
+    }
+  };
+  
   const loadDocumentTypes = async () => {
     try {
       setLoading(true);
-      const types = await DocumentType.list();
-      setDocumentTypes(types);
+      const { data, error } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('is_template', true)
+        .eq('is_deleted', false)
+        .order('created_at', { ascending: false });
+      
+      if (error) throw error;
+      setDocumentTypes(data || []);
     } catch (error) {
-      console.error("Erro ao carregar tipos de documento:", error);
+      console.error('Error loading document types:', error);
       toast({
-        title: "Erro ao carregar dados",
-        description: "Não foi possível carregar os tipos de documento",
+        title: "Erro ao carregar tipos de documento",
+        description: "Ocorreu um problema ao buscar os tipos de documento.",
         variant: "destructive"
       });
     } finally {
       setLoading(false);
     }
   };
-
-  const handleInputChange = (field, value) => {
-    setFormValues(prev => ({
-      ...prev,
-      [field]: value
-    }));
-  };
-
-  const handleOpenDialog = (type = null) => {
-    if (type) {
-      setEditingType(type);
-      setFormValues({
-        name: type.name || "",
-        description: type.description || "",
-        slug: type.slug || ""
-      });
-    } else {
-      setEditingType(null);
-      setFormValues({
-        name: "",
-        description: "",
-        slug: ""
-      });
-    }
-    setDialogOpen(true);
-  };
-
-  const handleCreateOrUpdate = async () => {
+  
+  const handleCreateNew = async () => {
     try {
-      if (!formValues.name.trim()) {
+      if (!title.trim()) {
         toast({
-          title: "Nome obrigatório",
-          description: "Por favor, informe um nome para o tipo de documento",
+          title: "Campo obrigatório",
+          description: "Por favor, informe um título para o tipo de documento.",
           variant: "destructive"
         });
         return;
       }
-
-      // Generate slug if empty
-      if (!formValues.slug.trim()) {
-        formValues.slug = formValues.name
-          .toLowerCase()
-          .replace(/[^\w\s-]/g, '')
-          .replace(/[\s_-]+/g, '-')
-          .replace(/^-+|-+$/g, '');
-      }
-
-      if (editingType) {
-        // Update existing type
-        await DocumentType.update(editingType.id, formValues);
+      
+      setLoading(true);
+      
+      if (editingId) {
+        // Update existing document type
+        const { error } = await supabase
+          .from('document_templates')
+          .update({
+            title,
+            description,
+            updated_at: new Date()
+          })
+          .eq('id', editingId);
+        
+        if (error) throw error;
+        
         toast({
-          title: "Tipo atualizado",
-          description: "O tipo de documento foi atualizado com sucesso"
+          title: "Tipo de documento atualizado",
+          description: `${title} foi atualizado com sucesso.`,
         });
       } else {
-        // Create new type
-        await DocumentType.create(formValues);
+        // Create new document type
+        const { data: userData } = await supabase.auth.getUser();
+      
+        const { error } = await supabase
+          .from('document_templates')
+          .insert([
+            {
+              title,
+              description,
+              type: 'custom',
+              data: { sections: [] },
+              is_template: true,
+              created_by: userData.user?.id
+            }
+          ]);
+        
+        if (error) throw error;
+        
         toast({
-          title: "Tipo criado",
-          description: "O novo tipo de documento foi criado com sucesso"
+          title: "Novo tipo de documento",
+          description: `${title} foi criado com sucesso.`,
         });
       }
-
-      setDialogOpen(false);
+      
+      setShowDialog(false);
+      setTitle("");
+      setDescription("");
+      setEditingId(null);
       loadDocumentTypes();
+      
     } catch (error) {
-      console.error("Erro ao salvar tipo de documento:", error);
+      console.error('Error saving document type:', error);
       toast({
         title: "Erro ao salvar",
-        description: "Não foi possível salvar o tipo de documento",
+        description: "Ocorreu um problema ao salvar o tipo de documento.",
         variant: "destructive"
       });
+    } finally {
+      setLoading(false);
     }
   };
-
-  const handleDelete = async (id) => {
-    if (window.confirm("Tem certeza que deseja excluir este tipo de documento?")) {
-      try {
-        await DocumentType.delete(id);
-        toast({
-          title: "Tipo excluído",
-          description: "O tipo de documento foi excluído com sucesso"
-        });
-        loadDocumentTypes();
-      } catch (error) {
-        console.error("Erro ao excluir tipo de documento:", error);
-        toast({
-          title: "Erro ao excluir",
-          description: "Não foi possível excluir o tipo de documento",
-          variant: "destructive"
-        });
-      }
+  
+  const handleEdit = (docType) => {
+    if (!canEditDocumentTypes()) {
+      toast({
+        title: "Permissão negada",
+        description: "Você não tem permissão para editar tipos de documento.",
+        variant: "destructive"
+      });
+      return;
     }
+    
+    setEditingId(docType.id);
+    setTitle(docType.title);
+    setDescription(docType.description || "");
+    setShowDialog(true);
   };
-
-  const handleCreateDocument = (type) => {
-    navigate(`/document-creator/${type.slug || type.id}`);
+  
+  const handleCreateDocument = (templateId) => {
+    navigate(`/document-creator/${templateId}`);
+  };
+  
+  const canEditDocumentTypes = () => {
+    if (!currentUser) return false;
+    
+    // Check if user is master or admin
+    if (currentUser.is_master || currentUser.is_admin) return true;
+    
+    // Check specific permission
+    if (currentUser.permissions && currentUser.permissions.length > 0) {
+      return currentUser.permissions[0].can_edit_document_type === true;
+    }
+    
+    return false;
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6">
-      <div className="max-w-5xl mx-auto">
-        {/* Header */}
-        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8 gap-4">
-          <div>
-            <div className="flex items-center gap-3">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => navigate(-1)}
-                className="rounded-full"
-              >
-                <ArrowLeft className="h-5 w-5" />
-              </Button>
-              <h1 className="text-3xl font-bold text-gray-900">Tipos de Documento</h1>
-            </div>
-            <p className="text-gray-500 mt-1">
-              Gerencie os tipos de documento disponíveis no sistema
-            </p>
-          </div>
-          <Button
-            onClick={() => handleOpenDialog()}
-            className="bg-blue-600 hover:bg-blue-700"
-          >
-            <Plus className="h-4 w-4 mr-2" />
-            Novo Tipo
-          </Button>
+    <div className="container mx-auto p-6">
+      <Header 
+        title="Tipos de Documento" 
+        subtitle="Crie e gerencie modelos de documento" 
+      />
+      
+      <div className="flex justify-end mb-6">
+        <Button onClick={() => {
+          setEditingId(null);
+          setTitle("");
+          setDescription("");
+          setShowDialog(true);
+        }}>
+          <Plus className="mr-2 h-4 w-4" />
+          Novo Tipo de Documento
+        </Button>
+      </div>
+      
+      {loading ? (
+        <div className="flex justify-center my-12">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
         </div>
-
-        {/* Document Types Grid */}
+      ) : documentTypes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {/* Default Types */}
-          <Card className="shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-blue-600" />
-                Construtor de Formulário
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <p className="text-gray-500 text-sm">
-                Crie e gerencie campos e seções do seu formulário personalizado.
-              </p>
-            </CardContent>
-            <CardFooter className="flex justify-between pt-2">
-              <Button variant="outline" size="sm" onClick={() => navigate("/form-builder")}>
-                Editar
-              </Button>
-              <Button size="sm" onClick={() => navigate("/document-creator/form-builder")}>
-                Criar Documento
-              </Button>
-            </CardFooter>
-          </Card>
-
-          <Card className="shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-orange-600" />
-                Análise de Risco
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <p className="text-gray-500 text-sm">
-                Crie documentos para análise de riscos em atividades.
-              </p>
-            </CardContent>
-            <CardFooter className="flex justify-between pt-2">
-              <Button variant="outline" size="sm" onClick={() => navigate("/analise-risco")}>
-                Editar
-              </Button>
-              <Button size="sm" onClick={() => navigate("/document-creator/analise-risco")}>
-                Criar Documento
-              </Button>
-            </CardFooter>
-          </Card>
-
-          <Card className="shadow-md">
-            <CardHeader className="pb-2">
-              <CardTitle className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-green-600" />
-                Permissão de Trabalho
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="pt-2">
-              <p className="text-gray-500 text-sm">
-                Crie documentos de permissão de trabalho para atividades.
-              </p>
-            </CardContent>
-            <CardFooter className="flex justify-between pt-2">
-              <Button variant="outline" size="sm" onClick={() => navigate("/permissao-trabalho")}>
-                Editar
-              </Button>
-              <Button size="sm" onClick={() => navigate("/document-creator/permissao-trabalho")}>
-                Criar Documento
-              </Button>
-            </CardFooter>
-          </Card>
-
-          {/* Custom Document Types */}
-          {documentTypes.map(type => (
-            <Card key={type.id} className="shadow-md">
-              <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="h-5 w-5 text-purple-600" />
-                  {type.name}
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="pt-2">
-                <p className="text-gray-500 text-sm">
-                  {type.description || "Documento personalizado"}
-                </p>
-              </CardContent>
-              <CardFooter className="flex justify-between pt-2">
-                <div className="flex gap-2">
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    onClick={() => handleOpenDialog(type)}
-                    className="h-8 w-8"
-                  >
-                    <Edit className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="icon" 
-                    className="h-8 w-8 text-red-600 hover:text-red-700"
-                    onClick={() => handleDelete(type.id)}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+          {documentTypes.map((docType) => (
+            <Card key={docType.id} className="overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
+              <CardContent className="p-6 flex flex-col h-full">
+                <div className="flex-grow">
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="p-3 bg-primary/10 rounded-lg">
+                      <FileText className="h-6 w-6 text-primary" />
+                    </div>
+                    {canEditDocumentTypes() && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        onClick={() => handleEdit(docType)}
+                        className="h-8 w-8 p-0"
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    )}
+                  </div>
+                  <h3 className="text-lg font-medium mb-2">{docType.title}</h3>
+                  <p className="text-sm text-gray-500 mb-4 line-clamp-2">
+                    {docType.description || "Sem descrição"}
+                  </p>
                 </div>
-                <Button size="sm" onClick={() => handleCreateDocument(type)}>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => handleCreateDocument(docType.id)}
+                >
                   Criar Documento
                 </Button>
-              </CardFooter>
+              </CardContent>
             </Card>
           ))}
         </div>
-
-        {/* Empty State */}
-        {documentTypes.length === 0 && !loading && (
-          <div className="text-center py-12">
-            <p className="text-gray-500 mb-4">
-              Você ainda não possui tipos de documento personalizados.
+      ) : (
+        <Card className="text-center p-6">
+          <CardContent className="pt-10 pb-10 flex flex-col items-center">
+            <FileText className="h-12 w-12 text-gray-300 mb-4" />
+            <h3 className="text-lg font-medium mb-2">Nenhum tipo de documento</h3>
+            <p className="text-gray-500 mb-6">
+              Crie seu primeiro tipo de documento para começar.
             </p>
-            <Button onClick={() => handleOpenDialog()}>
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Primeiro Tipo
+            <Button onClick={() => setShowDialog(true)}>
+              <Plus className="mr-2 h-4 w-4" />
+              Criar Tipo de Documento
             </Button>
-          </div>
-        )}
-      </div>
-
-      {/* Create/Edit Dialog */}
-      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-        <DialogContent>
+          </CardContent>
+        </Card>
+      )}
+      
+      <Dialog open={showDialog} onOpenChange={setShowDialog}>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>
-              {editingType ? "Editar Tipo de Documento" : "Novo Tipo de Documento"}
+              {editingId ? "Editar Tipo de Documento" : "Novo Tipo de Documento"}
             </DialogTitle>
           </DialogHeader>
+          
           <div className="space-y-4 py-4">
-            <div>
-              <Label htmlFor="name" className="block mb-2">Nome</Label>
+            <div className="space-y-2">
+              <Label htmlFor="title">Título</Label>
               <Input
-                id="name"
-                value={formValues.name}
-                onChange={(e) => handleInputChange("name", e.target.value)}
-                placeholder="Nome do tipo de documento"
+                id="title"
+                placeholder="Ex: Análise Preliminar de Risco"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
               />
             </div>
-            <div>
-              <Label htmlFor="description" className="block mb-2">Descrição</Label>
-              <Input
+            
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição (opcional)</Label>
+              <Textarea
                 id="description"
-                value={formValues.description}
-                onChange={(e) => handleInputChange("description", e.target.value)}
-                placeholder="Descrição breve do tipo de documento"
+                placeholder="Descreva o propósito deste tipo de documento"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
               />
-            </div>
-            <div>
-              <Label htmlFor="slug" className="block mb-2">Identificador URL (opcional)</Label>
-              <Input
-                id="slug"
-                value={formValues.slug}
-                onChange={(e) => handleInputChange("slug", e.target.value.replace(/\s+/g, '-').toLowerCase())}
-                placeholder="identificador-url"
-              />
-              <p className="text-xs text-gray-500 mt-1">
-                Deixe em branco para gerar automaticamente
-              </p>
             </div>
           </div>
+          
           <DialogFooter>
-            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setShowDialog(false);
+                setTitle("");
+                setDescription("");
+                setEditingId(null);
+              }}
+              disabled={loading}
+            >
               Cancelar
             </Button>
-            <Button onClick={handleCreateOrUpdate}>
-              {editingType ? "Atualizar" : "Criar"}
+            <Button
+              type="submit"
+              onClick={handleCreateNew}
+              disabled={loading}
+            >
+              {loading ? 'Salvando...' : editingId ? 'Atualizar' : 'Criar'}
             </Button>
           </DialogFooter>
         </DialogContent>

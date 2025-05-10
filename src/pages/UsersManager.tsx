@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,6 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import Header from "@/components/Header";
 
 type UserProfile = {
   id: string;
@@ -71,6 +71,7 @@ type UserPermission = {
   can_edit_document: boolean | null;
   can_cancel_document: boolean | null;
   can_view: boolean | null;
+  can_edit_document_type: boolean | null;
 };
 
 export default function UsersManager() {
@@ -120,6 +121,8 @@ export default function UsersManager() {
     can_print: false,
     can_edit_document: false,
     can_cancel_document: false,
+    can_view: false,
+    can_edit_document_type: false,
   });
   
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -622,11 +625,12 @@ export default function UsersManager() {
   
   return (
     <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Gerenciamento de Usuários</h1>
-          <p className="text-gray-500">Cadastre e gerencie todos os usuários do sistema</p>
-        </div>
+      <Header 
+        title="Gerenciamento de Usuários" 
+        subtitle="Cadastre e gerencie todos os usuários do sistema" 
+      />
+      
+      <div className="flex justify-end mb-6">
         {hasUserManagementPermission() && (
           <Button onClick={handleOpenDialog} className="flex items-center">
             <PlusCircle className="mr-2 h-4 w-4" />

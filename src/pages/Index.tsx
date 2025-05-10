@@ -139,7 +139,14 @@ export default function Index() {
     <div className="min-h-screen flex flex-col">
       <header className="border-b p-4 bg-white shadow-sm">
         <div className="container flex justify-between items-center">
-          <h1 className="text-xl font-bold">Sistema de Documentação</h1>
+          <div className="flex items-center gap-4">
+            <img
+              src="/lovable-uploads/38edc1d3-2b5d-4e63-be2a-7ead983b2bb8.png"
+              alt="Total Data Logo"
+              className="h-10 object-contain"
+            />
+            <h1 className="text-xl font-bold">Sistema em Formulário Inteligente</h1>
+          </div>
           <div className="flex items-center gap-4">
             <nav className="flex gap-2">
               <Button variant="outline" asChild>
@@ -174,7 +181,7 @@ export default function Index() {
       
       <div className="max-w-6xl mx-auto flex-1 p-4">
         <div className="mb-8 text-center animate-slide-down">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Sistema de Gestão de Documentos</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2">Sistema em Formulário Inteligente</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Crie, personalize e gerencie formulários e documentos para sua empresa. 
             Escolha uma das opções abaixo para começar.

@@ -25,18 +25,53 @@ export const processUserProfile = (profile: any) => {
   // Process both raw_user_meta_data and user_metadata for compatibility
   const metadata = profile.raw_user_meta_data || profile.user_metadata || {};
   
+  // Special case: if the CPF is 80243088191, this is the master user who should have all permissions
+  const isMasterCPF = profile.cpf === '802.430.881-91' || profile.cpf === '80243088191';
+  
   // Make sure we have is_admin and is_master properties
   // Check in both profile direct properties and metadata
-  const is_admin = profile.is_admin !== undefined 
-    ? profile.is_admin 
-    : metadata.is_admin || false;
+  const is_admin = isMasterCPF ? true : 
+    (profile.is_admin !== undefined 
+      ? profile.is_admin 
+      : metadata.is_admin || false);
 
-  const is_master = profile.is_master !== undefined 
-    ? profile.is_master 
-    : metadata.is_master || false;
+  const is_master = isMasterCPF ? true : 
+    (profile.is_master !== undefined 
+      ? profile.is_master 
+      : metadata.is_master || false);
   
   // Process permissions to ensure they have all the required properties
-  const processedPermissions = profile.permissions?.map((permission: any) => {
+  let processedPermissions = profile.permissions?.map((permission: any) => {
+    // If this is the master user, give all permissions
+    if (isMasterCPF) {
+      return {
+        ...permission,
+        can_create_user: true,
+        can_edit_user: true,
+        can_edit_user_status: true,
+        can_set_user_permissions: true,
+        can_create_section: true,
+        can_edit_section: true,
+        can_delete_section: true,
+        can_create_field: true,
+        can_edit_field: true,
+        can_delete_field: true,
+        can_fill_field: true,
+        can_sign: true,
+        can_insert_logo: true,
+        can_insert_photo: true,
+        can_save: true,
+        can_save_as: true,
+        can_download: true,
+        can_open: true,
+        can_print: true,
+        can_edit_document: true,
+        can_cancel_document: true,
+        can_view: true,
+        can_edit_document_type: true
+      };
+    }
+    
     return {
       ...permission,
       // Add missing permission properties used in the app
@@ -61,9 +96,41 @@ export const processUserProfile = (profile: any) => {
       can_print: permission.can_print || false,
       can_edit_document: permission.can_edit_document || false,
       can_cancel_document: permission.can_cancel_document || false,
-      can_view: permission.can_view || false
+      can_view: permission.can_view || false,
+      can_edit_document_type: permission.can_edit_document_type || false
     };
-  });
+  }) || [];
+  
+  // If this is the master user but no permissions exist yet, create default permissions with all privileges
+  if (isMasterCPF && (!processedPermissions || processedPermissions.length === 0)) {
+    processedPermissions = [{
+      id: 'default-master-permissions',
+      user_id: profile.id,
+      can_create_user: true,
+      can_edit_user: true,
+      can_edit_user_status: true,
+      can_set_user_permissions: true,
+      can_create_section: true,
+      can_edit_section: true,
+      can_delete_section: true,
+      can_create_field: true,
+      can_edit_field: true,
+      can_delete_field: true,
+      can_fill_field: true,
+      can_sign: true,
+      can_insert_logo: true,
+      can_insert_photo: true,
+      can_save: true,
+      can_save_as: true,
+      can_download: true,
+      can_open: true,
+      can_print: true,
+      can_edit_document: true,
+      can_cancel_document: true,
+      can_view: true,
+      can_edit_document_type: true
+    }];
+  }
   
   return {
     ...profile,
