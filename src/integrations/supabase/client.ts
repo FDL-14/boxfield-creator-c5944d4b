@@ -22,10 +22,11 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
 export const processUserProfile = (profile: any) => {
   if (!profile) return null;
   
-  // Process metadata for additional properties
-  const metadata = profile.raw_user_meta_data || {};
+  // Process both raw_user_meta_data and user_metadata for compatibility
+  const metadata = profile.raw_user_meta_data || profile.user_metadata || {};
   
   // Make sure we have is_admin and is_master properties
+  // Check in both profile direct properties and metadata
   const is_admin = profile.is_admin !== undefined 
     ? profile.is_admin 
     : metadata.is_admin || false;

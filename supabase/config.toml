@@ -1,1 +1,11 @@
+
 project_id = "tsjdsbxgottssqqlzfxl"
+
+[functions.login-with-cpf]
+verify_jwt = false
+
+[functions.create-user-with-cpf]
+verify_jwt = false
+
+[functions.init-master-user]
+verify_jwt = false

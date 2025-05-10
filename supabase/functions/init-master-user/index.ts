@@ -37,10 +37,25 @@ serve(async (req) => {
     
     console.log("Initializing master user with CPF:", masterCPF);
     
-    // Check if master user already exists in profiles table
+    // Check if master user exists in auth.users
+    const { data: existingUsers, error: usersError } = await supabaseAdmin.auth.admin.listUsers();
+    
+    if (usersError) {
+      console.error("Error checking auth users:", usersError);
+      throw usersError;
+    }
+    
+    let masterAuthUser = existingUsers.users.find(user => 
+      user.email === masterEmail || 
+      (user.user_metadata && user.user_metadata.cpf === masterCPF)
+    );
+    
+    console.log("Master auth user check:", masterAuthUser ? "Found" : "Not found");
+    
+    // Check profiles table for the master CPF
     const { data: existingProfiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
-      .select("id, cpf, email")
+      .select("id, cpf, email, is_master, is_admin")
       .eq("cpf", masterCPF)
       .limit(1);
     
@@ -51,93 +66,14 @@ serve(async (req) => {
     
     console.log("Existing profiles check result:", existingProfiles);
     
-    let userId;
+    let masterUserId;
     
-    // If master user already exists in profiles
-    if (existingProfiles && existingProfiles.length > 0) {
-      console.log("Master user already exists in profiles with ID:", existingProfiles[0].id);
-      userId = existingProfiles[0].id;
+    // Handle auth user creation or update
+    if (!masterAuthUser) {
+      console.log("Creating master auth user");
       
-      // Get the user from auth to check if they exist
-      const { data: userData, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
-      
-      if (userError || !userData.user) {
-        console.log("User exists in profiles but not in auth, recreating...");
-        
-        // Create the auth user with the existing profile data
-        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-          email: masterEmail,
-          password: masterPassword,
-          email_confirm: true,
-          user_metadata: {
-            name: masterName,
-            cpf: masterCPF,
-            is_admin: true,
-            is_master: true
-          },
-        });
-        
-        if (authError) {
-          console.error("Error recreating auth user:", authError);
-          throw authError;
-        }
-        
-        // Update the profile entry to link with new auth user
-        const { error: updateError } = await supabaseAdmin
-          .from("profiles")
-          .update({
-            id: authData.user.id,
-            is_admin: true,
-            is_master: true
-          })
-          .eq("cpf", masterCPF);
-          
-        if (updateError) {
-          console.error("Error updating profile:", updateError);
-        }
-        
-        userId = authData.user.id;
-      } else {
-        console.log("User exists in both profiles and auth");
-        
-        // Ensure user profile has the correct flags
-        const { error: updateError } = await supabaseAdmin
-          .from("profiles")
-          .update({
-            is_admin: true,
-            is_master: true,
-            name: masterName,
-            email: masterEmail
-          })
-          .eq("cpf", masterCPF);
-          
-        if (updateError) {
-          console.error("Error updating profile:", updateError);
-        }
-        
-        // Update auth user metadata and reset password if needed
-        try {
-          await supabaseAdmin.auth.admin.updateUserById(userId, {
-            email: masterEmail,
-            password: masterPassword,
-            email_confirm: true,
-            user_metadata: {
-              name: masterName,
-              cpf: masterCPF,
-              is_admin: true,
-              is_master: true
-            },
-          });
-          console.log("Updated auth user data");
-        } catch (updateAuthError) {
-          console.error("Error updating auth user:", updateAuthError);
-        }
-      }
-    } else {
-      console.log("Master user does not exist yet, creating new user");
-      
-      // Create a new user with the provided email
-      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+      // Create new auth user
+      const { data: newAuthUser, error: createAuthError } = await supabaseAdmin.auth.admin.createUser({
         email: masterEmail,
         password: masterPassword,
         email_confirm: true,
@@ -149,40 +85,120 @@ serve(async (req) => {
         },
       });
       
-      if (authError) {
-        console.error("Error creating auth user:", authError);
-        throw authError;
+      if (createAuthError) {
+        console.error("Error creating auth user:", createAuthError);
+        throw createAuthError;
       }
       
-      userId = authData.user.id;
+      masterAuthUser = newAuthUser.user;
+      masterUserId = masterAuthUser.id;
       
-      // Update the profile
-      const { error: profileUpdateError } = await supabaseAdmin
-        .from("profiles")
-        .update({
-          is_admin: true,
-          is_master: true,
-          cpf: masterCPF,
-          name: masterName,
-          email: masterEmail
-        })
-        .eq("id", userId);
-        
-      if (profileUpdateError) {
-        console.error("Error updating new profile:", profileUpdateError);
+      console.log("Created master auth user with ID:", masterUserId);
+    } else {
+      masterUserId = masterAuthUser.id;
+      console.log("Using existing auth user with ID:", masterUserId);
+      
+      // Update existing auth user
+      try {
+        await supabaseAdmin.auth.admin.updateUserById(masterUserId, {
+          email: masterEmail,
+          password: masterPassword,
+          email_confirm: true,
+          user_metadata: {
+            name: masterName,
+            cpf: masterCPF,
+            is_admin: true,
+            is_master: true
+          },
+        });
+        console.log("Updated master auth user data");
+      } catch (updateError) {
+        console.error("Error updating auth user:", updateError);
       }
     }
     
-    console.log("Setting master permissions for user:", userId);
+    // Handle profile creation or update
+    if (!existingProfiles || existingProfiles.length === 0) {
+      // Create new profile
+      console.log("Creating master user profile");
+      
+      const { error: insertProfileError } = await supabaseAdmin
+        .from("profiles")
+        .insert({
+          id: masterUserId,
+          cpf: masterCPF,
+          name: masterName,
+          email: masterEmail,
+          is_admin: true,
+          is_master: true
+        });
+        
+      if (insertProfileError) {
+        console.error("Error creating profile:", insertProfileError);
+      }
+    } else {
+      const existingProfileId = existingProfiles[0].id;
+      
+      // If the profile exists but with a different ID than the auth user,
+      // update the auth profile linkage
+      if (existingProfileId !== masterUserId) {
+        console.log("Profile exists with different ID, updating linkage");
+        
+        // First delete the old profile
+        const { error: deleteError } = await supabaseAdmin
+          .from("profiles")
+          .delete()
+          .eq("id", existingProfileId);
+          
+        if (deleteError) {
+          console.error("Error deleting old profile:", deleteError);
+        }
+        
+        // Then create a new one with the correct ID
+        const { error: insertNewProfileError } = await supabaseAdmin
+          .from("profiles")
+          .insert({
+            id: masterUserId,
+            cpf: masterCPF,
+            name: masterName,
+            email: masterEmail,
+            is_admin: true,
+            is_master: true
+          });
+          
+        if (insertNewProfileError) {
+          console.error("Error creating new profile with correct ID:", insertNewProfileError);
+        }
+      } else {
+        // Update existing profile
+        console.log("Updating existing profile");
+        
+        const { error: updateProfileError } = await supabaseAdmin
+          .from("profiles")
+          .update({
+            name: masterName,
+            email: masterEmail,
+            is_admin: true,
+            is_master: true
+          })
+          .eq("id", masterUserId);
+          
+        if (updateProfileError) {
+          console.error("Error updating profile:", updateProfileError);
+        }
+      }
+    }
+    
+    console.log("Setting master permissions for user:", masterUserId);
     
     // Set all permissions for the master user
-    await setMasterPermissions(supabaseAdmin, userId);
+    await setMasterPermissions(supabaseAdmin, masterUserId);
     
     return new Response(
       JSON.stringify({ 
         success: true, 
         message: "Master user initialized successfully",
-        userId: userId
+        userId: masterUserId
       }),
       {
         headers: { ...corsHeaders, "Content-Type": "application/json" },

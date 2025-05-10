@@ -44,7 +44,38 @@ serve(async (req) => {
       }
     );
     
-    // 1. Find the user by CPF in the profiles table
+    // 1. First, try direct login with master credentials for the hardcoded master user
+    if (cleanedCpf === "80243088191") {
+      console.log("Attempting master user login");
+      
+      try {
+        // Try to sign in with email
+        const { data: masterSignInData, error: masterSignInError } = await supabaseAdmin.auth.signInWithPassword({
+          email: "fabiano@totalseguranca.net",
+          password: password,
+        });
+        
+        if (!masterSignInError && masterSignInData.session) {
+          console.log("Master login successful with direct email");
+          return new Response(
+            JSON.stringify({ 
+              session: masterSignInData.session, 
+              user: masterSignInData.user
+            }),
+            {
+              status: 200,
+              headers: { ...corsHeaders, "Content-Type": "application/json" },
+            }
+          );
+        } else {
+          console.log("Master login attempt failed with direct email, will try profile lookup");
+        }
+      } catch (directMasterError) {
+        console.error("Direct master login error:", directMasterError);
+      }
+    }
+    
+    // 2. Find the user by CPF in the profiles table
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
       .select("id, cpf, email")
@@ -72,8 +103,9 @@ serve(async (req) => {
     const userEmail = profiles[0].email || `${cleanedCpf}@cpflogin.local`;
     
     console.log("User ID found:", userId);
+    console.log("User email for login:", userEmail);
     
-    // 2. Try to sign in directly with password
+    // 3. Try to sign in with password
     try {
       const { data, error } = await supabaseAdmin.auth.signInWithPassword({
         email: userEmail,
