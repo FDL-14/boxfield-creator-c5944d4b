@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -131,7 +130,7 @@ export default function BiometricsManager() {
                             <div 
                               key={idx} 
                               className="h-10 w-10 rounded border flex items-center justify-center bg-slate-50 cursor-pointer hover:bg-slate-100"
-                              onClick={() => showBase64Dialog(fp.fingerprint, `Digital de ${person.name}`)}
+                              onClick={() => showBase64Dialog(fp.template, `Digital de ${person.name}`)}
                             >
                               <Fingerprint className="h-6 w-6 text-slate-500" />
                             </div>

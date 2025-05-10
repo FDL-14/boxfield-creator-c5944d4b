@@ -187,6 +187,14 @@ const DrawSignature: React.FC<DrawSignatureProps> = ({
     onSave(signatureData);
   };
 
+  // Added function to open base64 dialog
+  const openBase64Dialog = () => {
+    if (!canvasRef.current) return;
+    const signatureData = canvasRef.current.toDataURL();
+    setCurrentSignature(signatureData);
+    setBase64DialogOpen(true);
+  };
+
   // Handle touch events
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -257,7 +265,7 @@ const DrawSignature: React.FC<DrawSignatureProps> = ({
         </Button>
         <Button 
           variant="outline"
-          onClick={showBase64Dialog}
+          onClick={openBase64Dialog}
         >
           <Copy className="h-4 w-4 mr-1" />
           Ver Base64

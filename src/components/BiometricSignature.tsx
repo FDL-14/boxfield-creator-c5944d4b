@@ -468,7 +468,6 @@ const BiometricSignature: React.FC<BiometricSignatureProps> = ({
       <FaceRegistrationDialog
         open={showFaceRegisterDialog}
         onOpenChange={setShowFaceRegisterDialog}
-        onClose={() => setShowFaceRegisterDialog(false)}
         onRegister={handleFaceRegistered}
       />
       

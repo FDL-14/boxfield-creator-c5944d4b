@@ -2,7 +2,6 @@
 import { supabase } from "@/integrations/supabase/client";
 import { saveFormData, getSavedForms } from "./formUtils";
 import { v4 as uuidv4 } from 'uuid';
-import { useToast } from "@/hooks/use-toast";
 
 /**
  * Salva um modelo de documento no banco de dados Supabase
@@ -134,7 +133,7 @@ export const loadDocumentsFromSupabase = async (
     
     let query = supabase
       .from('document_templates')
-      .select('*, section_locks:document_section_locks(*)')
+      .select('*, section_locks:document_section_locks(*), export_format')
       .eq('type', docType)
       .eq('is_deleted', false);
     

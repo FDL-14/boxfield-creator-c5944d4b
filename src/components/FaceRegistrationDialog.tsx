@@ -1,4 +1,3 @@
-
 import React, { useRef, useState, useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,11 +11,15 @@ import SignatureBase64Dialog from "./SignatureBase64Dialog";
 interface FaceRegistrationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onClose?: () => void; // Making this prop optional to fix the error
+  onRegister?: (success: boolean) => void; // Making this prop optional as well
 }
 
 export default function FaceRegistrationDialog({
   open,
-  onOpenChange
+  onOpenChange,
+  onClose,
+  onRegister
 }: FaceRegistrationDialogProps) {
   const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -146,8 +149,17 @@ export default function FaceRegistrationDialog({
           description: "Sua face foi registrada com sucesso e pode ser usada para assinar documentos."
         });
         
+        // Call onRegister callback if provided
+        if (onRegister) {
+          onRegister(true);
+        }
+        
         // Close dialog after successful registration
-        onOpenChange(false);
+        if (onClose) {
+          onClose();
+        } else {
+          onOpenChange(false);
+        }
       } else {
         throw new Error("Falha ao salvar o registro");
       }
@@ -158,6 +170,10 @@ export default function FaceRegistrationDialog({
         title: "Erro no registro",
         description: "Não foi possível registrar sua face. Por favor, tente novamente."
       });
+      // Call onRegister callback if provided with false
+      if (onRegister) {
+        onRegister(false);
+      }
     } finally {
       setRegistering(false);
     }

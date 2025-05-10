@@ -1,152 +1,87 @@
-
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
 
 /**
- * Interface for fingerprint registration
+ * Interface for fingerprint registration data
  */
 export interface FingerprintRegistration {
-  image: string;
   name: string;
   cpf: string;
   role: string;
-  index: number;
+  template: string; // Changed from 'fingerprint' to 'template' to fix the error
+  finger: string;
   timestamp: string;
   userId?: string;
 }
 
 /**
- * Register a fingerprint in the Supabase database
- * @param fingerprintData Fingerprint data to be registered
- * @returns Result of the operation
+ * Load registered fingerprints from storage
  */
-export const registerFingerprint = async (fingerprintData: FingerprintRegistration): Promise<{success: boolean, error?: any}> => {
+export const loadRegisteredFingerprints = async (): Promise<FingerprintRegistration[]> => {
   try {
-    console.log("Registering fingerprint for:", {
-      name: fingerprintData.name,
-      cpf: fingerprintData.cpf,
-      role: fingerprintData.role,
-      index: fingerprintData.index
-    });
-    
-    if (!fingerprintData.name || !fingerprintData.cpf || !fingerprintData.role) {
-      console.error("Missing required data for fingerprint registration");
-      return { success: false, error: "Dados obrigatórios não fornecidos" };
-    }
-    
-    if (!fingerprintData.image) {
-      console.error("No fingerprint image provided");
-      return { success: false, error: "Imagem da digital é obrigatória" };
-    }
-    
-    // Verify if we're logged in
+    // First try to load from Supabase if user is authenticated
     const { data: sessionData } = await supabase.auth.getSession();
     
-    if (sessionData && sessionData.session) {
-      console.log("User authenticated, saving to profile");
-      
-      // Check if profile exists already
-      const { data: existingProfile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('cpf', fingerprintData.cpf)
-        .single();
-      
-      if (profileError && profileError.code !== 'PGSQL_RELATION_DOES_NOT_EXIST') {
-        // If error is not about table not existing, handle it
-        if (profileError.code !== 'PGSQL_NO_ROWS_RETURNED') {
-          console.error("Error checking profile:", profileError);
-          return { success: false, error: profileError };
-        }
-      }
-      
-      // For local storage fallback
-      // Save locally in localStorage
-      const storedFingerprints = localStorage.getItem('registeredFingerprints');
-      let fingerprints: FingerprintRegistration[] = storedFingerprints ? JSON.parse(storedFingerprints) : [];
-      
-      // Add the new fingerprint
-      fingerprints.push(fingerprintData);
-      
-      // Save back to localStorage
-      localStorage.setItem('registeredFingerprints', JSON.stringify(fingerprints));
-      
-      console.log("Fingerprint saved locally as fallback");
-      return { success: true };
-    } else {
-      console.log("User not authenticated, saving locally");
-      
-      // Save locally in localStorage
-      const storedFingerprints = localStorage.getItem('registeredFingerprints');
-      let fingerprints: FingerprintRegistration[] = storedFingerprints ? JSON.parse(storedFingerprints) : [];
-      
-      // Add the new fingerprint
-      fingerprints.push(fingerprintData);
-      
-      // Save back to localStorage
-      localStorage.setItem('registeredFingerprints', JSON.stringify(fingerprints));
-      
-      console.log("Fingerprint saved locally");
-      return { success: true };
+    if (sessionData?.session?.user) {
+      // User is authenticated, try to get fingerprints from a Supabase table
+      // This is just a placeholder - implement according to your actual DB schema
+      console.log("User is authenticated, could load fingerprints from Supabase");
     }
-  } catch (error) {
-    console.error("Error registering fingerprint:", error);
-    return { success: false, error };
-  }
-};
-
-/**
- * Load registered fingerprints
- * @param cpf Optional CPF to filter fingerprints by person
- * @returns Array of fingerprint registrations
- */
-export const loadRegisteredFingerprints = async (cpf?: string): Promise<FingerprintRegistration[]> => {
-  try {
-    // Load from localStorage
-    const storedFingerprints = localStorage.getItem('registeredFingerprints');
-    const localFingerprints: FingerprintRegistration[] = storedFingerprints ? JSON.parse(storedFingerprints) : [];
     
-    // Filter by CPF if provided
-    const filteredLocalFingerprints = cpf 
-      ? localFingerprints.filter(fp => fp.cpf === cpf)
-      : localFingerprints;
+    // For now, we'll load from local storage as demo
+    const stored = localStorage.getItem('registeredFingerprints');
+    const prints = stored ? JSON.parse(stored) : [];
     
-    // Return local fingerprints for now until we have proper DB structure
-    return filteredLocalFingerprints;
+    return prints;
   } catch (error) {
     console.error("Error loading registered fingerprints:", error);
-    
-    // Return local fingerprints as fallback
-    const storedFingerprints = localStorage.getItem('registeredFingerprints');
-    const localFingerprints: FingerprintRegistration[] = storedFingerprints ? JSON.parse(storedFingerprints) : [];
-    
-    return cpf ? localFingerprints.filter(fp => fp.cpf === cpf) : localFingerprints;
+    return [];
   }
 };
 
 /**
- * Compare a captured fingerprint against registered fingerprints
- * @param capturedFingerprint The fingerprint to verify
- * @returns Matched fingerprint data or null if not found
+ * Save a fingerprint registration
  */
-export const verifyFingerprint = async (capturedFingerprint: string): Promise<FingerprintRegistration | null> => {
+export const saveFingerprintRegistration = async (fingerprintData: FingerprintRegistration): Promise<boolean> => {
   try {
-    // Load all registered fingerprints
-    const registeredFingerprints = await loadRegisteredFingerprints();
+    // Get current fingerprints from storage
+    const prints = await loadRegisteredFingerprints();
     
-    if (registeredFingerprints.length === 0) {
-      console.log("No registered fingerprints found for verification");
-      return null;
-    }
+    // Add timestamp if not provided
+    const newPrint = {
+      ...fingerprintData,
+      timestamp: fingerprintData.timestamp || new Date().toISOString()
+    };
+    
+    // Add to the list
+    const updatedPrints = [...prints, newPrint];
+    
+    // Save back to storage
+    localStorage.setItem('registeredFingerprints', JSON.stringify(updatedPrints));
+    
+    // TODO: Save to Supabase if user is authenticated
+    // This would be implemented according to your DB schema
+    
+    return true;
+  } catch (error) {
+    console.error("Error saving fingerprint registration:", error);
+    return false;
+  }
+};
+
+/**
+ * Verify a fingerprint template against registered prints
+ * @param fingerprintTemplate - The captured fingerprint template to verify
+ * @returns Matched fingerprint registration or null if not found
+ */
+export const verifyFingerprint = async (fingerprintTemplate: string): Promise<FingerprintRegistration | null> => {
+  try {
+    // Load registered fingerprints
+    const prints = await loadRegisteredFingerprints();
     
     // In a real implementation, this would use a fingerprint matching algorithm
-    // For this demo, we'll simulate a match with the first fingerprint
-    console.log(`Simulating verification against ${registeredFingerprints.length} fingerprints`);
-    
-    // Return the first fingerprint as a simulated match
-    if (registeredFingerprints.length > 0) {
-      console.log("Simulated match found:", registeredFingerprints[0].name);
-      return registeredFingerprints[0];
+    // For this demo we'll simulate a match with the first fingerprint
+    if (prints.length > 0) {
+      return prints[0];
     }
     
     return null;
@@ -154,13 +89,4 @@ export const verifyFingerprint = async (capturedFingerprint: string): Promise<Fi
     console.error("Error verifying fingerprint:", error);
     return null;
   }
-};
-
-/**
- * Get Base64 code from fingerprint image
- * @param fingerprintImage Fingerprint image in base64 format
- * @returns Base64 string
- */
-export const getFingerprintBase64 = (fingerprintImage: string): string => {
-  return fingerprintImage;
 };
