@@ -29,21 +29,17 @@ export const processUserProfile = (profile: any) => {
   const isMasterCPF = profile.cpf === '802.430.881-91' || profile.cpf === '80243088191';
   
   // Make sure we have is_admin and is_master properties
-  // Check in both profile direct properties and metadata
+  // Check both direct properties (from database columns) and metadata
   const is_admin = isMasterCPF ? true : 
-    (profile.is_admin !== undefined 
-      ? profile.is_admin 
-      : metadata.is_admin || false);
+    (profile.is_admin === true || metadata.is_admin === true);
 
   const is_master = isMasterCPF ? true : 
-    (profile.is_master !== undefined 
-      ? profile.is_master 
-      : metadata.is_master || false);
+    (profile.is_master === true || metadata.is_master === true);
   
   // Process permissions to ensure they have all the required properties
   let processedPermissions = profile.permissions?.map((permission: any) => {
     // If this is the master user, give all permissions
-    if (isMasterCPF) {
+    if (isMasterCPF || is_master) {
       return {
         ...permission,
         can_create_user: true,
@@ -102,7 +98,7 @@ export const processUserProfile = (profile: any) => {
   }) || [];
   
   // If this is the master user but no permissions exist yet, create default permissions with all privileges
-  if (isMasterCPF && (!processedPermissions || processedPermissions.length === 0)) {
+  if ((isMasterCPF || is_master) && (!processedPermissions || processedPermissions.length === 0)) {
     processedPermissions = [{
       id: 'default-master-permissions',
       user_id: profile.id,

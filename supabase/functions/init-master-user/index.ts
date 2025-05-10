@@ -269,7 +269,8 @@ async function setMasterPermissions(supabaseAdmin: any, userId: string) {
           can_edit_client: true,
           can_edit_company: true,
           can_delete_client: true,
-          can_delete_company: true
+          can_delete_company: true,
+          can_edit_document_type: true
         })
         .eq("id", existingPermissions[0].id);
     } else {
@@ -312,7 +313,8 @@ async function setMasterPermissions(supabaseAdmin: any, userId: string) {
           can_edit_client: true,
           can_edit_company: true,
           can_delete_client: true,
-          can_delete_company: true
+          can_delete_company: true,
+          can_edit_document_type: true
         }]);
     }
     
