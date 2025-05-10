@@ -1,7 +1,7 @@
-
 import React, { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Eraser, Save, Undo, Redo } from "lucide-react";
+import { Eraser, Save, Undo, Redo, Copy } from "lucide-react";
+import SignatureBase64Dialog from "@/components/SignatureBase64Dialog";
 
 interface DrawSignatureProps {
   onSave: (signatureData: string) => void;
@@ -23,6 +23,8 @@ const DrawSignature: React.FC<DrawSignatureProps> = ({
   const [context, setContext] = useState<CanvasRenderingContext2D | null>(null);
   const [history, setHistory] = useState<string[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const [currentSignature, setCurrentSignature] = useState<string>("");
+  const [base64DialogOpen, setBase64DialogOpen] = useState(false);
   
   // Initialize canvas
   useEffect(() => {
@@ -65,6 +67,7 @@ const DrawSignature: React.FC<DrawSignatureProps> = ({
         const newState = canvas.toDataURL();
         setHistory(prev => [...prev, newState]);
         setHistoryIndex(1);
+        setCurrentSignature(newState);
       };
       img.src = initialSignature;
     }
@@ -146,6 +149,7 @@ const DrawSignature: React.FC<DrawSignatureProps> = ({
     const newState = canvasRef.current.toDataURL();
     setHistory([...history, newState]);
     setHistoryIndex(history.length);
+    setCurrentSignature(newState);
   };
   
   const handleUndo = () => {
@@ -179,6 +183,7 @@ const DrawSignature: React.FC<DrawSignatureProps> = ({
   const handleSave = () => {
     if (!canvasRef.current) return;
     const signatureData = canvasRef.current.toDataURL();
+    setCurrentSignature(signatureData);
     onSave(signatureData);
   };
 
@@ -251,12 +256,27 @@ const DrawSignature: React.FC<DrawSignatureProps> = ({
           Cancelar
         </Button>
         <Button 
+          variant="outline"
+          onClick={showBase64Dialog}
+        >
+          <Copy className="h-4 w-4 mr-1" />
+          Ver Base64
+        </Button>
+        <Button 
           onClick={handleSave}
         >
           <Save className="h-4 w-4 mr-1" />
           Salvar Assinatura
         </Button>
       </div>
+
+      {/* Diálogo para mostrar código Base64 */}
+      <SignatureBase64Dialog
+        open={base64DialogOpen}
+        onClose={() => setBase64DialogOpen(false)}
+        base64Data={currentSignature}
+        signatureName="Assinatura Manual"
+      />
     </div>
   );
 };

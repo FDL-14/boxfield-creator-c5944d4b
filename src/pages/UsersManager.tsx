@@ -1,14 +1,13 @@
-
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
-import { supabase, processUserProfile, cleanCPF } from "@/integrations/supabase/client";
+import { supabase, processUserProfile, cleanCPF, isMasterUser } from "@/integrations/supabase/client";
 import { User, PlusCircle, Pencil, Trash2, Shield, Mail, Key, Loader2, Check, X, RotateCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -151,13 +150,14 @@ export default function UsersManager() {
         return;
       }
       
-      setCurrentUserId(data.session.user.id);
+      const userId = data.session.user.id;
+      setCurrentUserId(userId);
       
       // Fetch the user profile
       const { data: userProfile, error } = await supabase
         .from('profiles')
         .select('*, permissions:user_permissions(*)')
-        .eq('id', data.session.user.id)
+        .eq('id', userId)
         .single();
         
       if (error) {
@@ -168,8 +168,12 @@ export default function UsersManager() {
       const processedProfile = processUserProfile(userProfile);
       setCurrentUserProfile(processedProfile);
       
+      // Verifica se é o usuário master por CPF
+      const isSpecialMaster = isMasterUser(processedProfile);
+      
       // Check if user has permission to access this page
-      if (!processedProfile?.is_admin && 
+      if (!isSpecialMaster && 
+          !processedProfile?.is_admin && 
           !processedProfile?.is_master && 
           (!processedProfile?.permissions || !processedProfile?.permissions[0]?.can_create_user)) {
         toast({
@@ -626,13 +630,11 @@ export default function UsersManager() {
   };
   
   // Check if current user has permission to view this page
-  const hasUserManagementPermission = () => {
+  const hasUserManagementPermission = useCallback(() => {
     if (!currentUserProfile) return false;
     
-    // Special case for master user with CPF 80243088191
-    if (currentUserProfile.cpf === '80243088191' || 
-        currentUserProfile.cpf === '802.430.881-91' ||
-        cleanCPF(currentUserProfile.cpf || '') === '80243088191') {
+    // Check if user is master by CPF
+    if (isMasterUser(currentUserProfile)) {
       return true;
     }
     
@@ -643,16 +645,14 @@ export default function UsersManager() {
        currentUserProfile.permissions[0] && 
        currentUserProfile.permissions[0].can_create_user)
     );
-  };
+  }, [currentUserProfile]);
   
   // Check if the current user can manage a specific user
-  const canManageUser = (user: UserProfile) => {
+  const canManageUser = useCallback((user: UserProfile) => {
     if (!currentUserProfile) return false;
     
-    // Special case for master user with CPF 80243088191
-    if (currentUserProfile.cpf === '80243088191' || 
-        currentUserProfile.cpf === '802.430.881-91' ||
-        cleanCPF(currentUserProfile.cpf || '') === '80243088191') {
+    // Check if user is master by CPF
+    if (isMasterUser(currentUserProfile)) {
       return true;
     }
     
@@ -668,7 +668,7 @@ export default function UsersManager() {
     }
     
     return false;
-  };
+  }, [currentUserProfile]);
   
   return (
     <div className="container mx-auto py-8">
@@ -1133,4 +1133,3 @@ export default function UsersManager() {
     </div>
   );
 }
-

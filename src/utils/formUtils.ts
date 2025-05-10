@@ -229,17 +229,46 @@ const trySaveFormToSupabase = async (formType: string, formData: any) => {
       const { error } = await supabase
         .from('document_templates')
         .upsert({
+          id: formData.id,
           type: formType,
           title: formData.title || formData.name,
           data: formData,
           is_template: false,
-          updated_at: new Date().toISOString()
+          updated_at: new Date().toISOString(),
+          export_format: formData.export_format || 'PDF',
+          description: formData.description || ""
         }, { onConflict: 'id' });
       
       if (error) {
         console.error("Erro ao salvar formulário no Supabase:", error);
       } else {
         console.log("Formulário salvo com sucesso no Supabase");
+        
+        // Se houver bloqueios de seção, salvar na tabela separada
+        if (formData.section_locks && formData.section_locks.length > 0) {
+          try {
+            // Remover bloqueios existentes para este documento
+            await supabase
+              .from('document_section_locks')
+              .delete()
+              .eq('document_id', formData.id);
+            
+            // Inserir os novos bloqueios
+            const { error: lockError } = await supabase
+              .from('document_section_locks')
+              .insert(formData.section_locks.map((lock: any) => ({
+                document_id: formData.id,
+                section_id: lock.section_id,
+                lock_when_signed: lock.lock_when_signed !== false
+              })));
+            
+            if (lockError) {
+              console.error("Erro ao salvar bloqueios de seção:", lockError);
+            }
+          } catch (lockErr) {
+            console.error("Erro ao processar bloqueios de seção:", lockErr);
+          }
+        }
       }
     }
   } catch (error) {
@@ -300,7 +329,9 @@ export const saveDocumentTypeConfig = (data: any) => {
       section_locks: data.section_locks || data.boxes?.map((box: any) => ({
         section_id: box.id,
         lock_when_signed: box.lockWhenSigned !== false
-      })) || []
+      })) || [],
+      // Adicionar formato de exportação preferido
+      export_format: data.export_format || 'PDF' // Default para PDF
     };
     
     console.log("Configuração a ser salva:", config);
@@ -331,12 +362,16 @@ export const saveDocumentTypeConfig = (data: any) => {
         type: "form-builder",
         formType: "form-builder",
         date: new Date().toISOString(),
-        section_locks: config.section_locks || []
+        section_locks: config.section_locks || [],
+        export_format: config.export_format || 'PDF'
       };
       
       // Salvar como tipo de formulário
       const saved = saveFormData("form-builder", formData.title, formData);
       console.log("Configuração salva como formulário:", saved);
+      
+      // Tentar salvar no supabase
+      trySaveTypeConfigToSupabase(formData);
       
       return true;
     } catch (error) {
@@ -359,6 +394,44 @@ export const saveDocumentTypeConfig = (data: any) => {
   } catch (error) {
     console.error("Erro ao salvar configuração de tipo de documento:", error);
     return false;
+  }
+};
+
+/**
+ * Tenta salvar a configuração de tipo de documento no Supabase
+ */
+const trySaveTypeConfigToSupabase = async (data: any) => {
+  try {
+    // Import supabase client
+    const { supabase } = await import("@/integrations/supabase/client");
+    
+    // Check if supabase is initialized and user is authenticated
+    const session = await supabase.auth.getSession();
+    if (session && session.data.session) {
+      const { error } = await supabase
+        .from('document_templates')
+        .upsert({
+          type: data.formType || 'form-builder',
+          title: data.title || data.name,
+          description: data.description || "",
+          data: {
+            ...data,
+            export_format: data.export_format || 'PDF'
+          },
+          is_template: true,
+          updated_at: new Date().toISOString(),
+          export_format: data.export_format || 'PDF'
+        }, { onConflict: 'id' });
+      
+      if (error) {
+        console.error("Erro ao salvar configuração no Supabase:", error);
+      } else {
+        console.log("Configuração salva com sucesso no Supabase");
+      }
+    }
+  } catch (error) {
+    console.error("Erro ao tentar salvar no Supabase:", error);
+    // Continue anyway since we saved to localStorage
   }
 };
 
@@ -452,21 +525,33 @@ export const isSectionLocked = (formValues: any, fieldsInSection: any[]) => {
  * @returns Array of locked section IDs
  */
 export const getLockedSections = (formValues: any, boxes: any[], fields: any[]) => {
-  // Primeiro verificamos se há configurações específicas de bloqueio
-  const sectionLocks = boxes
-    .filter(box => {
-      // Obter todos os campos de assinatura em qualquer seção do documento
-      const allSignatureFields = fields.filter(field => field.type === 'signature');
-      
-      // Verificar se algum deles está assinado
-      const anySignatureSigned = allSignatureFields.some(field => formValues[field.id]);
-      
-      // Se alguma assinatura foi feita e esta seção está configurada para bloquear
-      return anySignatureSigned && box.lockWhenSigned !== false;
-    })
-    .map(box => box.id);
+  // Primeiro verificar se há alguma assinatura no documento
+  const signatureFields = fields.filter(field => field.type === 'signature');
+  const hasAnySignature = signatureFields.some(field => formValues[field.id]);
   
-  return sectionLocks;
+  // Se houver qualquer assinatura no documento
+  if (hasAnySignature) {
+    // Verificar se há configurações específicas de bloqueio de seção
+    const sectionIdsWithSignatures = signatureFields
+      .filter(field => formValues[field.id]) // Apenas campos de assinatura que estão assinados
+      .map(field => field.box_id); // IDs das seções que contêm assinaturas
+    
+    // Se qualquer seção tem uma assinatura, bloqueamos TODAS as seções
+    // exceto as que são específicamente configuradas para não bloquear
+    return boxes
+      .filter(box => {
+        // Se lockWhenSigned é explicitamente false, não bloqueia
+        if (box.lockWhenSigned === false) {
+          return false;
+        }
+        
+        return true; // Bloqueia todas as outras seções
+      })
+      .map(box => box.id);
+  }
+  
+  // Se não houver nenhuma assinatura no documento, não bloqueia nenhuma seção
+  return [];
 };
 
 /**

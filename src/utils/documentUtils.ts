@@ -10,16 +10,18 @@ import { useToast } from "@/hooks/use-toast";
  * @param title Título/nome do documento
  * @param data Dados do documento
  * @param isTemplate Se é um modelo ou não
+ * @param exportFormat Formato preferido para exportação (PDF, Word, Excel)
  * @returns Promise com resultado da operação
  */
 export const saveDocumentToSupabase = async (
   docType: string,
   title: string,
   data: any,
-  isTemplate: boolean = false
+  isTemplate: boolean = false,
+  exportFormat: string = 'PDF'
 ): Promise<{success: boolean, id?: string, error?: any}> => {
   try {
-    console.log("Salvando documento no Supabase:", { docType, title, isTemplate });
+    console.log("Salvando documento no Supabase:", { docType, title, isTemplate, exportFormat });
     
     // Verificar se já temos uma sessão do usuário
     const { data: sessionData } = await supabase.auth.getSession();
@@ -27,7 +29,7 @@ export const saveDocumentToSupabase = async (
     if (!sessionData.session) {
       console.log("Usuário não autenticado, salvando localmente");
       // Se não estiver autenticado, salvar localmente
-      saveFormData(docType, title, data);
+      saveFormData(docType, title, {...data, export_format: exportFormat});
       return { success: true };
     }
     
@@ -38,7 +40,8 @@ export const saveDocumentToSupabase = async (
     // Adicionar ID à cópia dos dados
     const docDataWithId = {
       ...data,
-      id: documentId
+      id: documentId,
+      export_format: exportFormat
     };
     
     // Upsert na tabela document_templates
@@ -51,6 +54,7 @@ export const saveDocumentToSupabase = async (
         description: data.description || "",
         data: docDataWithId,
         is_template: isTemplate,
+        export_format: exportFormat,
         created_by: userId,
         updated_at: new Date().toISOString()
       }, 
@@ -67,6 +71,32 @@ export const saveDocumentToSupabase = async (
         success: localSave, 
         error: error 
       };
+    }
+    
+    // Salvar bloqueios de seção
+    if (data.section_locks && data.section_locks.length > 0) {
+      try {
+        // Remover bloqueios existentes
+        await supabase
+          .from('document_section_locks')
+          .delete()
+          .eq('document_id', documentId);
+        
+        // Inserir novos bloqueios
+        const { error: lockError } = await supabase
+          .from('document_section_locks')
+          .insert(data.section_locks.map((lock: any) => ({
+            document_id: documentId,
+            section_id: lock.section_id,
+            lock_when_signed: lock.lock_when_signed !== false
+          })));
+        
+        if (lockError) {
+          console.error("Erro ao salvar bloqueios de seção:", lockError);
+        }
+      } catch (lockErr) {
+        console.error("Erro ao processar bloqueios de seção:", lockErr);
+      }
     }
     
     // Se salvou com sucesso, também atualizar no localStorage
@@ -104,7 +134,7 @@ export const loadDocumentsFromSupabase = async (
     
     let query = supabase
       .from('document_templates')
-      .select('*')
+      .select('*, section_locks:document_section_locks(*)')
       .eq('type', docType)
       .eq('is_deleted', false);
     
@@ -144,6 +174,8 @@ export const loadDocumentsFromSupabase = async (
         updated_at: doc.updated_at,
         formType: doc.type,
         isTemplate: doc.is_template,
+        export_format: doc.export_format || 'PDF',
+        section_locks: doc.section_locks || [],
         supabaseId: doc.id // Marcar que veio do Supabase
       };
     });
@@ -172,19 +204,22 @@ export const loadDocumentsFromSupabase = async (
  * @param docType Tipo do documento
  * @param title Nome do modelo
  * @param data Dados do documento
+ * @param exportFormat Formato preferido para exportação
  * @returns Resultado da operação
  */
 export const saveAsTemplate = async (
   docType: string,
   title: string,
-  data: any
+  data: any,
+  exportFormat: string = 'PDF'
 ): Promise<{success: boolean, id?: string, error?: any}> => {
   // Adicionar propriedade isTemplate
   const templateData = {
     ...data,
-    isTemplate: true
+    isTemplate: true,
+    export_format: exportFormat
   };
   
   // Salvar como modelo
-  return saveDocumentToSupabase(docType, title, templateData, true);
+  return saveDocumentToSupabase(docType, title, templateData, true, exportFormat);
 };

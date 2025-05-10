@@ -1,266 +1,191 @@
 
-import { useState, useEffect, useRef } from "react";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import React, { useRef, useState, useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { toast } from "@/hooks/use-toast";
-import { Camera, User, Loader2, Check } from "lucide-react";
+import { Camera, User, Check, Loader2, X, CameraOff } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { saveFaceRegistration, FaceRegistration } from "@/utils/faceRecognition";
+import SignatureBase64Dialog from "./SignatureBase64Dialog";
 
-export interface FaceRegistrationDialogProps {
+interface FaceRegistrationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onClose?: () => void;
-  onRegister?: (success: boolean) => void;
 }
 
-export default function FaceRegistrationDialog({ open, onOpenChange, onClose, onRegister }: FaceRegistrationDialogProps) {
-  const [name, setName] = useState("");
-  const [cpf, setCpf] = useState("");
-  const [role, setRole] = useState("");
-  const [isCapturing, setIsCapturing] = useState(false);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [cameraActive, setCameraActive] = useState(false);
+export default function FaceRegistrationDialog({
+  open,
+  onOpenChange
+}: FaceRegistrationDialogProps) {
+  const { toast } = useToast();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [stream, setStream] = useState<MediaStream | null>(null);
+  const [cameraActive, setCameraActive] = useState(false);
+  const [capturing, setCapturing] = useState(false);
+  const [capturedImage, setCapturedImage] = useState<string | null>(null);
+  const [name, setName] = useState("");
+  const [role, setRole] = useState("");
+  const [showBase64Dialog, setShowBase64Dialog] = useState(false);
+  const [registering, setRegistering] = useState(false);
+  const [cameraError, setCameraError] = useState<string | null>(null);
   
+  // Verifica se os campos obrigatórios estão preenchidos
+  const areRequiredFieldsFilled = name.trim() !== "" && role.trim() !== "";
+
+  // Cleanup function for camera
+  const stopCamera = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop());
+      setStream(null);
+    }
+    setCameraActive(false);
+  };
+
+  useEffect(() => {
+    // Clean up on unmount or dialog close
+    return () => {
+      stopCamera();
+    };
+  }, []);
+
   // Reset state when dialog opens/closes
   useEffect(() => {
     if (!open) {
-      setName("");
-      setCpf("");
-      setRole("");
+      stopCamera();
       setCapturedImage(null);
-      setIsCapturing(false);
-      setCameraActive(false);
-      
-      // Stop camera if it's active when dialog closes
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-        setStream(null);
-      }
+      setName("");
+      setRole("");
+      setCameraError(null);
     }
-  }, [open, stream]);
-  
-  // Clean up camera stream when component unmounts
-  useEffect(() => {
-    return () => {
-      if (stream) {
-        stream.getTracks().forEach(track => track.stop());
-      }
-    };
-  }, [stream]);
-  
-  // Format CPF with mask (XXX.XXX.XXX-XX)
-  const formatCPF = (value: string) => {
-    const numbers = value.replace(/\D/g, "").substring(0, 11);
-    
-    if (numbers.length <= 3) {
-      return numbers;
-    }
-    if (numbers.length <= 6) {
-      return `${numbers.slice(0, 3)}.${numbers.slice(3)}`;
-    }
-    if (numbers.length <= 9) {
-      return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6)}`;
-    }
-    return `${numbers.slice(0, 3)}.${numbers.slice(3, 6)}.${numbers.slice(6, 9)}-${numbers.slice(9, 11)}`;
-  };
+  }, [open]);
 
-  // Handle CPF input with formatting
-  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setCpf(formatCPF(e.target.value));
-  };
-  
-  // Start camera capture
   const startCamera = async () => {
-    if (!name || !cpf || !role) {
-      toast({
-        title: "Campos obrigatórios",
-        description: "Preencha nome, CPF e cargo para prosseguir",
-        variant: "destructive"
-      });
-      return;
-    }
-    
     try {
-      setIsCapturing(true);
-      
-      const mediaStream = await navigator.mediaDevices.getUserMedia({
-        video: { 
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: "user"
-        },
-        audio: false
+      setCameraError(null);
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ 
+        video: { facingMode: "user" },
+        audio: false 
       });
       
       if (videoRef.current) {
         videoRef.current.srcObject = mediaStream;
-        setStream(mediaStream);
-        setCameraActive(true);
       }
       
-      setIsCapturing(false);
-      
-    } catch (error) {
-      console.error("Error accessing camera:", error);
-      setIsCapturing(false);
-      
+      setStream(mediaStream);
+      setCameraActive(true);
+    } catch (err: any) {
+      console.error("Error accessing camera:", err);
+      setCameraError(`Erro ao acessar câmera: ${err.message || 'Permissão negada'}`);
       toast({
-        title: "Erro ao acessar câmera",
-        description: "Verifique se a câmera está disponível e se as permissões foram concedidas.",
-        variant: "destructive"
+        variant: "destructive",
+        title: "Erro na câmera",
+        description: "Não foi possível acessar a câmera. Verifique as permissões."
       });
     }
   };
-  
-  // Capture face from video
-  const captureFace = () => {
-    if (!videoRef.current || !canvasRef.current || !cameraActive) {
+
+  const captureImage = () => {
+    if (!videoRef.current || !canvasRef.current || !cameraActive) return;
+    
+    setCapturing(true);
+    
+    // Set canvas dimensions to match video
+    const video = videoRef.current;
+    const canvas = canvasRef.current;
+    
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    
+    // Draw video frame to canvas
+    const context = canvas.getContext('2d');
+    if (context) {
+      context.drawImage(video, 0, 0, canvas.width, canvas.height);
+      
+      // Get image as base64
+      const imageData = canvas.toDataURL('image/png');
+      setCapturedImage(imageData);
+    }
+    
+    setCapturing(false);
+  };
+
+  const retakePhoto = () => {
+    setCapturedImage(null);
+  };
+
+  const registerFace = async () => {
+    if (!capturedImage || !name.trim() || !role.trim()) {
       toast({
-        title: "Câmera não ativa",
-        description: "Ative a câmera para capturar a face",
-        variant: "destructive"
+        variant: "destructive",
+        title: "Dados incompletos",
+        description: "Por favor preencha todos os campos e capture uma imagem."
       });
       return;
     }
     
-    setIsCapturing(true);
+    setRegistering(true);
     
     try {
-      const video = videoRef.current;
-      const canvas = canvasRef.current;
-      
-      // Set canvas dimensions to match video
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
-      
-      // Draw video frame to canvas
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        
-        // Get image data as base64
-        const imageData = canvas.toDataURL('image/png');
-        setCapturedImage(imageData);
-        
-        // Stop camera stream
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-          setStream(null);
-        }
-        setCameraActive(false);
-        
-        toast({
-          title: "Imagem capturada",
-          description: "Rosto capturado com sucesso",
-          variant: "default"
-        });
-      }
-    } catch (error) {
-      console.error("Error during face capture:", error);
-      toast({
-        title: "Erro na captura",
-        description: "Não foi possível capturar a imagem do rosto. Tente novamente.",
-        variant: "destructive"
-      });
-    } finally {
-      setIsCapturing(false);
-    }
-  };
-  
-  // Save face registration
-  const handleSave = async () => {
-    if (!name || !cpf || !role || !capturedImage) {
-      toast({
-        title: "Informações incompletas",
-        description: "Preencha todos os campos e capture sua face",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setIsSaving(true);
-    
-    try {
-      // Simulating saving to database
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      
-      // Store in local storage for now
-      const registration = {
-        name,
-        cpf,
-        role,
+      // Create face registration object
+      const registration: FaceRegistration = {
+        name: name.trim(),
+        role: role.trim(),
+        cpf: "", // Pode ser preenchido se necessário
         image: capturedImage,
         timestamp: new Date().toISOString()
       };
       
-      const stored = localStorage.getItem('registeredFaces');
-      const faces = stored ? JSON.parse(stored) : [];
-      faces.push(registration);
-      localStorage.setItem('registeredFaces', JSON.stringify(faces));
+      // Save registration
+      const success = await saveFaceRegistration(registration);
       
-      toast({
-        title: "Registro concluído",
-        description: "Face registrada com sucesso",
-        variant: "default"
-      });
-      
-      onOpenChange(false);
-      if (onClose) onClose();
-      if (onRegister) onRegister(true);
+      if (success) {
+        toast({
+          title: "Face registrada",
+          description: "Sua face foi registrada com sucesso e pode ser usada para assinar documentos."
+        });
+        
+        // Close dialog after successful registration
+        onOpenChange(false);
+      } else {
+        throw new Error("Falha ao salvar o registro");
+      }
     } catch (error) {
-      console.error("Error saving face registration:", error);
+      console.error("Error registering face:", error);
       toast({
-        title: "Erro ao salvar",
-        description: "Não foi possível salvar o registro. Tente novamente.",
-        variant: "destructive"
+        variant: "destructive",
+        title: "Erro no registro",
+        description: "Não foi possível registrar sua face. Por favor, tente novamente."
       });
-      if (onRegister) onRegister(false);
     } finally {
-      setIsSaving(false);
+      setRegistering(false);
     }
   };
   
-  // Check if all required fields are filled to enable the "Register" button
-  const areRequiredFieldsFilled = name.trim() !== "" && cpf.trim() !== "" && role.trim() !== "";
-  
+  const handleShowBase64 = () => {
+    if (capturedImage) {
+      setShowBase64Dialog(true);
+    }
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[500px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="h-5 w-5" />
-            Registro Facial
-          </DialogTitle>
-          <DialogDescription>
-            Registre seu rosto para uso em assinaturas digitais.
-          </DialogDescription>
+          <DialogTitle>Registro Facial</DialogTitle>
         </DialogHeader>
         
         <div className="grid gap-4 py-4">
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="name">Nome Completo</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                placeholder="Nome completo"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="cpf">CPF</Label>
-              <Input
-                id="cpf"
-                value={cpf}
-                onChange={handleCPFChange}
-                placeholder="000.000.000-00"
-              />
-            </div>
+          <div className="space-y-2">
+            <Label htmlFor="name">Nome Completo</Label>
+            <Input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Digite seu nome completo"
+              required
+            />
           </div>
           
           <div className="space-y-2">
@@ -268,132 +193,134 @@ export default function FaceRegistrationDialog({ open, onOpenChange, onClose, on
             <Input
               id="role"
               value={role}
-              onChange={e => setRole(e.target.value)}
-              placeholder="Cargo ou função"
+              onChange={(e) => setRole(e.target.value)}
+              placeholder="Digite seu cargo ou função"
+              required
             />
           </div>
           
-          <div className="space-y-4">
-            <Label>Captura de Face</Label>
-            
-            <div className="flex flex-col items-center justify-center">
-              {capturedImage ? (
-                <div className="w-48 h-48 border rounded-md overflow-hidden">
-                  <img 
-                    src={capturedImage} 
-                    alt="Face capturada" 
-                    className="w-full h-full object-cover" 
-                  />
-                </div>
-              ) : cameraActive ? (
-                <div className="w-64 h-64 border rounded-md overflow-hidden relative">
-                  <video 
-                    ref={videoRef}
-                    autoPlay 
-                    playsInline
-                    muted
-                    className="w-full h-full object-cover"
-                  />
-                  {/* Circular overlay for face positioning */}
-                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
-                    <div className="w-40 h-40 rounded-full border-2 border-blue-400 border-dashed opacity-70"></div>
+          <div className="flex flex-col items-center justify-center border rounded-md p-2 bg-muted/20">
+            {!cameraActive && !capturedImage ? (
+              <div className="flex flex-col items-center justify-center p-4">
+                {cameraError ? (
+                  <div className="text-center space-y-2">
+                    <CameraOff className="h-12 w-12 text-destructive mx-auto" />
+                    <p className="text-destructive">{cameraError}</p>
                   </div>
-                </div>
-              ) : (
-                <div className="w-48 h-48 border rounded-md flex items-center justify-center bg-slate-50">
-                  <User className="h-16 w-16 text-slate-300" />
-                </div>
-              )}
-              
-              <div className="mt-4 flex gap-2">
-                {!cameraActive && !capturedImage && (
-                  <Button 
-                    variant="secondary"
-                    disabled={isCapturing || !areRequiredFieldsFilled}
-                    onClick={startCamera}
-                  >
-                    {isCapturing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Iniciando câmera...
-                      </>
-                    ) : (
-                      <>
-                        <Camera className="mr-2 h-4 w-4" />
-                        Ativar Câmera
-                      </>
-                    )}
-                  </Button>
-                )}
-                
-                {cameraActive && (
-                  <Button 
-                    variant="secondary" 
-                    onClick={captureFace}
-                    disabled={isCapturing}
-                  >
-                    {isCapturing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Capturando...
-                      </>
-                    ) : (
-                      <>
-                        <Camera className="mr-2 h-4 w-4" />
-                        Capturar Face
-                      </>
-                    )}
-                  </Button>
-                )}
-                
-                {capturedImage && (
-                  <Button 
-                    variant="outline" 
-                    onClick={() => {
-                      setCapturedImage(null);
-                      startCamera();
-                    }}
-                  >
-                    <Camera className="mr-2 h-4 w-4" />
-                    Nova Captura
-                  </Button>
+                ) : (
+                  <div className="text-center space-y-2">
+                    <User className="h-12 w-12 text-muted-foreground mx-auto" />
+                    <p className="text-sm text-muted-foreground">
+                      Preencha os campos acima e ative a câmera para capturar sua foto
+                    </p>
+                  </div>
                 )}
               </div>
-            </div>
+            ) : capturedImage ? (
+              <div className="w-full">
+                <img 
+                  src={capturedImage} 
+                  alt="Captura facial" 
+                  className="w-full max-h-48 object-contain" 
+                />
+              </div>
+            ) : (
+              <div className="w-full">
+                <video
+                  ref={videoRef}
+                  autoPlay
+                  playsInline
+                  className="w-full max-h-48 object-contain"
+                />
+              </div>
+            )}
+            
+            {/* Hidden canvas for capturing */}
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
           </div>
         </div>
         
-        <DialogFooter>
-          <Button variant="outline" onClick={() => {
-            if (stream) {
-              stream.getTracks().forEach(track => track.stop());
-            }
-            onOpenChange(false);
-            if (onClose) onClose();
-          }}>
-            Cancelar
-          </Button>
-          <Button 
-            onClick={handleSave}
-            disabled={isSaving || !capturedImage || !areRequiredFieldsFilled}
-          >
-            {isSaving ? (
+        <DialogFooter className="flex flex-col sm:flex-row gap-2 sm:justify-between">
+          <div className="flex flex-1 gap-2">
+            {!cameraActive && !capturedImage && (
+              <Button 
+                type="button" 
+                variant="outline"
+                onClick={startCamera}
+                disabled={!areRequiredFieldsFilled}
+                className="flex-1"
+              >
+                <Camera className="mr-2 h-4 w-4" />
+                Ativar Câmera
+              </Button>
+            )}
+            
+            {cameraActive && !capturedImage && (
+              <Button 
+                type="button" 
+                variant="outline"
+                onClick={captureImage}
+                disabled={capturing}
+                className="flex-1"
+              >
+                {capturing ? (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                ) : (
+                  <Camera className="mr-2 h-4 w-4" />
+                )}
+                Capturar Foto
+              </Button>
+            )}
+            
+            {capturedImage && (
               <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Salvando...
-              </>
-            ) : (
-              <>
-                <Check className="mr-2 h-4 w-4" />
-                Salvar Registro
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={retakePhoto}
+                  className="flex-1"
+                >
+                  <X className="mr-2 h-4 w-4" />
+                  Nova Foto
+                </Button>
+                
+                <Button 
+                  type="button" 
+                  variant="outline"
+                  onClick={handleShowBase64}
+                  className="flex-1"
+                >
+                  Mostrar Base64
+                </Button>
               </>
             )}
-          </Button>
+          </div>
+          
+          {capturedImage && (
+            <Button 
+              type="button"
+              onClick={registerFace}
+              disabled={registering || !name.trim() || !role.trim()}
+              className="flex-1"
+            >
+              {registering ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Check className="mr-2 h-4 w-4" />
+              )}
+              Registrar Face
+            </Button>
+          )}
         </DialogFooter>
+        
+        {/* Base64 Dialog */}
+        <SignatureBase64Dialog
+          open={showBase64Dialog}
+          onClose={() => setShowBase64Dialog(false)}
+          base64Data={capturedImage || ''}
+          signatureName={`Face de ${name}`}
+        />
       </DialogContent>
-      
-      {/* Hidden canvas for capturing the image */}
-      <canvas ref={canvasRef} className="hidden" />
     </Dialog>
   );
 }

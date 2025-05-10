@@ -3,13 +3,14 @@ import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Fingerprint, User, Scan } from "lucide-react";
+import { Fingerprint, User, Scan, Copy } from "lucide-react";
 import FingerprintRegistrationDialog from "@/components/FingerprintRegistrationDialog";
 import FaceRegistrationDialog from "@/components/FaceRegistrationDialog";
 import { loadRegisteredFingerprints, FingerprintRegistration } from "@/utils/fingerprintUtils";
 import { loadRegisteredFaces, FaceRegistration } from "@/utils/faceRecognition";
 import { toast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import SignatureBase64Dialog from "@/components/SignatureBase64Dialog";
 
 export default function BiometricsManager() {
   const [fingerprintDialogOpen, setFingerprintDialogOpen] = useState(false);
@@ -17,33 +18,36 @@ export default function BiometricsManager() {
   const [fingerprints, setFingerprints] = useState<FingerprintRegistration[]>([]);
   const [faces, setFaces] = useState<FaceRegistration[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedBase64, setSelectedBase64] = useState<string>('');
+  const [base64DialogOpen, setBase64DialogOpen] = useState(false);
+  const [selectedName, setSelectedName] = useState<string>('');
   const navigate = useNavigate();
   
-  useEffect(() => {
-    async function loadBiometricData() {
-      try {
-        setLoading(true);
-        
-        // Load both biometric data types
-        const [loadedFingerprints, loadedFaces] = await Promise.all([
-          loadRegisteredFingerprints(),
-          loadRegisteredFaces()
-        ]);
-        
-        setFingerprints(loadedFingerprints);
-        setFaces(loadedFaces);
-      } catch (error) {
-        console.error("Error loading biometric data:", error);
-        toast({
-          title: "Erro",
-          description: "Não foi possível carregar os dados biométricos",
-          variant: "destructive",
-        });
-      } finally {
-        setLoading(false);
-      }
+  const loadBiometricData = async () => {
+    try {
+      setLoading(true);
+      
+      // Load both biometric data types
+      const [loadedFingerprints, loadedFaces] = await Promise.all([
+        loadRegisteredFingerprints(),
+        loadRegisteredFaces()
+      ]);
+      
+      setFingerprints(loadedFingerprints);
+      setFaces(loadedFaces);
+    } catch (error) {
+      console.error("Error loading biometric data:", error);
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados biométricos",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
-    
+  };
+  
+  useEffect(() => {
     loadBiometricData();
   }, [fingerprintDialogOpen, faceDialogOpen]);
   
@@ -56,6 +60,12 @@ export default function BiometricsManager() {
     }
     fingerprintsByPerson[fp.cpf].push(fp);
   });
+  
+  const showBase64Dialog = (imageData: string, name: string) => {
+    setSelectedBase64(imageData);
+    setSelectedName(name);
+    setBase64DialogOpen(true);
+  };
   
   return (
     <div className="container py-8">
@@ -118,7 +128,11 @@ export default function BiometricsManager() {
                       <CardContent>
                         <div className="flex flex-wrap gap-2">
                           {fingerprintsByPerson[cpf].map((fp, idx) => (
-                            <div key={idx} className="h-10 w-10 rounded border flex items-center justify-center bg-slate-50">
+                            <div 
+                              key={idx} 
+                              className="h-10 w-10 rounded border flex items-center justify-center bg-slate-50 cursor-pointer hover:bg-slate-100"
+                              onClick={() => showBase64Dialog(fp.fingerprint, `Digital de ${person.name}`)}
+                            >
                               <Fingerprint className="h-6 w-6 text-slate-500" />
                             </div>
                           ))}
@@ -173,7 +187,10 @@ export default function BiometricsManager() {
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <div className="aspect-square w-full mb-4 flex items-center justify-center overflow-hidden rounded-md border bg-slate-50">
+                      <div 
+                        className="aspect-square w-full mb-4 flex items-center justify-center overflow-hidden rounded-md border bg-slate-50 cursor-pointer hover:bg-slate-100"
+                        onClick={() => showBase64Dialog(face.image, `Face de ${face.name}`)}
+                      >
                         {face.image ? (
                           <img 
                             src={face.image} 
@@ -184,6 +201,15 @@ export default function BiometricsManager() {
                           <User className="h-16 w-16 text-slate-300" />
                         )}
                       </div>
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        className="w-full"
+                        onClick={() => showBase64Dialog(face.image, `Face de ${face.name}`)}
+                      >
+                        <Copy className="h-4 w-4 mr-2" />
+                        Ver Base64
+                      </Button>
                     </CardContent>
                     <CardFooter>
                       <div className="text-xs text-muted-foreground">
@@ -209,16 +235,22 @@ export default function BiometricsManager() {
         </TabsContent>
       </Tabs>
       
-      {/* Fingerprint registration dialog */}
+      {/* Dialogs */}
       <FingerprintRegistrationDialog 
         open={fingerprintDialogOpen} 
         onOpenChange={setFingerprintDialogOpen} 
       />
       
-      {/* Face registration dialog */}
       <FaceRegistrationDialog 
         open={faceDialogOpen} 
         onOpenChange={setFaceDialogOpen}
+      />
+      
+      <SignatureBase64Dialog
+        open={base64DialogOpen}
+        onClose={() => setBase64DialogOpen(false)}
+        base64Data={selectedBase64}
+        signatureName={selectedName}
       />
     </div>
   );
