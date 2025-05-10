@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -21,6 +21,10 @@ export default function FaceRegistrationDialog({ open, onOpenChange, onClose, on
   const [isCapturing, setIsCapturing] = useState(false);
   const [capturedImage, setCapturedImage] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [cameraActive, setCameraActive] = useState(false);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const [stream, setStream] = useState<MediaStream | null>(null);
   
   // Reset state when dialog opens/closes
   useEffect(() => {
@@ -30,8 +34,24 @@ export default function FaceRegistrationDialog({ open, onOpenChange, onClose, on
       setRole("");
       setCapturedImage(null);
       setIsCapturing(false);
+      setCameraActive(false);
+      
+      // Stop camera if it's active when dialog closes
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+        setStream(null);
+      }
     }
-  }, [open]);
+  }, [open, stream]);
+  
+  // Clean up camera stream when component unmounts
+  useEffect(() => {
+    return () => {
+      if (stream) {
+        stream.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, [stream]);
   
   // Format CPF with mask (XXX.XXX.XXX-XX)
   const formatCPF = (value: string) => {
@@ -54,8 +74,8 @@ export default function FaceRegistrationDialog({ open, onOpenChange, onClose, on
     setCpf(formatCPF(e.target.value));
   };
   
-  // Start face capture
-  const startCapture = async () => {
+  // Start camera capture
+  const startCamera = async () => {
     if (!name || !cpf || !role) {
       toast({
         title: "Campos obrigatórios",
@@ -65,22 +85,81 @@ export default function FaceRegistrationDialog({ open, onOpenChange, onClose, on
       return;
     }
     
+    try {
+      setIsCapturing(true);
+      
+      const mediaStream = await navigator.mediaDevices.getUserMedia({
+        video: { 
+          width: { ideal: 640 },
+          height: { ideal: 480 },
+          facingMode: "user"
+        },
+        audio: false
+      });
+      
+      if (videoRef.current) {
+        videoRef.current.srcObject = mediaStream;
+        setStream(mediaStream);
+        setCameraActive(true);
+      }
+      
+      setIsCapturing(false);
+      
+    } catch (error) {
+      console.error("Error accessing camera:", error);
+      setIsCapturing(false);
+      
+      toast({
+        title: "Erro ao acessar câmera",
+        description: "Verifique se a câmera está disponível e se as permissões foram concedidas.",
+        variant: "destructive"
+      });
+    }
+  };
+  
+  // Capture face from video
+  const captureFace = () => {
+    if (!videoRef.current || !canvasRef.current || !cameraActive) {
+      toast({
+        title: "Câmera não ativa",
+        description: "Ative a câmera para capturar a face",
+        variant: "destructive"
+      });
+      return;
+    }
+    
     setIsCapturing(true);
     
     try {
-      // In a real app, this would integrate with a camera API
-      // For this demo, we'll simulate with a mock image
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
       
-      const mockFaceImage = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAAGXRFWHRTb2Z0d2FyZQBBZG9iZSBJbWFnZVJlYWR5ccllPAAAAyJpVFh0WE1MOmNvbS5hZG9iZS54bXAAAAAAADw/eHBhY2tldCBiZWdpbj0i77u/IiBpZD0iVzVNME1wQ2VoaUh6cmVTek5UY3prYzlkIj8+IDx4OnhtcG1ldGEgeG1sbnM6eD0iYWRvYmU6bnM6bWV0YS8iIHg6eG1wdGs9IkFkb2JlIFhNUCBDb3JlIDUuMy1jMDExIDY2LjE0NTY2MSwgMjAxMi8wMi8wNi0xNDo1NjoyNyAgICAgICAgIj4gPHJkZjpSREYgeG1sbnM6cmRmPSJodHRwOi8vd3d3LnczLm9yZy8xOTk5LzAyLzIyLXJkZi1zeW50YXgtbnMjIj4gPHJkZjpEZXNjcmlwdGlvbiByZGY6YWJvdXQ9IiIgeG1sbnM6eG1wPSJodHRwOi8vbnMuYWRvYmUuY29tL3hhcC8xLjAvIiB4bWxuczp4bXBNTT0iaHR0cDovL25zLmFkb2JlLmNvbS94YXAvMS4wL21tLyIgeG1sbnM6c3RSZWY9Imh0dHA6Ly9ucy5hZG9iZS5jb20veGFwLzEuMC9zVHlwZS9SZXNvdXJjZVJlZiMiIHhtcDpDcmVhdG9yVG9vbD0iQWRvYmUgUGhvdG9zaG9wIENTNiAoV2luZG93cykiIHhtcE1NOkluc3RhbmNlSUQ9InhtcC5paWQ6NzExQkVGNkZBNDIxMTFFQUIzRjhGRjQ0MkJDRDhGMUMiIHhtcE1NOkRvY3VtZW50SUQ9InhtcC5kaWQ6NzExQkVGNzBBNDIxMTFFQUIzRjhGRjQ0MkJDRDhGMUMiPiA8eG1wTU06RGVyaXZlZEZyb20gc3RSZWY6aW5zdGFuY2VJRD0ieG1wLmlpZDo3MTFCRUY2REE0MjExMUVBQjNGOEZGNDQyQkNEOEYxQyIgc3RSZWY6ZG9jdW1lbnRJRD0ieG1wLmRpZDo3MTFCRUY2RUE0MjExMUVBQjNGOEZGNDQyQkNEOEYxQyIvPiA8L3JkZjpEZXNjcmlwdGlvbj4gPC9yZGY6UkRGPiA8L3g6eG1wbWV0YT4gPD94cGFja2V0IGVuZD0iciI/Pm9RTFQAAAWsSURBVHja7J17bBRFHMfbgkJfaUttJcofgF0oCm2hgPJqoAQjPtAYeURjYsSYJirxwROMD6KIUSEak9oYE0TUeoC2iRqVItVqIAUqj0IVrKUvCrTF0lYLLXe7bdavctfs9e5272537m5/M8knd3Oz97vffuZ2dnd3Z+fQoUMKhGf+Jk52W0UHRfJfEgUEBAgCBAECAoQAAQFCgIAAIUBAgBAgIEAIEAIEBAgBAgKEACFAQIAQIA4vGRkZ/XqwHYfDQYCAAMkkkZGRlnwoNzf3H4UPCu1j2YbAgCgkGRkZ7Xa5XHGkeAiQtDBk1NbWPkdt0PnGY9mGeEZpaen9dXV16w3KuLq6+r6ioqLFvByCZOiVs0VP0cxhoYaJEFmmOcdt27bN5+asYv4itCPRwBiTOhQoKAiltfC0bXSmXNHJiOJ+WlBQ0JWUlJTe1tbWkZ+ff0Vv7SsrK2eUlJRs4LLeaas3SVXf3ythz8ihqqpqGWkJBXIsRaifNn7lFi1atGjPnj0ve9j7hCtVVVVz+Uc710PBAGOKFAlIS0vLaoMgEkhLS0traGhYPm3atN0c5CZ9O/f9WgzUjVOw53VJyQsuW2jCg4VW5tnOaXWquxmvVg0uRXnU03zV+36/fv36eR56blnJyckpV3kfh9tI6hPGb926dXVjY+MbQRgj5ZSXl7+6c+fOV43aiPPz85QOYsKECRdSUlLeMakCyfl2Ae5ra2vjk5OTf1W9AwtVH5CpU6duLC0tLWIVNWRcBUhNTU0Z2S1v0iec6enpX8+ePbvlasP8YD+PbYDY7fZfeUJnJstYDZs8efLpCRMm/D58+PBQIcRhg+1mgYnbuXNnekNDw4qwsDAnteLo6OjzzP+gZQCRJxoXF3eSK4MLCwt3CB4hVnl7MMFoIFeFU7nRTxTWOhNko2Hw4MHvs5ZVVlbme2ZJb29vhNbVbDZbB9dgrNKLzh6VQp+lG5ZP511NqkGXrXOf2bNn5+/bt2+H0dy+pUuXZrFn084lOrVsoVxIGxuVdJYGbK4sztXU/fGEQVscUW8wSO3i1NxknPam1NpJdXV11Y0bNz47cuTIE1FRUac3b97spX7XX3Y5IH0qpr1i3N1uFI8o3m9PNQ5wV0P7qn5/uB6sLMpm+q/JyclfqL4nXxCofom+h8KVOVFJ/Gn9y6nw2h07dqy4cuXKofT09PcsqNI5GElJSWVah9+sz010Z+pDWSCRQXy+A6WHv47HECdrKz9j9VY1RX9A1FvHbdu2zW9pbX2mra1tKpd/1W1hiT8wJk6cWMTt27pftEAGIriiXsxwMG149VmSQUFDZxivQXeJDSNJVcBaTrVbzDgEw7C7hZuyoyX1dcbk3JZtDp1vPNYB6e7ujmRvMyfZ1Z6/R5Wav/nTWFMt1LxmVCfNnDnzZZPK23Gmmwz8BDKOpwvHsZT9RDD8rtHmbsQMBu1Sr1UnzeseiIxE0RsqnbOZoDFjxnzrcrluNqvScrncQASLrmEzGOK+u7t7NKvhn2EQDBFji92sJjqz06u0RL9AuDz28kigRnBGB5AWj8ALJKBtCKpr6y0xCNC2I1hA8BIaAgQECAECAoQAAQFCgKDKsh4JaEMGDQ2LxMwMGNC2I7iGkGL5C4RgBAEIQTAGQkAQXiAYbgIBAQIChAABAQICBAQIAQICBAQIAQICBAQIAQICBAQIAQICBAQICBACBAQIAQICxEKBP6/pdivnlc+wyQmEAEGVBQIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBgvCoQFZZ3mq9PxP+XkJ3mBkXG28Jy8uWO+OqqlreVXJls9nwd8yAAEGdgoEhCBAQICBAQICAADFV4P/TjZ0jf0UEVRYIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgBAgIEBAgeqJWJQNGUTmLLBMSEhRpCqosUL0FQmTIEDlksXT+F2AAT4+n68isGnYAAAAASUVORK5CYII=";
+      // Set canvas dimensions to match video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
       
-      setCapturedImage(mockFaceImage);
-      
-      toast({
-        title: "Imagem capturada",
-        description: "Rosto capturado com sucesso",
-        variant: "default"
-      });
+      // Draw video frame to canvas
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+        
+        // Get image data as base64
+        const imageData = canvas.toDataURL('image/png');
+        setCapturedImage(imageData);
+        
+        // Stop camera stream
+        if (stream) {
+          stream.getTracks().forEach(track => track.stop());
+          setStream(null);
+        }
+        setCameraActive(false);
+        
+        toast({
+          title: "Imagem capturada",
+          description: "Rosto capturado com sucesso",
+          variant: "default"
+        });
+      }
     } catch (error) {
       console.error("Error during face capture:", error);
       toast({
@@ -146,6 +225,9 @@ export default function FaceRegistrationDialog({ open, onOpenChange, onClose, on
     }
   };
   
+  // Check if all required fields are filled to enable the "Register" button
+  const areRequiredFieldsFilled = name.trim() !== "" && cpf.trim() !== "" && role.trim() !== "";
+  
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
@@ -203,41 +285,89 @@ export default function FaceRegistrationDialog({ open, onOpenChange, onClose, on
                     className="w-full h-full object-cover" 
                   />
                 </div>
+              ) : cameraActive ? (
+                <div className="w-64 h-64 border rounded-md overflow-hidden relative">
+                  <video 
+                    ref={videoRef}
+                    autoPlay 
+                    playsInline
+                    muted
+                    className="w-full h-full object-cover"
+                  />
+                  {/* Circular overlay for face positioning */}
+                  <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <div className="w-40 h-40 rounded-full border-2 border-blue-400 border-dashed opacity-70"></div>
+                  </div>
+                </div>
               ) : (
                 <div className="w-48 h-48 border rounded-md flex items-center justify-center bg-slate-50">
                   <User className="h-16 w-16 text-slate-300" />
                 </div>
               )}
               
-              <Button 
-                className="mt-4"
-                variant="secondary"
-                disabled={isCapturing || !name || !cpf || !role}
-                onClick={startCapture}
-              >
-                {isCapturing ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Capturando...
-                  </>
-                ) : capturedImage ? (
-                  <>
-                    <Camera className="mr-2 h-4 w-4" />
-                    Capturar Novamente
-                  </>
-                ) : (
-                  <>
-                    <Camera className="mr-2 h-4 w-4" />
-                    Capturar Face
-                  </>
+              <div className="mt-4 flex gap-2">
+                {!cameraActive && !capturedImage && (
+                  <Button 
+                    variant="secondary"
+                    disabled={isCapturing || !areRequiredFieldsFilled}
+                    onClick={startCamera}
+                  >
+                    {isCapturing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Iniciando câmera...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="mr-2 h-4 w-4" />
+                        Ativar Câmera
+                      </>
+                    )}
+                  </Button>
                 )}
-              </Button>
+                
+                {cameraActive && (
+                  <Button 
+                    variant="secondary" 
+                    onClick={captureFace}
+                    disabled={isCapturing}
+                  >
+                    {isCapturing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Capturando...
+                      </>
+                    ) : (
+                      <>
+                        <Camera className="mr-2 h-4 w-4" />
+                        Capturar Face
+                      </>
+                    )}
+                  </Button>
+                )}
+                
+                {capturedImage && (
+                  <Button 
+                    variant="outline" 
+                    onClick={() => {
+                      setCapturedImage(null);
+                      startCamera();
+                    }}
+                  >
+                    <Camera className="mr-2 h-4 w-4" />
+                    Nova Captura
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
         
         <DialogFooter>
           <Button variant="outline" onClick={() => {
+            if (stream) {
+              stream.getTracks().forEach(track => track.stop());
+            }
             onOpenChange(false);
             if (onClose) onClose();
           }}>
@@ -245,7 +375,7 @@ export default function FaceRegistrationDialog({ open, onOpenChange, onClose, on
           </Button>
           <Button 
             onClick={handleSave}
-            disabled={isSaving || !capturedImage}
+            disabled={isSaving || !capturedImage || !areRequiredFieldsFilled}
           >
             {isSaving ? (
               <>
@@ -261,6 +391,9 @@ export default function FaceRegistrationDialog({ open, onOpenChange, onClose, on
           </Button>
         </DialogFooter>
       </DialogContent>
+      
+      {/* Hidden canvas for capturing the image */}
+      <canvas ref={canvasRef} className="hidden" />
     </Dialog>
   );
 }

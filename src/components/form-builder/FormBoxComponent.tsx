@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronDown, ChevronUp, PlusCircle, Trash2, Edit, LayoutGrid, AlignLeft, AlignCenter, AlignRight, Lock, Unlock } from "lucide-react";
@@ -57,6 +57,7 @@ export default function FormBoxComponent({
   const [showEditDialog, setShowEditDialog] = useState(false);
   const [showLayoutSettings, setShowLayoutSettings] = useState(false);
   const [showLockSettings, setShowLockSettings] = useState(false);
+  const [hasAnySignature, setHasAnySignature] = useState(false);
 
   const defaultLayout = {
     alignment: box.layout?.alignment || "left",
@@ -68,6 +69,13 @@ export default function FormBoxComponent({
 
   const [layoutSettings, setLayoutSettings] = useState(defaultLayout);
   const [lockWhenSigned, setLockWhenSigned] = useState(box.lockWhenSigned !== false);
+  
+  // Check if any field in the document has a signature
+  useEffect(() => {
+    // Check if any signature field has a value
+    const hasSignatureFields = fields.some(field => field.type === 'signature' && field.value);
+    setHasAnySignature(hasSignatureFields);
+  }, [fields]);
 
   const handleEditBox = (newData: any) => {
     if (onEditBox) {
@@ -103,8 +111,10 @@ export default function FormBoxComponent({
     return { textAlign: box.layout?.alignment || 'left' };
   };
 
+  // Calculate if section should be locked based on document signatures and settings
   const hasSignatureFields = fields.some(field => field.type === 'signature' && field.value);
-  const shouldBeLocked = isLocked || (hasSignatureFields && box.lockWhenSigned !== false);
+  const documentHasAnySignature = hasAnySignature || isLocked;
+  const shouldBeLocked = isLocked || (documentHasAnySignature && box.lockWhenSigned !== false);
 
   return (
     <Card 
@@ -333,8 +343,7 @@ export default function FormBoxComponent({
           data-columns={box.layout?.columns || 2}
         >
           {fields.map((field, index) => {
-            // Determine if this specific field should be locked
-            // Signature fields that haven't been signed yet should remain editable
+            // Allow signature fields to be edited even when document is signed
             const fieldLocked = shouldBeLocked && !(field.type === 'signature' && !field.value);
             
             return (
