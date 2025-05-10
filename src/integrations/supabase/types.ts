@@ -160,32 +160,41 @@ export type Database = {
       }
       clients: {
         Row: {
+          address: string | null
           company_id: string | null
           contact_email: string | null
           contact_name: string | null
           contact_phone: string | null
           created_at: string | null
+          document_id: string | null
           id: string
+          is_internal: boolean | null
           name: string
           updated_at: string | null
         }
         Insert: {
+          address?: string | null
           company_id?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          document_id?: string | null
           id?: string
+          is_internal?: boolean | null
           name: string
           updated_at?: string | null
         }
         Update: {
+          address?: string | null
           company_id?: string | null
           contact_email?: string | null
           contact_name?: string | null
           contact_phone?: string | null
           created_at?: string | null
+          document_id?: string | null
           id?: string
+          is_internal?: boolean | null
           name?: string
           updated_at?: string | null
         }
@@ -354,7 +363,9 @@ export type Database = {
           email: string | null
           face_image: string | null
           id: string
+          is_admin: boolean | null
           is_face_registered: boolean | null
+          is_master: boolean | null
           name: string
           role: string | null
           updated_at: string | null
@@ -367,7 +378,9 @@ export type Database = {
           email?: string | null
           face_image?: string | null
           id: string
+          is_admin?: boolean | null
           is_face_registered?: boolean | null
+          is_master?: boolean | null
           name: string
           role?: string | null
           updated_at?: string | null
@@ -380,7 +393,9 @@ export type Database = {
           email?: string | null
           face_image?: string | null
           id?: string
+          is_admin?: boolean | null
           is_face_registered?: boolean | null
+          is_master?: boolean | null
           name?: string
           role?: string | null
           updated_at?: string | null
@@ -436,6 +451,7 @@ export type Database = {
           can_edit_action: boolean | null
           can_edit_client: boolean | null
           can_edit_company: boolean | null
+          can_edit_document_type: boolean | null
           can_edit_user: boolean | null
           can_mark_complete: boolean | null
           can_mark_delayed: boolean | null
@@ -455,6 +471,7 @@ export type Database = {
           can_edit_action?: boolean | null
           can_edit_client?: boolean | null
           can_edit_company?: boolean | null
+          can_edit_document_type?: boolean | null
           can_edit_user?: boolean | null
           can_mark_complete?: boolean | null
           can_mark_delayed?: boolean | null
@@ -474,6 +491,7 @@ export type Database = {
           can_edit_action?: boolean | null
           can_edit_client?: boolean | null
           can_edit_company?: boolean | null
+          can_edit_document_type?: boolean | null
           can_edit_user?: boolean | null
           can_mark_complete?: boolean | null
           can_mark_delayed?: boolean | null
