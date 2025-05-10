@@ -31,4 +31,3 @@ export const processUserProfile = (profile: any) => {
     is_master: profile.is_master || metadata.is_master || false
   };
 };
-
