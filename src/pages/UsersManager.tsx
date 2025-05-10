@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -145,11 +146,11 @@ export default function UsersManager() {
       .single();
       
     // Use the processUserProfile helper to ensure all required properties exist
-    setCurrentUserProfile(processUserProfile(userProfile) as UserProfile);
+    setCurrentUserProfile(processUserProfile(userProfile));
     
     // Check if user has permission to create users
-    if (!userProfile?.is_admin && !userProfile?.is_master && 
-        (!userProfile?.permissions || !userProfile?.permissions[0]?.can_create_user)) {
+    if (!currentUserProfile?.is_admin && !currentUserProfile?.is_master && 
+        (!currentUserProfile?.permissions || !currentUserProfile?.permissions[0]?.can_create_user)) {
       toast({
         title: "Acesso negado",
         description: "Você não tem permissão para gerenciar usuários.",
@@ -175,7 +176,7 @@ export default function UsersManager() {
       if (usersError) throw usersError;
       
       // Process each user profile to ensure all required properties exist
-      const processedUsers = usersData?.map(user => processUserProfile(user)) as UserProfile[];
+      const processedUsers = usersData?.map(user => processUserProfile(user));
       setUsers(processedUsers || []);
       
       // Load companies
