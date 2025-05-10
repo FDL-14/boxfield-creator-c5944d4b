@@ -25,9 +25,41 @@ export const processUserProfile = (profile: any) => {
   // Process metadata for additional properties
   const metadata = profile.raw_user_meta_data || {};
   
+  // Process permissions to ensure they have all the required properties
+  const processedPermissions = profile.permissions?.map((permission: any) => {
+    return {
+      ...permission,
+      // Add missing permission properties used in the app
+      can_create_user: permission.can_create_user || false,
+      can_edit_user_status: permission.can_edit_user_status || false,
+      can_set_user_permissions: permission.can_set_user_permissions || false,
+      can_create_section: permission.can_create_section || false,
+      can_edit_section: permission.can_edit_section || false,
+      can_delete_section: permission.can_delete_section || false,
+      can_create_field: permission.can_create_field || false,
+      can_edit_field: permission.can_edit_field || false,
+      can_delete_field: permission.can_delete_field || false,
+      can_fill_field: permission.can_fill_field || false,
+      can_sign: permission.can_sign || false,
+      can_insert_logo: permission.can_insert_logo || false,
+      can_insert_photo: permission.can_insert_photo || false,
+      can_save: permission.can_save || false,
+      can_save_as: permission.can_save_as || false,
+      can_download: permission.can_download || false,
+      can_open: permission.can_open || false,
+      can_print: permission.can_print || false,
+      can_edit_document: permission.can_edit_document || false,
+      can_cancel_document: permission.can_cancel_document || false,
+      can_view: permission.can_view || false
+    };
+  });
+  
   return {
     ...profile,
+    // Ensure these properties exist
     is_admin: profile.is_admin || metadata.is_admin || false,
-    is_master: profile.is_master || metadata.is_master || false
+    is_master: profile.is_master || metadata.is_master || false,
+    // Replace permissions with processed permissions
+    permissions: processedPermissions || []
   };
 };
