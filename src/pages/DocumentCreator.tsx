@@ -1877,7 +1877,12 @@ export default function DocumentCreator() {
           <DialogHeader>
             <DialogTitle>Desenhar Assinatura</DialogTitle>
           </DialogHeader>
-          <DrawSignature onSave={handleSignatureSave} onCancel={() => setSignatureDialogOpen(false)} />
+          <DrawSignature 
+            onSignatureCapture={handleSignatureSave} 
+            onClose={() => setSignatureDialogOpen(false)} 
+            onSave={handleSignatureSave}
+            onCancel={() => setSignatureDialogOpen(false)}
+          />
         </DialogContent>
       </Dialog>
       

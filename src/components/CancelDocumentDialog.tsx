@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -275,6 +274,8 @@ export default function CancelDocumentDialog({
               </DialogDescription>
             </DialogHeader>
             <DrawSignature 
+              onSignatureCapture={handleSaveSignature}
+              onClose={() => setShowSignatureDialog(false)}
               onSave={handleSaveSignature} 
               onCancel={() => setShowSignatureDialog(false)} 
             />
