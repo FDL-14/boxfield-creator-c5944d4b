@@ -36,7 +36,7 @@ const App = () => {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${sessionData?.session?.access_token || ''}`,
+              "Authorization": `Bearer ${sessionData.session?.access_token || ''}`,
             }
           }
         );
