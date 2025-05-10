@@ -26,8 +26,8 @@ type UserProfile = {
   company_ids: string[] | null;
   face_image: string | null;
   is_face_registered: boolean | null;
-  is_admin?: boolean; 
-  is_master?: boolean;
+  is_admin: boolean;  // Add this property
+  is_master: boolean; // Add this property
   permissions?: UserPermission[];
 };
 
@@ -49,27 +49,27 @@ type UserPermission = {
   view_only_assigned_actions: boolean | null;
   can_delete_company: boolean | null;
   can_delete_client: boolean | null;
-  can_create_user?: boolean | null;
-  can_edit_user_status?: boolean | null;
-  can_set_user_permissions?: boolean | null;
-  can_create_section?: boolean | null;
-  can_edit_section?: boolean | null;
-  can_delete_section?: boolean | null;
-  can_create_field?: boolean | null;
-  can_edit_field?: boolean | null;
-  can_delete_field?: boolean | null;
-  can_fill_field?: boolean | null;
-  can_sign?: boolean | null;
-  can_insert_logo?: boolean | null;
-  can_insert_photo?: boolean | null;
-  can_save?: boolean | null;
-  can_save_as?: boolean | null;
-  can_download?: boolean | null;
-  can_open?: boolean | null;
-  can_print?: boolean | null;
-  can_edit_document?: boolean | null;
-  can_cancel_document?: boolean | null;
-  can_view?: boolean | null;
+  can_create_user: boolean | null; // Add this property
+  can_edit_user_status: boolean | null; // Add this property
+  can_set_user_permissions: boolean | null; // Add this property
+  can_create_section: boolean | null; // Add this property
+  can_edit_section: boolean | null; // Add this property
+  can_delete_section: boolean | null; // Add this property
+  can_create_field: boolean | null; // Add this property
+  can_edit_field: boolean | null; // Add this property
+  can_delete_field: boolean | null; // Add this property
+  can_fill_field: boolean | null; // Add this property
+  can_sign: boolean | null; // Add this property
+  can_insert_logo: boolean | null; // Add this property
+  can_insert_photo: boolean | null; // Add this property
+  can_save: boolean | null; // Add this property
+  can_save_as: boolean | null; // Add this property
+  can_download: boolean | null; // Add this property
+  can_open: boolean | null; // Add this property
+  can_print: boolean | null; // Add this property
+  can_edit_document: boolean | null; // Add this property
+  can_cancel_document: boolean | null; // Add this property
+  can_view: boolean | null; // Add this property
 };
 
 export default function UsersManager() {
