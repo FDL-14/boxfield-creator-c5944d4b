@@ -27,6 +27,11 @@ serve(async (req) => {
       );
     }
     
+    console.log("Login attempt with CPF:", cpf);
+    
+    // Clean the CPF (remove non-digits)
+    const cleanedCpf = cpf.replace(/\D/g, '');
+    
     // Create a Supabase client with the admin role
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -42,17 +47,20 @@ serve(async (req) => {
     // 1. Find the user by CPF in the profiles table
     const { data: profiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
-      .select("id")
-      .eq("cpf", cpf.replace(/\D/g, ''))
+      .select("id, cpf, email")
+      .eq("cpf", cleanedCpf)
       .limit(1);
     
     if (profilesError) {
+      console.error("Error fetching profile by CPF:", profilesError);
       throw new Error("Erro ao buscar usuário");
     }
     
+    console.log("Profiles found:", profiles ? profiles.length : 0);
+    
     if (!profiles || profiles.length === 0) {
       return new Response(
-        JSON.stringify({ message: "Usuário não encontrado" }),
+        JSON.stringify({ message: "Usuário não encontrado com este CPF" }),
         {
           status: 404,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -61,45 +69,49 @@ serve(async (req) => {
     }
     
     const userId = profiles[0].id;
+    const userEmail = profiles[0].email || `${cleanedCpf}@cpflogin.local`;
     
-    // 2. Get the user's email from auth.users
-    const { data: { user }, error: userError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    console.log("User ID found:", userId);
     
-    if (userError || !user) {
+    // 2. Try to sign in directly with password
+    try {
+      const { data, error } = await supabaseAdmin.auth.signInWithPassword({
+        email: userEmail,
+        password: password,
+      });
+      
+      if (error) {
+        console.error("Sign-in error:", error);
+        return new Response(
+          JSON.stringify({ message: "Credenciais inválidas", details: error.message }),
+          {
+            status: 401,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+      
+      console.log("Login successful");
+      
       return new Response(
-        JSON.stringify({ message: "Erro ao buscar informações do usuário" }),
+        JSON.stringify({ session: data.session, user: data.user }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        }
+      );
+    } catch (signInError) {
+      console.error("Sign in attempt failed:", signInError);
+      return new Response(
+        JSON.stringify({ message: "Erro ao tentar autenticação", details: signInError.message }),
         {
           status: 500,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         }
       );
     }
-    
-    // 3. Sign in with email and password
-    const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-      email: user.email,
-      password: password,
-    });
-    
-    if (error) {
-      return new Response(
-        JSON.stringify({ message: "Credenciais inválidas" }),
-        {
-          status: 401,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-    
-    return new Response(
-      JSON.stringify({ session: data.session, user: data.user }),
-      {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      }
-    );
-    
   } catch (error) {
+    console.error("General error in login-with-cpf:", error);
     return new Response(
       JSON.stringify({ message: error.message || "Erro interno do servidor" }),
       {

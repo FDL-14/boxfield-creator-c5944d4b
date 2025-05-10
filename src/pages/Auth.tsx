@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase, cleanCPF } from "@/integrations/supabase/client";
+import { supabase, cleanCPF, processUserProfile } from "@/integrations/supabase/client";
 import { Loader2, UserPlus, LogIn, AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -42,6 +42,11 @@ export default function Auth() {
     return () => subscription.unsubscribe();
   }, [navigate]);
   
+  useEffect(() => {
+    // Initialize the master user when the Auth page loads
+    createMasterUser();
+  }, []);
+  
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!validateInputs("signup")) return;
@@ -52,6 +57,8 @@ export default function Auth() {
     try {
       // Clean the CPF to remove any non-digits
       const cleanedCpf = cleanCPF(cpf);
+      
+      console.log("Starting sign up with CPF:", cleanedCpf);
       
       // Use admin API via edge function to create user
       const response = await fetch(
@@ -72,6 +79,8 @@ export default function Auth() {
       
       const result = await response.json();
       
+      console.log("Sign up response:", result);
+      
       if (!response.ok) {
         throw new Error(result.message || "Ocorreu um erro durante o cadastro");
       }
@@ -80,10 +89,17 @@ export default function Auth() {
         "Cadastro realizado com sucesso! Agora você pode fazer login."
       );
       
+      toast({
+        title: "Cadastro realizado com sucesso!",
+        description: "Agora você pode fazer login.",
+        duration: 5000,
+      });
+      
       // Auto-login the user
       await handleSignIn(null, cleanedCpf, password);
       
     } catch (error: any) {
+      console.error("Sign up error:", error);
       setErrorMessage(error.message || "Ocorreu um erro durante o cadastro");
       setLoading(false);
     }
@@ -108,6 +124,8 @@ export default function Auth() {
       const cleanedCpf = overrideCpf || cleanCPF(cpf);
       const passwordToUse = overridePassword || password;
       
+      console.log("Starting sign in with CPF:", cleanedCpf);
+      
       // Use the edge function to login with CPF
       const response = await fetch(
         "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/login-with-cpf",
@@ -125,9 +143,14 @@ export default function Auth() {
       
       const result = await response.json();
       
+      console.log("Sign in response status:", response.status);
+      
       if (!response.ok) {
+        console.error("Sign in error from API:", result);
         throw new Error(result.message || "Credenciais inválidas");
       }
+      
+      console.log("Sign in successful, setting session");
       
       // Handle the session token returned by the edge function
       if (result.session) {
@@ -136,14 +159,28 @@ export default function Auth() {
           refresh_token: result.session.refresh_token
         });
         
+        toast({
+          title: "Login realizado com sucesso!",
+          description: "Você está sendo redirecionado para a página inicial.",
+          duration: 3000,
+        });
+        
         navigate("/");
       } else {
         throw new Error("Falha ao obter sessão de autenticação");
       }
       
     } catch (error: any) {
+      console.error("Sign in error:", error);
       setErrorMessage(error.message || "Credenciais inválidas");
       setLoading(false);
+      
+      toast({
+        variant: "destructive",
+        title: "Erro de autenticação",
+        description: error.message || "Credenciais inválidas",
+        duration: 5000,
+      });
     }
   };
   
@@ -201,6 +238,7 @@ export default function Auth() {
   // Create master user function
   const createMasterUser = async () => {
     try {
+      console.log("Initializing master user...");
       // Call the init-master-user edge function
       const response = await fetch(
         "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/init-master-user",
@@ -219,11 +257,6 @@ export default function Auth() {
       console.error("Error initializing master user:", error);
     }
   };
-  
-  // Attempt to create master user on component mount
-  useEffect(() => {
-    createMasterUser();
-  }, []);
   
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">

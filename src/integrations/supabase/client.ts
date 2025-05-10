@@ -25,6 +25,15 @@ export const processUserProfile = (profile: any) => {
   // Process metadata for additional properties
   const metadata = profile.raw_user_meta_data || {};
   
+  // Make sure we have is_admin and is_master properties
+  const is_admin = profile.is_admin !== undefined 
+    ? profile.is_admin 
+    : metadata.is_admin || false;
+
+  const is_master = profile.is_master !== undefined 
+    ? profile.is_master 
+    : metadata.is_master || false;
+  
   // Process permissions to ensure they have all the required properties
   const processedPermissions = profile.permissions?.map((permission: any) => {
     return {
@@ -58,8 +67,8 @@ export const processUserProfile = (profile: any) => {
   return {
     ...profile,
     // Ensure these properties exist
-    is_admin: profile.is_admin || metadata.is_admin || false,
-    is_master: profile.is_master || metadata.is_master || false,
+    is_admin: is_admin,
+    is_master: is_master,
     // Replace permissions with processed permissions
     permissions: processedPermissions || []
   };

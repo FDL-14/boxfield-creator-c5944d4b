@@ -27,6 +27,8 @@ serve(async (req) => {
       );
     }
     
+    console.log("Creating user with CPF:", cpf, "and name:", name);
+    
     // Create a Supabase client with the admin role
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
@@ -39,14 +41,18 @@ serve(async (req) => {
       }
     );
     
+    // Clean the CPF to remove any non-digits
+    const cleanedCpf = cpf.replace(/\D/g, '');
+    
     // Check if user with this CPF already exists
     const { data: existingProfiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
       .select("id")
-      .eq("cpf", cpf.replace(/\D/g, ''))
+      .eq("cpf", cleanedCpf)
       .limit(1);
     
     if (profilesError) {
+      console.error("Error checking existing profiles:", profilesError);
       throw new Error("Erro ao verificar CPF existente");
     }
     
@@ -60,49 +66,72 @@ serve(async (req) => {
       );
     }
     
-    // Create a new user with the provided email
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email,
-      password,
-      email_confirm: true,
-      user_metadata: {
-        name,
-        cpf: cpf.replace(/\D/g, ''),
-        real_email: email,
-      },
-    });
+    // Create a valid email for auth that doesn't need to be deliverable
+    // but must pass email validation
+    const authEmail = email;
     
-    if (authError) {
-      throw authError;
-    }
+    console.log("Using email for auth:", authEmail);
     
-    // Update the profile to include the CPF
-    const { error: updateError } = await supabaseAdmin
-      .from("profiles")
-      .update({
-        cpf: cpf.replace(/\D/g, ''),
-        name,
-        email,
-      })
-      .eq("id", authData.user.id);
-    
-    if (updateError) {
-      console.error("Error updating profile:", updateError);
-    }
-    
-    return new Response(
-      JSON.stringify({ 
-        success: true, 
-        message: "Usuário criado com sucesso",
-        userId: authData.user.id
-      }),
-      {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-        status: 200,
+    try {
+      // Create a new user with the provided email
+      const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+        email: authEmail,
+        password,
+        email_confirm: true,
+        user_metadata: {
+          name,
+          cpf: cleanedCpf,
+          real_email: email,
+        },
+      });
+      
+      if (authError) {
+        console.error("Error creating user:", authError);
+        throw authError;
       }
-    );
+      
+      console.log("User created with ID:", authData.user.id);
+      
+      // Update the profile to include the CPF
+      const { error: updateError } = await supabaseAdmin
+        .from("profiles")
+        .update({
+          cpf: cleanedCpf,
+          name,
+          email,
+        })
+        .eq("id", authData.user.id);
+      
+      if (updateError) {
+        console.error("Error updating profile:", updateError);
+      }
+      
+      return new Response(
+        JSON.stringify({ 
+          success: true, 
+          message: "Usuário criado com sucesso",
+          userId: authData.user.id
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 200,
+        }
+      );
+    } catch (createError) {
+      console.error("Error in user creation:", createError);
+      return new Response(
+        JSON.stringify({ 
+          success: false, 
+          message: createError.message || "Ocorreu um erro ao criar o usuário" 
+        }),
+        {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          status: 500,
+        }
+      );
+    }
   } catch (error) {
-    console.error("Error in function:", error);
+    console.error("General error in create-user-with-cpf:", error);
     
     return new Response(
       JSON.stringify({ 
