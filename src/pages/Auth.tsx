@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, cleanCPF } from "@/integrations/supabase/client";
 import { Loader2, UserPlus, LogIn, AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
@@ -50,63 +50,96 @@ export default function Auth() {
     setErrorMessage(null);
     
     try {
-      // Create a CPF-based login by using the CPF as both the username and email
-      // We'll add a domain to make it work with Supabase's email validation
-      const loginEmail = `${cpf.replace(/\D/g, '')}@cpflogin.local`;
+      // Clean the CPF to remove any non-digits
+      const cleanedCpf = cleanCPF(cpf);
       
-      const { data, error } = await supabase.auth.signUp({
-        email: loginEmail,
-        password,
-        options: {
-          data: {
-            name: name,
-            cpf: cpf,
-            real_email: email // Store the real email for notifications
+      // Use admin API via edge function to create user
+      const response = await fetch(
+        "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/create-user-with-cpf",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
           },
-          emailRedirectTo: `${window.location.origin}/auth`
+          body: JSON.stringify({
+            cpf: cleanedCpf,
+            password,
+            name,
+            email
+          })
         }
-      });
+      );
       
-      if (error) throw error;
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || "Ocorreu um erro durante o cadastro");
+      }
       
       setSuccessMessage(
         "Cadastro realizado com sucesso! Agora você pode fazer login."
       );
       
       // Auto-login the user
-      const { error: loginError } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password
-      });
-      
-      if (loginError) {
-        throw new Error("Cadastro realizado, mas ocorreu um erro ao efetuar login automático. Por favor, faça login manualmente.");
-      }
+      await handleSignIn(null, cleanedCpf, password);
       
     } catch (error: any) {
       setErrorMessage(error.message || "Ocorreu um erro durante o cadastro");
-    } finally {
       setLoading(false);
     }
   };
   
-  const handleSignIn = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validateInputs("signin")) return;
+  const handleSignIn = async (e: React.FormEvent | null, overrideCpf?: string, overridePassword?: string) => {
+    if (e) e.preventDefault();
+    
+    if (!e && (!overrideCpf || !overridePassword)) {
+      return;
+    }
+    
+    if (e && !validateInputs("signin")) {
+      return;
+    }
     
     setLoading(true);
     setErrorMessage(null);
     
     try {
-      // Transform the CPF to an email for Supabase auth
-      const loginEmail = `${cpf.replace(/\D/g, '')}@cpflogin.local`;
+      // Use the provided CPF and password or the state values
+      const cleanedCpf = overrideCpf || cleanCPF(cpf);
+      const passwordToUse = overridePassword || password;
       
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginEmail,
-        password
-      });
+      // Use the edge function to login with CPF
+      const response = await fetch(
+        "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/login-with-cpf",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({
+            cpf: cleanedCpf,
+            password: passwordToUse
+          })
+        }
+      );
       
-      if (error) throw error;
+      const result = await response.json();
+      
+      if (!response.ok) {
+        throw new Error(result.message || "Credenciais inválidas");
+      }
+      
+      // Handle the session token returned by the edge function
+      if (result.session) {
+        await supabase.auth.setSession({
+          access_token: result.session.access_token,
+          refresh_token: result.session.refresh_token
+        });
+        
+        navigate("/");
+      } else {
+        throw new Error("Falha ao obter sessão de autenticação");
+      }
       
     } catch (error: any) {
       setErrorMessage(error.message || "Credenciais inválidas");
@@ -225,7 +258,7 @@ export default function Auth() {
             </TabsList>
             
             <TabsContent value="signin">
-              <form onSubmit={handleSignIn} className="space-y-4">
+              <form onSubmit={handleSignIn as any} className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="cpf-login">CPF</Label>
                   <Input

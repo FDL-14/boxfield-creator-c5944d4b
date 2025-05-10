@@ -17,22 +17,7 @@ serve(async (req) => {
   }
   
   try {
-    // Create a Supabase client with the Deno runtime
-    const supabaseClient = createClient(
-      // Supabase API URL - env var exported by default.
-      Deno.env.get("SUPABASE_URL") ?? "",
-      // Supabase API ANON KEY - env var exported by default.
-      Deno.env.get("SUPABASE_ANON_KEY") ?? "",
-      // Create client with Auth context of the function
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
-    
-    // Get admin client
+    // Create a Supabase admin client
     const supabaseAdmin = createClient(
       Deno.env.get("SUPABASE_URL") ?? "",
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
@@ -49,25 +34,27 @@ serve(async (req) => {
     const masterName = "Fabiano Domingues Luciano";
     const masterEmail = "fabiano@totalseguranca.net";
     const masterPassword = "@54321"; // Default password
-    const loginEmail = `${masterCPF}@cpflogin.local`;
     
-    // Check if master user already exists
-    const { data: existingUsers, error: usersError } = await supabaseClient
+    // Check if master user already exists in profiles table
+    const { data: existingProfiles, error: profilesError } = await supabaseAdmin
       .from("profiles")
       .select("id, cpf")
       .eq("cpf", masterCPF)
       .limit(1);
     
-    if (usersError) {
-      throw usersError;
+    if (profilesError) {
+      throw profilesError;
     }
     
-    // If master user already exists, just return success
-    if (existingUsers && existingUsers.length > 0) {
+    let userId;
+    
+    // If master user already exists in profiles
+    if (existingProfiles && existingProfiles.length > 0) {
       console.log("Master user already exists in profiles");
+      userId = existingProfiles[0].id;
       
-      // Ensure user has master flag set
-      await supabaseClient
+      // Ensure user profile has the correct flags
+      const { error: updateError } = await supabaseAdmin
         .from("profiles")
         .update({
           is_admin: true,
@@ -77,65 +64,77 @@ serve(async (req) => {
         })
         .eq("cpf", masterCPF);
         
-      // Ensure user has all permissions
-      await setMasterPermissions(supabaseClient, existingUsers[0].id);
+      if (updateError) {
+        console.error("Error updating profile:", updateError);
+      }
+    } else {
+      // If not found in profiles, check auth.users by email
+      const { data: users, error: usersError } = await supabaseAdmin
+        .auth.admin.listUsers();
       
-      return new Response(
-        JSON.stringify({ 
-          success: true, 
-          message: "Master user already exists",
-          userId: existingUsers[0].id
-        }),
-        {
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-          status: 200,
-        }
+      const masterUser = users?.users.find(user => 
+        user.email === masterEmail || 
+        user.user_metadata?.real_email === masterEmail
       );
-    }
-    
-    // If not, create the master user
-    console.log("Creating master user...");
-    
-    // Use admin API to create user
-    const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: loginEmail,
-      password: masterPassword,
-      email_confirm: true,
-      user_metadata: {
-        name: masterName,
-        cpf: masterCPF,
-        real_email: masterEmail,
-        is_admin: true,
-        is_master: true,
-      },
-    });
-    
-    if (authError) {
-      throw authError;
-    }
-    
-    const userId = authData.user.id;
-    
-    // Ensure profile has master flag set
-    const { error: profileError } = await supabaseClient
-      .from("profiles")
-      .update({
-        is_admin: true,
-        is_master: true,
-      })
-      .eq("id", userId);
       
-    if (profileError) {
-      console.error("Error updating profile:", profileError);
+      if (masterUser) {
+        // User exists in auth but not in profiles
+        userId = masterUser.id;
+        
+        // Create the profile entry
+        await supabaseAdmin
+          .from("profiles")
+          .insert({
+            id: userId,
+            name: masterName,
+            email: masterEmail,
+            cpf: masterCPF,
+            is_admin: true,
+            is_master: true
+          });
+      } else {
+        // User doesn't exist at all, create a new one
+        const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
+          email: masterEmail,
+          password: masterPassword,
+          email_confirm: true,
+          user_metadata: {
+            name: masterName,
+            cpf: masterCPF,
+            is_admin: true,
+            is_master: true
+          },
+        });
+        
+        if (authError) {
+          throw authError;
+        }
+        
+        userId = authData.user.id;
+        
+        // Update the profile
+        const { error: profileUpdateError } = await supabaseAdmin
+          .from("profiles")
+          .update({
+            is_admin: true,
+            is_master: true,
+            cpf: masterCPF
+          })
+          .eq("id", userId);
+          
+        if (profileUpdateError) {
+          console.error("Error updating new profile:", profileUpdateError);
+        }
+      }
     }
     
     // Set all permissions for the master user
-    await setMasterPermissions(supabaseClient, userId);
+    await setMasterPermissions(supabaseAdmin, userId);
     
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: "Master user created successfully",
+        message: "Master user initialized successfully",
         userId: userId
       }),
       {
@@ -159,10 +158,10 @@ serve(async (req) => {
   }
 });
 
-async function setMasterPermissions(supabaseClient: any, userId: string) {
+async function setMasterPermissions(supabaseAdmin: any, userId: string) {
   try {
     // Check if permissions exist
-    const { data: existingPermissions } = await supabaseClient
+    const { data: existingPermissions } = await supabaseAdmin
       .from("user_permissions")
       .select("id")
       .eq("user_id", userId)
@@ -170,7 +169,7 @@ async function setMasterPermissions(supabaseClient: any, userId: string) {
       
     if (existingPermissions && existingPermissions.length > 0) {
       // Update existing permissions to grant all access
-      await supabaseClient
+      await supabaseAdmin
         .from("user_permissions")
         .update({
           can_create: true,
@@ -204,7 +203,7 @@ async function setMasterPermissions(supabaseClient: any, userId: string) {
         .eq("id", existingPermissions[0].id);
     } else {
       // Create new permissions granting all access
-      await supabaseClient
+      await supabaseAdmin
         .from("user_permissions")
         .insert([{
           user_id: userId,

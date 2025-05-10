@@ -31,6 +31,7 @@ export const processUserProfile = (profile: any) => {
       ...permission,
       // Add missing permission properties used in the app
       can_create_user: permission.can_create_user || false,
+      can_edit_user: permission.can_edit_user || false,
       can_edit_user_status: permission.can_edit_user_status || false,
       can_set_user_permissions: permission.can_set_user_permissions || false,
       can_create_section: permission.can_create_section || false,
@@ -63,3 +64,6 @@ export const processUserProfile = (profile: any) => {
     permissions: processedPermissions || []
   };
 };
+
+// Helper function to format CPF by removing non-digits
+export const cleanCPF = (cpf: string) => cpf.replace(/\D/g, '');
