@@ -8,13 +8,12 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, UserPlus, LogIn, KeyRound, AlertCircle, CheckCircle } from "lucide-react";
+import { Loader2, UserPlus, LogIn, AlertCircle, CheckCircle } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 
 export default function Auth() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   
   const [loading, setLoading] = useState(false);
   const [cpf, setCpf] = useState("");
@@ -63,7 +62,8 @@ export default function Auth() {
             name: name,
             cpf: cpf,
             real_email: email // Store the real email for notifications
-          }
+          },
+          emailRedirectTo: `${window.location.origin}/auth`
         }
       });
       
@@ -168,53 +168,22 @@ export default function Auth() {
   // Create master user function
   const createMasterUser = async () => {
     try {
-      // Create master account
-      const masterCPF = "80243088191";
-      const masterName = "Fabiano Domingues Luciano";
-      const masterEmail = "fabiano@totalseguranca.net";
-      const masterPassword = "@54321"; // Default password
-      
-      // Transform the CPF to an email for Supabase auth
-      const loginEmail = `${masterCPF}@cpflogin.local`;
-      
-      // Check if master user exists by querying profiles
-      const { data: existingProfiles, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('cpf', masterCPF)
-        .limit(1);
-        
-      if (!profileError && existingProfiles && existingProfiles.length > 0) {
-        // Master user already exists
-        console.log("Master user already exists");
-        return;
-      }
-      
-      // Create the master user
-      const { data, error } = await supabase.auth.signUp({
-        email: loginEmail,
-        password: masterPassword,
-        options: {
-          data: {
-            name: masterName,
-            cpf: masterCPF,
-            real_email: masterEmail,
-            is_admin: true,
-            is_master: true
-          }
+      // Call the init-master-user edge function
+      const response = await fetch(
+        "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/init-master-user",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
         }
-      });
+      );
       
-      if (error) {
-        console.error("Error creating master user:", error);
-      } else {
-        console.log("Master user created successfully");
-        
-        // Set as master user with all permissions directly in the database
-        // This will be handled by the database trigger and create_master_user function
-      }
+      const result = await response.json();
+      console.log("Master user initialization result:", result);
+      
     } catch (error) {
-      console.error("Error in createMasterUser:", error);
+      console.error("Error initializing master user:", error);
     }
   };
   

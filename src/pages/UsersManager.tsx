@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -15,10 +14,68 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 
+type UserProfile = {
+  id: string;
+  name: string;
+  email: string | null;
+  cpf: string | null;
+  role: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  client_ids: string[] | null;
+  company_ids: string[] | null;
+  face_image: string | null;
+  is_face_registered: boolean | null;
+  is_admin?: boolean; 
+  is_master?: boolean;
+  permissions?: UserPermission[];
+};
+
+type UserPermission = {
+  id: string;
+  user_id: string | null;
+  can_create: boolean | null;
+  can_edit: boolean | null;
+  can_delete: boolean | null;
+  can_mark_complete: boolean | null;
+  can_mark_delayed: boolean | null;
+  can_add_notes: boolean | null;
+  can_view_reports: boolean | null;
+  view_all_actions: boolean | null;
+  can_edit_user: boolean | null;
+  can_edit_action: boolean | null;
+  can_edit_client: boolean | null;
+  can_edit_company: boolean | null;
+  view_only_assigned_actions: boolean | null;
+  can_delete_company: boolean | null;
+  can_delete_client: boolean | null;
+  can_create_user?: boolean | null;
+  can_edit_user_status?: boolean | null;
+  can_set_user_permissions?: boolean | null;
+  can_create_section?: boolean | null;
+  can_edit_section?: boolean | null;
+  can_delete_section?: boolean | null;
+  can_create_field?: boolean | null;
+  can_edit_field?: boolean | null;
+  can_delete_field?: boolean | null;
+  can_fill_field?: boolean | null;
+  can_sign?: boolean | null;
+  can_insert_logo?: boolean | null;
+  can_insert_photo?: boolean | null;
+  can_save?: boolean | null;
+  can_save_as?: boolean | null;
+  can_download?: boolean | null;
+  can_open?: boolean | null;
+  can_print?: boolean | null;
+  can_edit_document?: boolean | null;
+  can_cancel_document?: boolean | null;
+  can_view?: boolean | null;
+};
+
 export default function UsersManager() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [users, setUsers] = useState<any[]>([]);
+  const [users, setUsers] = useState<UserProfile[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -26,9 +83,9 @@ export default function UsersManager() {
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
   const [resetPasswordDialogOpen, setResetPasswordDialogOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState<any>(null);
+  const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
-  const [currentUserProfile, setCurrentUserProfile] = useState<any>(null);
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   
   // Form fields
   const [name, setName] = useState("");
@@ -87,7 +144,7 @@ export default function UsersManager() {
       .eq('id', data.session.user.id)
       .single();
       
-    setCurrentUserProfile(userProfile);
+    setCurrentUserProfile(userProfile as UserProfile);
     
     // Check if user has permission to create users
     if (!userProfile?.is_admin && !userProfile?.is_master && 
@@ -175,7 +232,7 @@ export default function UsersManager() {
     setDialogOpen(true);
   };
   
-  const handleOpenPermissions = (user: any) => {
+  const handleOpenPermissions = (user: UserProfile) => {
     // Check if current user can set permissions
     if (currentUserProfile && 
         !currentUserProfile.is_admin && 
@@ -199,14 +256,14 @@ export default function UsersManager() {
     
     // Fill with all permission fields
     Object.keys(permissions).forEach(key => {
-      permObj[key] = userPermissions[key] || false;
+      permObj[key] = userPermissions[key as keyof UserPermission] as boolean || false;
     });
     
     setPermissions(permObj);
     setPermissionsDialogOpen(true);
   };
   
-  const handleResetPassword = (user: any) => {
+  const handleResetPassword = (user: UserProfile) => {
     // Check if current user can modify users
     if (currentUserProfile && 
         !currentUserProfile.is_admin && 
@@ -224,7 +281,7 @@ export default function UsersManager() {
     setResetPasswordDialogOpen(true);
   };
   
-  const handleEditUser = (user: any) => {
+  const handleEditUser = (user: UserProfile) => {
     // Check if current user can edit users
     if (currentUserProfile && 
         !currentUserProfile.is_admin && 
@@ -248,7 +305,7 @@ export default function UsersManager() {
     setDialogOpen(true);
   };
   
-  const handleDeleteConfirm = (user: any) => {
+  const handleDeleteConfirm = (user: UserProfile) => {
     setEditingUser(user);
     setConfirmDialogOpen(true);
   };
@@ -260,16 +317,11 @@ export default function UsersManager() {
     
     try {
       // Generate the CPF email format
-      const loginEmail = `${editingUser.cpf.replace(/\D/g, '')}@cpflogin.local`;
+      const loginEmail = `${editingUser.cpf?.replace(/\D/g, '')}@cpflogin.local`;
       
-      // Get user auth ID
-      const { data: authData, error: authError } = await supabase.auth.admin.getUserByEmail(loginEmail);
-      
-      if (authError) throw authError;
-      
-      // Reset the password
+      // Get user auth ID by ID directly
       const { error: resetError } = await supabase.auth.admin.updateUserById(
-        authData?.user.id || editingUser.id,
+        editingUser.id,
         { password: '@54321' }
       );
       
@@ -403,9 +455,6 @@ export default function UsersManager() {
     setIsSubmitting(true);
     
     try {
-      // Generate the CPF email format
-      const loginEmail = `${editingUser.cpf.replace(/\D/g, '')}@cpflogin.local`;
-      
       // Delete user from Supabase Auth
       const { error } = await supabase.auth.admin.deleteUser(editingUser.id);
       
@@ -549,7 +598,7 @@ export default function UsersManager() {
   };
   
   // Check if the current user can manage a specific user
-  const canManageUser = (user: any) => {
+  const canManageUser = (user: UserProfile) => {
     if (!currentUserProfile) return false;
     
     // Master users and admins can manage everyone except master users
@@ -894,203 +943,3 @@ export default function UsersManager() {
               <div className="space-y-4 border rounded-md p-4">
                 <h3 className="font-medium">Usuários</h3>
                 <div className="space-y-2">
-                  {["can_create_user", "can_edit_user", "can_edit_user_status", "can_set_user_permissions"].map((perm) => (
-                    <div key={perm} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={perm}
-                        checked={permissions[perm] || false}
-                        onCheckedChange={(checked) => 
-                          setPermissions({...permissions, [perm]: checked === true})
-                        }
-                      />
-                      <Label htmlFor={perm}>
-                        {perm === "can_create_user" && "Criar Usuário"}
-                        {perm === "can_edit_user" && "Editar Usuário"}
-                        {perm === "can_edit_user_status" && "Editar Status do Usuário"}
-                        {perm === "can_set_user_permissions" && "Definir Permissões"}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="font-medium">Formulários</h3>
-                <div className="space-y-2">
-                  {["can_create_section", "can_edit_section", "can_delete_section", "can_create_field", "can_edit_field", "can_delete_field"].map((perm) => (
-                    <div key={perm} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={perm}
-                        checked={permissions[perm] || false}
-                        onCheckedChange={(checked) => 
-                          setPermissions({...permissions, [perm]: checked === true})
-                        }
-                      />
-                      <Label htmlFor={perm}>
-                        {perm === "can_create_section" && "Criar Seção"}
-                        {perm === "can_edit_section" && "Editar Seção"}
-                        {perm === "can_delete_section" && "Excluir Seção"}
-                        {perm === "can_create_field" && "Criar Campo"}
-                        {perm === "can_edit_field" && "Editar Campo"}
-                        {perm === "can_delete_field" && "Excluir Campo"}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="font-medium">Preenchimento</h3>
-                <div className="space-y-2">
-                  {["can_fill_field", "can_sign", "can_insert_logo", "can_insert_photo"].map((perm) => (
-                    <div key={perm} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={perm}
-                        checked={permissions[perm] || false}
-                        onCheckedChange={(checked) => 
-                          setPermissions({...permissions, [perm]: checked === true})
-                        }
-                      />
-                      <Label htmlFor={perm}>
-                        {perm === "can_fill_field" && "Preencher Campo"}
-                        {perm === "can_sign" && "Assinar"}
-                        {perm === "can_insert_logo" && "Inserir Logo"}
-                        {perm === "can_insert_photo" && "Inserir Foto"}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-              
-              <div className="space-y-4 border rounded-md p-4">
-                <h3 className="font-medium">Documentos</h3>
-                <div className="space-y-2">
-                  {["can_save", "can_save_as", "can_download", "can_open", "can_print", "can_edit_document", "can_cancel_document"].map((perm) => (
-                    <div key={perm} className="flex items-center space-x-2">
-                      <Checkbox 
-                        id={perm}
-                        checked={permissions[perm] || false}
-                        onCheckedChange={(checked) => 
-                          setPermissions({...permissions, [perm]: checked === true})
-                        }
-                      />
-                      <Label htmlFor={perm}>
-                        {perm === "can_save" && "Salvar"}
-                        {perm === "can_save_as" && "Salvar Como"}
-                        {perm === "can_download" && "Baixar"}
-                        {perm === "can_open" && "Abrir"}
-                        {perm === "can_print" && "Imprimir"}
-                        {perm === "can_edit_document" && "Editar Documento"}
-                        {perm === "can_cancel_document" && "Cancelar Documento"}
-                      </Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setPermissionsDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={handleSavePermissions}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Salvando...
-                </>
-              ) : (
-                'Salvar Permissões'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Reset Password Dialog */}
-      <Dialog open={resetPasswordDialogOpen} onOpenChange={setResetPasswordDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Redefinir senha</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>
-              Tem certeza que deseja redefinir a senha do usuário <strong>{editingUser?.name}</strong> para o padrão "@54321"?
-            </p>
-          </div>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setResetPasswordDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              onClick={performPasswordReset}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Redefinindo...
-                </>
-              ) : (
-                <>
-                  <RotateCw className="mr-2 h-4 w-4" />
-                  Redefinir Senha
-                </>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Confirm Delete Dialog */}
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Confirmar exclusão</DialogTitle>
-          </DialogHeader>
-          <div className="py-4">
-            <p>
-              Tem certeza que deseja excluir o usuário <strong>{editingUser?.name}</strong>?
-              Esta ação não pode ser desfeita.
-            </p>
-          </div>
-          <DialogFooter>
-            <Button 
-              variant="outline" 
-              onClick={() => setConfirmDialogOpen(false)}
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </Button>
-            <Button 
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isSubmitting}
-            >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Excluindo...
-                </>
-              ) : (
-                'Excluir'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}

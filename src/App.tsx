@@ -27,13 +27,16 @@ const App = () => {
   useEffect(() => {
     const initMasterUser = async () => {
       try {
+        // Get current session first
+        const { data: sessionData } = await supabase.auth.getSession();
+        
         const response = await fetch(
           "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/init-master-user",
           {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              "Authorization": `Bearer ${supabase.auth.session()?.access_token || ''}`,
+              "Authorization": `Bearer ${sessionData?.session?.access_token || ''}`,
             }
           }
         );

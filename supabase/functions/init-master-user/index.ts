@@ -96,7 +96,7 @@ serve(async (req) => {
     // If not, create the master user
     console.log("Creating master user...");
     
-    // Use admin API to create user and auto-confirm
+    // Use admin API to create user
     const { data: authData, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: loginEmail,
       password: masterPassword,
