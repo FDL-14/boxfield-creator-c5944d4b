@@ -11,16 +11,25 @@ interface SignatureBase64DialogProps {
   onClose: () => void;
   base64Data: string;
   signatureName: string;
+  // Add compatibility with older code
+  onOpenChange?: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
 export default function SignatureBase64Dialog({
   open,
   onClose,
   base64Data,
-  signatureName
+  signatureName,
+  onOpenChange
 }: SignatureBase64DialogProps) {
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+
+  // Handle both patterns for consistency
+  const handleOpenChange = (isOpen: boolean) => {
+    if (onOpenChange) onOpenChange(isOpen);
+    if (!isOpen) onClose();
+  };
   
   const handleCopyCode = async () => {
     try {
@@ -44,7 +53,7 @@ export default function SignatureBase64Dialog({
   };
   
   return (
-    <Dialog open={open} onOpenChange={onClose}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Código Base64 da Assinatura</DialogTitle>

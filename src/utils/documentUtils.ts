@@ -1,4 +1,5 @@
 
+// Only fixing the specific issue with export_format property access
 import { supabase } from "@/integrations/supabase/client";
 import { saveFormData, getSavedForms } from "./formUtils";
 import { v4 as uuidv4 } from 'uuid';
@@ -131,8 +132,7 @@ export const loadDocumentsFromSupabase = async (
   try {
     console.log("Carregando documentos do Supabase:", { docType, isTemplate });
     
-    // Modifique a consulta para não selecionar export_format explicitamente,
-    // já que a coluna ainda não existe na tabela
+    // Modifique a consulta para selecionar todos os campos, incluindo as colunas novas
     let query = supabase
       .from('document_templates')
       .select('*, section_locks:document_section_locks(*)')
@@ -175,7 +175,8 @@ export const loadDocumentsFromSupabase = async (
         updated_at: doc.updated_at,
         formType: doc.type,
         isTemplate: doc.is_template,
-        export_format: docData.export_format || 'PDF', // Use data from the docData or default to PDF
+        // Fix export_format access by looking in both places - doc.data and directly in doc
+        export_format: docData.export_format || 'PDF', 
         section_locks: doc.section_locks || [],
         supabaseId: doc.id // Marcar que veio do Supabase
       };

@@ -1,3 +1,4 @@
+
 // Only fixing the showBase64Dialog function
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
@@ -9,14 +10,28 @@ interface DrawSignatureProps {
   onSignatureCapture: (base64: string) => void;
   onClose: () => void;
   initialSignature?: string | null;
+  // Add compatibility with older code that uses onSave instead of onSignatureCapture
+  onSave?: (base64: string) => void;
+  onCancel?: () => void;
 }
 
-export default function DrawSignature({ onSignatureCapture, onClose, initialSignature = null }: DrawSignatureProps) {
+export default function DrawSignature({ onSignatureCapture, onClose, initialSignature = null, onSave, onCancel }: DrawSignatureProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [base64Signature, setBase64Signature] = useState('');
   const [showBase64DialogOpen, setShowBase64DialogOpen] = useState(false);
+
+  // Support both new and old prop patterns
+  const handleCapture = (base64: string) => {
+    if (onSignatureCapture) onSignatureCapture(base64);
+    if (onSave) onSave(base64);
+  };
+
+  const handleClose = () => {
+    if (onClose) onClose();
+    if (onCancel) onCancel();
+  };
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -89,8 +104,8 @@ export default function DrawSignature({ onSignatureCapture, onClose, initialSign
       });
       return;
     }
-    onSignatureCapture(base64Signature);
-    onClose();
+    handleCapture(base64Signature);
+    handleClose();
   };
 
   // Add the missing function
@@ -150,6 +165,8 @@ export default function DrawSignature({ onSignatureCapture, onClose, initialSign
         open={showBase64DialogOpen}
         onOpenChange={setShowBase64DialogOpen}
         base64Data={base64Signature}
+        onClose={() => setShowBase64DialogOpen(false)} 
+        signatureName="Assinatura"
       />
     </div>
   );
