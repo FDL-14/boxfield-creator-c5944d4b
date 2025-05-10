@@ -17,3 +17,18 @@ export const supabase = createClient<Database>(SUPABASE_URL, SUPABASE_PUBLISHABL
     flowType: 'pkce'
   }
 });
+
+// Add type conversion helpers to handle metadata and additional properties
+export const processUserProfile = (profile: any) => {
+  if (!profile) return null;
+  
+  // Process metadata for additional properties
+  const metadata = profile.raw_user_meta_data || {};
+  
+  return {
+    ...profile,
+    is_admin: profile.is_admin || metadata.is_admin || false,
+    is_master: profile.is_master || metadata.is_master || false
+  };
+};
+
