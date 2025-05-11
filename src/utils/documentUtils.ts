@@ -165,6 +165,18 @@ export const loadDocumentsFromSupabase = async (
       // Se doc.data existir e for um objeto, usamos ele, caso contrário usamos um objeto vazio
       const docData = doc.data && typeof doc.data === 'object' ? doc.data : {};
       
+      // Determinar o valor correto para export_format, checando os tipos
+      let exportFormat = 'PDF'; // valor padrão
+      
+      // Verificar se docData é um array ou um objeto
+      if (Array.isArray(docData)) {
+        // Se for um array, não tentamos acessar export_format
+        console.log("doc.data é um array, usando valor padrão para export_format");
+      } else {
+        // Se for um objeto, tentamos acessar a propriedade
+        exportFormat = (docData as any).export_format || doc.export_format || 'PDF';
+      }
+      
       return {
         ...docData,
         id: doc.id,
@@ -175,8 +187,7 @@ export const loadDocumentsFromSupabase = async (
         updated_at: doc.updated_at,
         formType: doc.type,
         isTemplate: doc.is_template,
-        // Fix export_format access by looking in both places - doc.data and directly in doc
-        export_format: docData.export_format || 'PDF', 
+        export_format: exportFormat,
         section_locks: doc.section_locks || [],
         supabaseId: doc.id // Marcar que veio do Supabase
       };
