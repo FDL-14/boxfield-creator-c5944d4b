@@ -1,4 +1,3 @@
-
 // Only fixing the specific issue with export_format property access
 import { supabase } from "@/integrations/supabase/client";
 import { saveFormData, getSavedForms } from "./formUtils";
@@ -174,7 +173,13 @@ export const loadDocumentsFromSupabase = async (
         console.log("doc.data é um array, usando valor padrão para export_format");
       } else {
         // Se for um objeto, tentamos acessar a propriedade
-        exportFormat = (docData as any).export_format || doc.export_format || 'PDF';
+        exportFormat = (docData as any).export_format || 'PDF';
+      }
+      
+      // Verificar se o próprio documento tem a propriedade export_format
+      // Usando uma verificação segura com 'as any' para evitar erros de TypeScript
+      if ((doc as any).export_format) {
+        exportFormat = (doc as any).export_format;
       }
       
       return {
