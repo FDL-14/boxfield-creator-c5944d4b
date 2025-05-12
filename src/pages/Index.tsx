@@ -7,14 +7,12 @@ import { FileText, FileEdit, ClipboardList, LineChart, PlusCircle, Users, Buildi
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { usePermissions } from "@/hooks/usePermissions";
 
 export default function Index() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const { permissions, isAdmin, isMaster, refreshPermissions } = usePermissions();
 
   useEffect(() => {
     checkAuth();
@@ -37,7 +35,7 @@ export default function Index() {
         .from('profiles')
         .select('*')
         .eq('id', data.session.user.id)
-        .maybeSingle();
+        .single();
         
       if (profileData) {
         setUser({
@@ -45,9 +43,6 @@ export default function Index() {
           profile: profileData
         });
       }
-      
-      // Refresh permissions after loading profile
-      await refreshPermissions();
     } catch (error) {
       console.error("Error checking auth:", error);
     } finally {
@@ -79,64 +74,56 @@ export default function Index() {
       description: "Crie e gerencie campos personalizados para seus formulários",
       icon: <FileEdit className="h-12 w-12 text-blue-600" />,
       path: "/form-builder",
-      color: "bg-blue-50 hover:bg-blue-100",
-      show: permissions.can_edit_document_type || isAdmin || isMaster
+      color: "bg-blue-50 hover:bg-blue-100"
     },
     {
       title: "Análise de Risco",
       description: "Documentos para análise de riscos em atividades",
       icon: <ClipboardList className="h-12 w-12 text-orange-600" />,
       path: "/analise-risco",
-      color: "bg-orange-50 hover:bg-orange-100",
-      show: permissions.can_view || isAdmin || isMaster
+      color: "bg-orange-50 hover:bg-orange-100"
     },
     {
       title: "Permissão de Trabalho",
       description: "Documentos de permissão para atividades específicas",
       icon: <FileText className="h-12 w-12 text-green-600" />,
       path: "/permissao-trabalho",
-      color: "bg-green-50 hover:bg-green-100",
-      show: permissions.can_view || isAdmin || isMaster
+      color: "bg-green-50 hover:bg-green-100"
     },
     {
       title: "Relatórios",
       description: "Visualize e analise dados de documentos criados",
       icon: <LineChart className="h-12 w-12 text-purple-600" />,
       path: "/relatorios/analise-risco",
-      color: "bg-purple-50 hover:bg-purple-100",
-      show: permissions.can_view_reports || isAdmin || isMaster
+      color: "bg-purple-50 hover:bg-purple-100"
     },
     {
       title: "Tipos de Documento",
       description: "Crie e gerencie tipos de documento personalizados",
       icon: <PlusCircle className="h-12 w-12 text-indigo-600" />,
       path: "/document-types",
-      color: "bg-indigo-50 hover:bg-indigo-100",
-      show: permissions.can_edit_document_type || isAdmin || isMaster
+      color: "bg-indigo-50 hover:bg-indigo-100"
     },
     {
       title: "Empresas",
       description: "Gerencie o cadastro de empresas",
       icon: <Building className="h-12 w-12 text-sky-600" />,
       path: "/companies",
-      color: "bg-sky-50 hover:bg-sky-100",
-      show: permissions.can_edit_company || isAdmin || isMaster
+      color: "bg-sky-50 hover:bg-sky-100"
     },
     {
       title: "Clientes",
       description: "Gerencie o cadastro de clientes",
       icon: <Users className="h-12 w-12 text-amber-600" />,
       path: "/clients",
-      color: "bg-amber-50 hover:bg-amber-100",
-      show: permissions.can_edit_client || isAdmin || isMaster
+      color: "bg-amber-50 hover:bg-amber-100"
     },
     {
       title: "Usuários",
       description: "Gerencie usuários e permissões",
       icon: <UserCircle className="h-12 w-12 text-pink-600" />,
       path: "/users",
-      color: "bg-pink-50 hover:bg-pink-100",
-      show: permissions.can_edit_user || isAdmin || isMaster
+      color: "bg-pink-50 hover:bg-pink-100"
     }
   ];
 
@@ -147,8 +134,6 @@ export default function Index() {
       </div>
     );
   }
-
-  const visibleMenuItems = menuItems.filter(item => item.show !== false);
 
   return (
     <div className="min-h-screen flex flex-col">
@@ -164,16 +149,12 @@ export default function Index() {
           </div>
           <div className="flex items-center gap-4">
             <nav className="flex gap-2">
-              {permissions.can_edit_document_type && (
-                <Button variant="outline" asChild>
-                  <Link to="/document-types">Tipos de Documento</Link>
-                </Button>
-              )}
-              {(permissions.can_edit_document_type || isAdmin || isMaster) && (
-                <Button variant="outline" asChild>
-                  <Link to="/form-builder">Construtor de Formulários</Link>
-                </Button>
-              )}
+              <Button variant="outline" asChild>
+                <Link to="/document-types">Tipos de Documento</Link>
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/form-builder">Construtor de Formulários</Link>
+              </Button>
               <Button variant="outline" asChild>
                 <Link to="/biometrics">Gerenciar Biometria</Link>
               </Button>
@@ -183,9 +164,7 @@ export default function Index() {
               <div className="flex items-center gap-2">
                 <div className="text-sm text-right">
                   <p className="font-medium">{user.profile?.name || user.email}</p>
-                  <p className="text-gray-500 text-xs">
-                    {isMaster ? 'Master' : isAdmin ? 'Administrador' : 'Usuário'}
-                  </p>
+                  <p className="text-gray-500 text-xs">{user.profile?.is_admin ? 'Administrador' : 'Usuário'}</p>
                 </div>
                 <Button 
                   variant="ghost" 
@@ -210,7 +189,7 @@ export default function Index() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">
-          {visibleMenuItems.map((item, index) => (
+          {menuItems.map((item, index) => (
             <Card 
               key={index} 
               className={`shadow-md hover:shadow-lg transition-all duration-300 ${item.color}`}

@@ -1,8 +1,8 @@
 
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Home, Loader } from "lucide-react";
+import { Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 
 interface HeaderProps {
@@ -12,10 +12,8 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
 
   const handleBackToHome = () => {
-    setLoading(true);
     navigate('/');
   };
 
@@ -27,9 +25,8 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           variant="outline" 
           size="sm"
           className="flex items-center gap-1"
-          disabled={loading}
         >
-          {loading ? <Loader className="h-4 w-4 animate-spin" /> : <Home className="h-4 w-4" />}
+          <Home className="h-4 w-4" />
           Menu Principal
         </Button>
         <div>
