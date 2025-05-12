@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -148,7 +147,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       // Use direct RPC call to avoid recursion issues
       const { data: roleData, error: roleError } = await supabase.rpc('get_user_role', {
         user_id: currentUserId
-      });
+      }) as { data: UserRoleData, error: any };
       
       if (roleError) {
         console.error("Error getting user role:", roleError);
