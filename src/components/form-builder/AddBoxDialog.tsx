@@ -16,9 +16,10 @@ interface AddBoxDialogProps {
   open: boolean;
   onClose: () => void;
   onAddBox: (boxData: any) => void;
+  isLoading?: boolean;
 }
 
-const AddBoxDialog: React.FC<AddBoxDialogProps> = ({ open, onClose, onAddBox }) => {
+const AddBoxDialog: React.FC<AddBoxDialogProps> = ({ open, onClose, onAddBox, isLoading = false }) => {
   const [title, setTitle] = useState('');
   const [lockWhenSigned, setLockWhenSigned] = useState(true);
 
@@ -72,8 +73,8 @@ const AddBoxDialog: React.FC<AddBoxDialogProps> = ({ open, onClose, onAddBox }) 
           <Button variant="outline" onClick={handleClose}>
             Cancelar
           </Button>
-          <Button onClick={handleSubmit} disabled={!title.trim()}>
-            Adicionar
+          <Button onClick={handleSubmit} disabled={!title.trim() || isLoading}>
+            {isLoading ? 'Adicionando...' : 'Adicionar'}
           </Button>
         </DialogFooter>
       </DialogContent>

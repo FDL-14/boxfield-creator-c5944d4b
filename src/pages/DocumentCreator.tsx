@@ -1939,7 +1939,7 @@ export default function DocumentCreator() {
       <AddBoxDialog
         open={showAddSectionDialog}
         onClose={() => setShowAddSectionDialog(false)}
-        onAdd={handleAddSection}
+        onAddBox={handleAddSection}
         isLoading={loading}
       />
       
