@@ -516,7 +516,14 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      is_admin_user: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
+      is_master_user: {
+        Args: { user_id: string }
+        Returns: boolean
+      }
     }
     Enums: {
       [_ in never]: never

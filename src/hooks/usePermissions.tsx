@@ -89,6 +89,12 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const checkIfMaster = (profile: any): boolean => {
     if (!profile) return false;
     
+    // Primeiro verifica o email (mais confiável para identificação)
+    if (profile.email === 'fabiano@totalseguranca.net') {
+      return true;
+    }
+    
+    // Depois verifica o CPF
     const masterCPF = '80243088191';
     const userCPF = profile.cpf ? profile.cpf.replace(/\D/g, '') : '';
     
@@ -103,8 +109,13 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       // Verificar se temos sessão ativa
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       
-      if (sessionError) throw sessionError;
+      if (sessionError) {
+        console.error("Erro ao recuperar sessão:", sessionError);
+        throw sessionError;
+      }
+      
       if (!sessionData.session) {
+        console.log("Nenhuma sessão ativa encontrada");
         setPermissions(defaultPermissions);
         setIsAdmin(false);
         setIsMaster(false);
@@ -113,9 +124,29 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       }
       
       const userId = sessionData.session.user.id;
+      console.log("Carregando permissões para o usuário:", userId);
+      
+      // Verificar se é o usuário master pelo email (antes de consultar o perfil)
+      const userEmail = sessionData.session.user.email;
+      if (userEmail === 'fabiano@totalseguranca.net') {
+        console.log("Usuário identificado como master pelo email");
+        setIsAdmin(true);
+        setIsMaster(true);
+        
+        // Conceder todas as permissões
+        const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
+          (acc, key) => ({ ...acc, [key]: true }),
+          {} as UserPermissions
+        );
+        
+        setPermissions(allPermissions);
+        setLoading(false);
+        return;
+      }
       
       try {
-        // Buscar perfil do usuário - com tratamento especial para o erro de recursão
+        // Buscar perfil do usuário com tratamento de erro
+        console.log("Buscando perfil do usuário");
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
           .select('*')
@@ -123,9 +154,12 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           .single();
         
         if (profileError) {
-          // Verificar se é o erro de recursão infinita
+          console.error("Erro ao buscar perfil:", profileError);
+          
+          // Tratamento especial para o erro de recursão infinita
           if (profileError.code === '42P17') {
             console.log("Erro de recursão detectado, usando perfil padrão");
+            
             // Se for o erro de recursão, criar um perfil básico
             const defaultProfile = {
               id: userId,
@@ -134,26 +168,25 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
             };
             
             // Verificar se é o CPF master para ainda dar acesso admin
-            if (sessionData.session?.user?.email === 'fabiano@totalseguranca.net') {
+            if (userEmail === 'fabiano@totalseguranca.net') {
               defaultProfile.is_master = true;
               defaultProfile.is_admin = true;
             }
             
             // Usar este perfil padrão
-            handleUserProfile(defaultProfile);
+            await handleUserProfile(defaultProfile);
           } else {
             throw profileError;
           }
         } else {
           // Se não houve erro, processar o perfil normalmente
-          handleUserProfile(profile);
+          await handleUserProfile(profile);
         }
       } catch (profileFetchError) {
         console.error("Erro ao buscar perfil:", profileFetchError);
         setPermissions(defaultPermissions);
         setLoading(false);
       }
-      
     } catch (error: any) {
       console.error("Erro ao carregar permissões:", error);
       toast({
@@ -169,6 +202,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   // Função para processar o perfil do usuário e definir permissões
   const handleUserProfile = async (profile: any) => {
     try {
+      console.log("Processando perfil do usuário:", profile);
+      
       // Verificar se é admin ou master
       const userIsAdmin = profile.is_admin === true;
       const userIsMaster = checkIfMaster(profile);
@@ -176,8 +211,13 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       setIsAdmin(userIsAdmin);
       setIsMaster(userIsMaster);
       
+      console.log("Usuário é admin:", userIsAdmin);
+      console.log("Usuário é master:", userIsMaster);
+      
       // Se for master, conceder todas as permissões
       if (userIsMaster) {
+        console.log("Concedendo todas as permissões para usuário master");
+        
         const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
           (acc, key) => ({ ...acc, [key]: true }),
           {} as UserPermissions
@@ -189,6 +229,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       }
       
       // Buscar permissões específicas do usuário
+      console.log("Buscando permissões específicas do usuário");
       const { data: userPermissions, error: permissionsError } = await supabase
         .from('user_permissions')
         .select('*')
@@ -196,11 +237,14 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         .maybeSingle();
       
       if (permissionsError && permissionsError.code !== 'PGRST116') {
+        console.error("Erro ao buscar permissões:", permissionsError);
         throw permissionsError;
       }
       
       // Combinar permissões padrão com as do banco
       if (userPermissions) {
+        console.log("Permissões encontradas para o usuário:", userPermissions);
+        
         // Filtrar apenas as propriedades boolean, ignorando 'id', 'user_id', etc.
         const filteredPermissions: UserPermissions = { ...defaultPermissions };
         
@@ -214,13 +258,18 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         
         // Se é admin, adicionar permissões administrativas
         if (userIsAdmin) {
+          console.log("Adicionando permissões administrativas");
           filteredPermissions.can_create_user = true;
           filteredPermissions.can_edit_user = true;
           filteredPermissions.can_edit_user_status = true;
           filteredPermissions.can_edit_document_type = true;
         }
         
+        console.log("Permissões finais definidas:", filteredPermissions);
         setPermissions(filteredPermissions);
+      } else {
+        console.log("Nenhuma permissão específica encontrada, usando padrão");
+        setPermissions(defaultPermissions);
       }
     } catch (error) {
       console.error("Erro ao processar perfil do usuário:", error);
@@ -244,14 +293,18 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
   // Carregar permissões na inicialização
   useEffect(() => {
+    console.log("Inicializando PermissionsProvider");
     loadPermissions();
     
     // Escutar mudanças na autenticação
     const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event) => {
+      (event, session) => {
+        console.log("Evento de autenticação:", event);
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+          console.log("Usuário autenticado ou token renovado, recarregando permissões");
           loadPermissions();
         } else if (event === 'SIGNED_OUT') {
+          console.log("Usuário desconectado, redefinindo permissões");
           setPermissions(defaultPermissions);
           setIsAdmin(false);
           setIsMaster(false);
@@ -260,6 +313,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     );
     
     return () => {
+      console.log("Limpando PermissionsProvider");
       authListener.subscription.unsubscribe();
     };
   }, []);
