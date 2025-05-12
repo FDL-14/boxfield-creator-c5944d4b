@@ -28,6 +28,9 @@ export interface UserPermissions {
   can_cancel_document: boolean;
   can_view: boolean;
   can_edit_document_type: boolean;
+  can_view_reports: boolean;
+  can_edit_company: boolean;
+  can_edit_client: boolean;
   [key: string]: boolean;
 }
 
@@ -55,7 +58,10 @@ const defaultPermissions: UserPermissions = {
   can_edit_document: false,
   can_cancel_document: false,
   can_view: false,
-  can_edit_document_type: false
+  can_edit_document_type: false,
+  can_view_reports: false,
+  can_edit_company: false,
+  can_edit_client: false
 };
 
 // Permissions context
@@ -145,49 +151,28 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Use our fixed RPC call with proper typing
-      const { data, error } = await supabase.rpc('check_user_role', {
-        user_id: currentUserId
-      });
-      
-      if (error) {
-        console.error("Error checking user role:", error);
+      // Use our RPC function with proper error handling
+      try {
+        const { data, error } = await supabase.rpc('check_user_role', {
+          user_id: currentUserId
+        });
         
-        // Fallback in case RPC fails - direct SQL query
-        try {
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('is_admin, is_master, cpf')
-            .eq('id', currentUserId)
-            .single();
-          
-          if (userError) throw userError;
-          
-          // Check if user is master
-          const userIsMaster = isMasterUser(userData);
-          
-          setIsAdmin(userData.is_admin || userIsMaster);
-          setIsMaster(userIsMaster);
-          
-          if (userIsMaster) {
-            // Grant all permissions to master
-            const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
-              (acc, key) => ({ ...acc, [key]: true }),
-              {} as UserPermissions
-            );
-            setPermissions(allPermissions);
-            setLoading(false);
-            return;
-          }
-        } catch (fallbackError) {
-          console.error("Fallback error:", fallbackError);
-          // Continue to attempt loading permissions
+        if (error) {
+          console.error("Error calling check_user_role:", error);
+          throw error;
         }
-      } else if (data && Array.isArray(data) && data.length > 0) {
-        // Handle array response from RPC function
-        const roleData = data[0] as UserRoleData;
-        const userIsAdmin = roleData.is_admin === true;
-        const userIsMaster = roleData.is_master === true;
+        
+        // Handle the data based on its format
+        let roleData: UserRoleData;
+        
+        if (Array.isArray(data) && data.length > 0) {
+          roleData = data[0] as UserRoleData;
+        } else {
+          roleData = data as unknown as UserRoleData;
+        }
+        
+        const userIsAdmin = roleData?.is_admin === true;
+        const userIsMaster = roleData?.is_master === true;
         
         setIsAdmin(userIsAdmin);
         setIsMaster(userIsMaster);
@@ -203,13 +188,25 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           return;
         }
-      } else if (data && !Array.isArray(data)) {
-        // Handle single object response from RPC function
-        const roleData = data as unknown as UserRoleData;
-        const userIsAdmin = roleData.is_admin === true;
-        const userIsMaster = roleData.is_master === true;
+      } catch (rpcError) {
+        console.error("RPC call failed, using fallback:", rpcError);
         
-        setIsAdmin(userIsAdmin);
+        // Fallback in case RPC fails - direct SQL query
+        const { data: userData, error: userError } = await supabase
+          .from('profiles')
+          .select('is_admin, is_master, cpf')
+          .eq('id', currentUserId)
+          .single();
+        
+        if (userError) {
+          console.error("Fallback query failed:", userError);
+          throw userError;
+        }
+        
+        // Check if user is master
+        const userIsMaster = isMasterUser(userData);
+        
+        setIsAdmin(userData.is_admin || userIsMaster);
         setIsMaster(userIsMaster);
         
         if (userIsMaster) {
@@ -218,7 +215,6 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
             (acc, key) => ({ ...acc, [key]: true }),
             {} as UserPermissions
           );
-          
           setPermissions(allPermissions);
           setLoading(false);
           return;
@@ -257,6 +253,10 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
             filteredPermissions.can_edit_user_status = true;
             filteredPermissions.can_set_user_permissions = true;
             filteredPermissions.can_edit_document_type = true;
+            filteredPermissions.can_view_reports = true;
+            filteredPermissions.can_edit_company = true;
+            filteredPermissions.can_edit_client = true;
+            filteredPermissions.can_view = true;
           }
           
           setPermissions(filteredPermissions);
@@ -269,6 +269,9 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           adminPermissions.can_set_user_permissions = true;
           adminPermissions.can_edit_document_type = true;
           adminPermissions.can_view = true;
+          adminPermissions.can_view_reports = true;
+          adminPermissions.can_edit_company = true;
+          adminPermissions.can_edit_client = true;
           setPermissions(adminPermissions);
         }
       } catch (permError) {
@@ -283,6 +286,9 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           basicAdminPerms.can_set_user_permissions = true;
           basicAdminPerms.can_edit_document_type = true;
           basicAdminPerms.can_view = true;
+          basicAdminPerms.can_view_reports = true;
+          basicAdminPerms.can_edit_company = true;
+          basicAdminPerms.can_edit_client = true;
           setPermissions(basicAdminPerms);
         }
       }

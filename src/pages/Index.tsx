@@ -14,7 +14,7 @@ export default function Index() {
   const { toast } = useToast();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const { permissions, isAdmin, isMaster } = usePermissions();
+  const { permissions, isAdmin, isMaster, refreshPermissions } = usePermissions();
 
   useEffect(() => {
     checkAuth();
@@ -45,6 +45,9 @@ export default function Index() {
           profile: profileData
         });
       }
+      
+      // Refresh permissions after loading profile
+      await refreshPermissions();
     } catch (error) {
       console.error("Error checking auth:", error);
     } finally {
