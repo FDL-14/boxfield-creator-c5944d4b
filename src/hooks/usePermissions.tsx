@@ -88,6 +88,12 @@ const isMasterUser = (profile: any): boolean => {
   return userCPF === masterCPF || profile.is_master === true;
 };
 
+// Define the expected type for roleData 
+interface UserRoleData {
+  is_admin: boolean;
+  is_master: boolean;
+}
+
 // Permissions provider
 export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
@@ -178,6 +184,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           // Continue to attempt loading permissions
         }
       } else if (roleData) {
+        // Fix here: roleData is an object with properties is_admin and is_master, not an array
         const userIsAdmin = roleData.is_admin === true;
         const userIsMaster = roleData.is_master === true;
         
