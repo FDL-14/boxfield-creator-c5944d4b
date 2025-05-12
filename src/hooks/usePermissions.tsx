@@ -184,7 +184,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           // Continue to attempt loading permissions
         }
       } else if (roleData) {
-        // Previously had an error - roleData was treated as an array, but it's an object
+        // Fix: roleData is an object with properties is_admin and is_master, not an array
         const userIsAdmin = roleData.is_admin === true;
         const userIsMaster = roleData.is_master === true;
         
