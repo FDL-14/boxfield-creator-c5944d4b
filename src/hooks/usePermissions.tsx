@@ -1,3 +1,4 @@
+
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -183,7 +184,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           // Continue to attempt loading permissions
         }
       } else if (roleData) {
-        // Fix here: roleData is an object with properties is_admin and is_master, not an array
+        // Previously had an error - roleData was treated as an array, but it's an object
         const userIsAdmin = roleData.is_admin === true;
         const userIsMaster = roleData.is_master === true;
         

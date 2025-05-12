@@ -43,6 +43,15 @@ export const saveDocumentToSupabase = async (
       export_format: exportFormat
     };
     
+    // Processar configurações de travamento de seção
+    if (data.boxes && !data.section_locks) {
+      docDataWithId.section_locks = data.boxes.map((box: any) => ({
+        section_id: box.id,
+        lock_when_signed: box.lockWhenSigned !== false,
+        document_id: documentId
+      }));
+    }
+    
     // Upsert na tabela document_templates
     const { error, data: insertedData } = await supabase
       .from('document_templates')

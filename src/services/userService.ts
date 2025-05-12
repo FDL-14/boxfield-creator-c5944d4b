@@ -200,15 +200,28 @@ export const UserService = {
    */
   hasPermission: async (userId: string, permission: string) => {
     try {
-      const { data, error } = await supabase
+      // Primeiro, verificar se o usuário é admin ou master
+      const { data, error } = await supabase.rpc('get_user_role', {
+        user_id: userId
+      }) as { data: { is_admin: boolean, is_master: boolean }, error: any };
+      
+      if (!error && data) {
+        // Se for admin ou master, conceder permissão automaticamente
+        if (data.is_master === true || data.is_admin === true) {
+          return true;
+        }
+      }
+      
+      // Caso contrário, verificar permissões específicas
+      const { data: permData, error: permError } = await supabase
         .from('user_permissions')
         .select(permission)
         .eq('user_id', userId)
         .single();
       
-      if (error) return false;
+      if (permError) return false;
       
-      return data && data[permission] === true;
+      return permData && permData[permission] === true;
     } catch (error) {
       console.error("Erro ao verificar permissão:", error);
       return false;
