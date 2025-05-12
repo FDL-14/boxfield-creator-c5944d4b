@@ -153,20 +153,26 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       
       // Combinar permissões padrão com as do banco
       if (userPermissions) {
-        const combinedPermissions: UserPermissions = {
-          ...defaultPermissions,
-          ...userPermissions
-        };
+        // Filtrar apenas as propriedades boolean, ignorando 'id', 'user_id', etc.
+        const filteredPermissions: UserPermissions = { ...defaultPermissions };
+        
+        // Processar apenas as propriedades válidas que estão em defaultPermissions ou que começam com "can_"
+        Object.keys(userPermissions).forEach(key => {
+          if (key in defaultPermissions || key.startsWith('can_')) {
+            // Garantir que atribuímos apenas valores booleanos
+            filteredPermissions[key] = Boolean(userPermissions[key]);
+          }
+        });
         
         // Se é admin, adicionar permissões administrativas
         if (userIsAdmin) {
-          combinedPermissions.can_create_user = true;
-          combinedPermissions.can_edit_user = true;
-          combinedPermissions.can_edit_user_status = true;
-          combinedPermissions.can_edit_document_type = true;
+          filteredPermissions.can_create_user = true;
+          filteredPermissions.can_edit_user = true;
+          filteredPermissions.can_edit_user_status = true;
+          filteredPermissions.can_edit_document_type = true;
         }
         
-        setPermissions(combinedPermissions);
+        setPermissions(filteredPermissions);
       }
     } catch (error: any) {
       console.error("Erro ao carregar permissões:", error);
