@@ -525,32 +525,31 @@ export const isSectionLocked = (formValues: any, fieldsInSection: any[]) => {
  * @returns Array of locked section IDs
  */
 export const getLockedSections = (formValues: any, boxes: any[], fields: any[]) => {
-  // Primeiro verificar se há alguma assinatura no documento
+  // First check if there's any signature in the document
   const signatureFields = fields.filter(field => field.type === 'signature');
   const hasAnySignature = signatureFields.some(field => formValues[field.id]);
   
-  // Se houver qualquer assinatura no documento
+  // If there's any signature in the document
   if (hasAnySignature) {
-    // Verificar se há configurações específicas de bloqueio de seção
+    // Get sections with signatures
     const sectionIdsWithSignatures = signatureFields
-      .filter(field => formValues[field.id]) // Apenas campos de assinatura que estão assinados
-      .map(field => field.box_id); // IDs das seções que contêm assinaturas
+      .filter(field => formValues[field.id]) // Only signature fields that are signed
+      .map(field => field.box_id); // IDs of sections containing signatures
     
-    // Se qualquer seção tem uma assinatura, bloqueamos TODAS as seções
-    // exceto as que são específicamente configuradas para não bloquear
+    // Return IDs of sections that should be locked
     return boxes
       .filter(box => {
-        // Se lockWhenSigned é explicitamente false, não bloqueia
+        // If lockWhenSigned is explicitly false, don't lock
         if (box.lockWhenSigned === false) {
           return false;
         }
         
-        return true; // Bloqueia todas as outras seções
+        return true; // Lock all other sections
       })
       .map(box => box.id);
   }
   
-  // Se não houver nenhuma assinatura no documento, não bloqueia nenhuma seção
+  // If there's no signature in the document, don't lock any section
   return [];
 };
 

@@ -57,6 +57,47 @@ serve(async (req) => {
         
         if (!masterSignInError && masterSignInData.session) {
           console.log("Master login successful with direct email");
+          
+          // Ensure the profile is marked as master
+          const { data: profileData, error: profileError } = await supabaseAdmin
+            .from("profiles")
+            .select("*")
+            .eq("id", masterSignInData.user.id)
+            .single();
+            
+          if (!profileError && profileData) {
+            // Update profile to ensure it's marked as master and admin
+            if (!profileData.is_master || !profileData.is_admin) {
+              await supabaseAdmin
+                .from("profiles")
+                .update({ 
+                  is_master: true, 
+                  is_admin: true,
+                  cpf: cleanedCpf 
+                })
+                .eq("id", masterSignInData.user.id);
+                
+              console.log("Master profile updated to ensure master status");
+            }
+          } else {
+            // Create profile if it doesn't exist
+            await supabaseAdmin
+              .from("profiles")
+              .insert({
+                id: masterSignInData.user.id,
+                name: "Master Admin",
+                email: "fabiano@totalseguranca.net",
+                cpf: cleanedCpf,
+                is_master: true,
+                is_admin: true
+              });
+              
+            console.log("Master profile created");
+          }
+          
+          // Ensure user permissions are set
+          await ensureMasterPermissions(supabaseAdmin, masterSignInData.user.id);
+          
           return new Response(
             JSON.stringify({ 
               session: masterSignInData.session, 
@@ -125,6 +166,11 @@ serve(async (req) => {
       
       console.log("Login successful");
       
+      // If this is the master user CPF, ensure permissions
+      if (cleanedCpf === "80243088191") {
+        await ensureMasterPermissions(supabaseAdmin, data.user.id);
+      }
+      
       return new Response(
         JSON.stringify({ session: data.session, user: data.user }),
         {
@@ -153,3 +199,59 @@ serve(async (req) => {
     );
   }
 });
+
+// Function to ensure master user has all permissions
+async function ensureMasterPermissions(supabase: any, userId: string) {
+  try {
+    // Check if user permissions exist
+    const { data: existingPermissions } = await supabase
+      .from("user_permissions")
+      .select("*")
+      .eq("user_id", userId)
+      .maybeSingle();
+      
+    // Create all permissions with full access
+    const fullPermissions = {
+      user_id: userId,
+      can_create_user: true,
+      can_edit_user: true,
+      can_edit_user_status: true,
+      can_set_user_permissions: true,
+      can_create_section: true,
+      can_edit_section: true,
+      can_delete_section: true,
+      can_create_field: true,
+      can_edit_field: true,
+      can_delete_field: true,
+      can_fill_field: true,
+      can_sign: true,
+      can_insert_logo: true,
+      can_insert_photo: true,
+      can_save: true,
+      can_save_as: true,
+      can_download: true,
+      can_open: true,
+      can_print: true,
+      can_edit_document: true,
+      can_cancel_document: true,
+      can_view: true,
+      can_edit_document_type: true
+    };
+    
+    // Insert or update permissions
+    if (existingPermissions) {
+      await supabase
+        .from("user_permissions")
+        .update(fullPermissions)
+        .eq("id", existingPermissions.id);
+    } else {
+      await supabase
+        .from("user_permissions")
+        .insert(fullPermissions);
+    }
+    
+    console.log("Master user permissions set successfully");
+  } catch (error) {
+    console.error("Error setting master permissions:", error);
+  }
+}
