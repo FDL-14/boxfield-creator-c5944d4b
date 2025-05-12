@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { Box, Button, Container, Typography, Paper } from "@mui/material";
-import { DragDropContext } from "react-beautiful-dnd";
 import { v4 as uuidv4 } from "uuid";
+import { Button } from "@/components/ui/button";
+import { Box } from "@/components/ui/box";
+import { Card } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
 import BoxList from "@/components/form-builder/BoxList";
 import AddBoxDialog from "@/components/form-builder/AddBoxDialog";
 import { useFormService } from "@/services/formService";
@@ -33,58 +35,6 @@ const FormBuilder = () => {
 
     loadInitialData();
   }, []);
-
-  const handleDragEnd = (result: any) => {
-    const { destination, source, type } = result;
-
-    if (!destination) {
-      return;
-    }
-
-    if (
-      destination.droppableId === source.droppableId &&
-      destination.index === source.index
-    ) {
-      return;
-    }
-
-    if (type === "box") {
-      const reorderedBoxes = Array.from(boxes);
-      const [removed] = reorderedBoxes.splice(source.index, 1);
-      reorderedBoxes.splice(destination.index, 0, removed);
-
-      const updatedBoxes = reorderedBoxes.map((box, index) => ({
-        ...box,
-        order: index,
-      }));
-
-      setBoxes(updatedBoxes);
-
-      // Update box order in the backend
-      updatedBoxes.forEach((box) => {
-        updateBoxOrder(box.id, box.order);
-      });
-    } else if (type === "field") {
-      const boxId = source.droppableId;
-      const boxFields = fields.filter((f) => f.box_id === boxId);
-      const reorderedFields = Array.from(boxFields);
-      const [removed] = reorderedFields.splice(source.index, 1);
-      reorderedFields.splice(destination.index, 0, removed);
-
-      const updatedFields = reorderedFields.map((field, index) => ({
-        ...field,
-        order: index,
-      }));
-
-      const newFields = fields.filter((f) => f.box_id !== boxId).concat(updatedFields);
-      setFields(newFields);
-
-      // Update field order in the backend
-      updatedFields.forEach((field) => {
-        updateFieldOrder(field.id, field.order);
-      });
-    }
-  };
 
   const handleAddBox = async (boxData: any) => {
     const newBox = await addBox({
@@ -123,6 +73,7 @@ const FormBuilder = () => {
         ...fieldData,
         id: uuidv4(),
         order: boxFields.length,
+        box_id: boxId,
       },
       boxId
     );
@@ -224,40 +175,36 @@ const FormBuilder = () => {
   };
 
   return (
-    <Container maxWidth="lg">
-      <Box sx={{ my: 4 }}>
-        <Typography variant="h4" component="h1" gutterBottom>
-          Construtor de Formulário
-        </Typography>
+    <div className="container mx-auto py-8 px-4">
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-bold mb-4">Construtor de Formulário</h1>
+          <Card className="p-4 mb-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <h2 className="text-lg font-medium">Configurações</h2>
+              <ExportFormatSelector 
+                value={exportFormat}
+                onChange={handleExportFormatChange}
+              />
+            </div>
+          </Card>
+        </div>
 
-        <Paper sx={{ p: 2, mb: 2 }}>
-          <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <Typography variant="h6">Configurações</Typography>
-            <ExportFormatSelector 
-              value={exportFormat}
-              onChange={handleExportFormatChange}
-            />
-          </Box>
-        </Paper>
-
-        <Box sx={{ mb: 2 }}>
+        <div className="flex flex-wrap gap-2 mb-6">
           <Button
-            variant="contained"
-            color="primary"
             onClick={() => setIsAddBoxDialogOpen(true)}
           >
             Adicionar Seção
           </Button>
           <Button
-            variant="outlined"
-            sx={{ ml: 2 }}
+            variant="outline"
             onClick={handleSave}
           >
             Salvar Configuração
           </Button>
-        </Box>
+        </div>
 
-        <DragDropContext onDragEnd={handleDragEnd}>
+        <ScrollArea className="h-[calc(100vh-300px)]">
           <BoxList
             boxes={boxes}
             fields={fields}
@@ -269,15 +216,15 @@ const FormBuilder = () => {
             onMoveFieldUp={handleMoveFieldUp}
             onMoveFieldDown={handleMoveFieldDown}
           />
-        </DragDropContext>
+        </ScrollArea>
 
         <AddBoxDialog
           open={isAddBoxDialogOpen}
           onClose={() => setIsAddBoxDialogOpen(false)}
           onAddBox={handleAddBox}
         />
-      </Box>
-    </Container>
+      </div>
+    </div>
   );
 };
 

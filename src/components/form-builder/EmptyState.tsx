@@ -1,35 +1,28 @@
 
 import React from "react";
+import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Plus, Loader2 } from "lucide-react";
+import { PlusCircle, FileText } from "lucide-react";
 
 interface EmptyStateProps {
   onAddBox: () => void;
-  isLoading: boolean;
+  isLoading?: boolean;
 }
 
-export default function EmptyState({ onAddBox, isLoading }: EmptyStateProps) {
+const EmptyState: React.FC<EmptyStateProps> = ({ onAddBox, isLoading = false }) => {
   return (
-    <div className="text-center py-12 bg-white rounded-lg border-2 border-dashed animate-fade-in transition-all duration-300">
-      <h3 className="text-lg font-medium text-gray-900 mb-2">
-        Nenhuma seção criada
-      </h3>
-      <p className="text-gray-500 mb-4">
-        Comece criando uma nova seção para seu formulário
+    <Card className="flex flex-col items-center justify-center p-10 text-center">
+      <FileText className="h-16 w-16 mb-4 text-muted-foreground" />
+      <h3 className="text-lg font-medium mb-2">Nenhuma seção criada</h3>
+      <p className="text-muted-foreground mb-6">
+        Crie seções para organizar os campos do seu formulário.
       </p>
-      <Button
-        onClick={onAddBox}
-        variant="outline"
-        disabled={isLoading}
-        className="transition-all duration-300"
-      >
-        {isLoading ? (
-          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-        ) : (
-          <Plus className="w-4 h-4 mr-2" />
-        )}
-        Criar Primeira Seção
+      <Button onClick={onAddBox} disabled={isLoading}>
+        <PlusCircle className="h-5 w-5 mr-2" />
+        Adicionar Primeira Seção
       </Button>
-    </div>
+    </Card>
   );
-}
+};
+
+export default EmptyState;

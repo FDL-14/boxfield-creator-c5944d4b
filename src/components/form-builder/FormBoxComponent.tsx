@@ -1,8 +1,12 @@
 
 import React, { useState } from "react";
-import { Draggable } from "react-beautiful-dnd";
-import { Box, Button, Input, MenuItem, Select, Switch, Typography, FormGroup, FormControlLabel } from "@mui/material";
-import { Delete as DeleteIcon } from "@mui/icons-material";
+import { Box } from "@/components/ui/box";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
+import { Card } from "@/components/ui/card";
+import { Trash2 } from "lucide-react";
 import FieldList from "./FieldList";
 import AddFieldDialog from "./AddFieldDialog";
 import { FormBox, FormField } from "@/entities/all";
@@ -39,8 +43,8 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
     onEditBox(box.id, { title: e.target.value });
   };
 
-  const handleLockWhenSignedChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    onEditBox(box.id, { lockWhenSigned: e.target.checked });
+  const handleLockWhenSignedChange = (checked: boolean) => {
+    onEditBox(box.id, { lockWhenSigned: checked });
   };
 
   const openAddFieldDialog = () => {
@@ -57,86 +61,61 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
   };
 
   return (
-    <Draggable draggableId={box.id} index={index}>
-      {(provided) => (
-        <Box
-          ref={provided.innerRef}
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          sx={{
-            mb: 3,
-            p: 2,
-            border: "1px solid #ddd",
-            borderRadius: "4px",
-            backgroundColor: "#f9f9f9",
-          }}
+    <Card className="mb-6 p-4 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <Input
+          value={box.title || ""}
+          onChange={handleTitleChange}
+          className="mr-2 max-w-md"
+          placeholder="Título da Seção"
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="text-destructive border-destructive hover:bg-destructive/10"
+          onClick={() => onDeleteBox(box.id)}
         >
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              mb: 2,
-            }}
-          >
-            <Input
-              value={box.title || ""}
-              onChange={handleTitleChange}
-              fullWidth
-              placeholder="Título da Seção"
-              sx={{ mr: 2 }}
-            />
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={() => onDeleteBox(box.id)}
-              startIcon={<DeleteIcon />}
-              size="small"
-            >
-              Excluir
-            </Button>
-          </Box>
+          <Trash2 className="h-4 w-4 mr-2" />
+          Excluir
+        </Button>
+      </div>
 
-          {/* Add section lock option */}
-          <FormGroup>
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={box.lockWhenSigned !== false}
-                  onChange={handleLockWhenSignedChange}
-                />
-              }
-              label="Travar seção após documento ser assinado"
-            />
-          </FormGroup>
+      <div className="flex items-center space-x-2 mb-4">
+        <Switch
+          id={`lock-when-signed-${box.id}`}
+          checked={box.lockWhenSigned !== false}
+          onCheckedChange={handleLockWhenSignedChange}
+        />
+        <Label htmlFor={`lock-when-signed-${box.id}`}>
+          Travar seção após documento ser assinado
+        </Label>
+      </div>
 
-          <FieldList
-            fields={boxFields}
-            onEditField={onEditField}
-            onDeleteField={onDeleteField}
-            onMoveUp={onMoveFieldUp}
-            onMoveDown={onMoveFieldDown}
-          />
+      <FieldList
+        fields={boxFields}
+        onEditField={onEditField}
+        onDeleteField={onDeleteField}
+        onMoveUp={onMoveFieldUp}
+        onMoveDown={onMoveFieldDown}
+      />
 
-          <Box sx={{ mt: 2 }}>
-            <Button
-              variant="outlined"
-              color="primary"
-              onClick={openAddFieldDialog}
-              fullWidth
-            >
-              Adicionar Campo
-            </Button>
-          </Box>
+      <div className="mt-4">
+        <Button
+          variant="outline"
+          onClick={openAddFieldDialog}
+          className="w-full"
+        >
+          Adicionar Campo
+        </Button>
+      </div>
 
-          <AddFieldDialog
-            open={isAddFieldDialogOpen}
-            onClose={closeAddFieldDialog}
-            onAddField={handleAddField}
-          />
-        </Box>
-      )}
-    </Draggable>
+      <AddFieldDialog
+        open={isAddFieldDialogOpen}
+        onClose={closeAddFieldDialog}
+        onAdd={handleAddField}
+        isLoading={false}
+      />
+    </Card>
   );
 };
 

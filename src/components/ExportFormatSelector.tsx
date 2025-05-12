@@ -1,12 +1,10 @@
 
 import React from 'react';
 import { 
-  FormControl, 
-  FormLabel, 
   RadioGroup, 
-  FormControlLabel, 
-  Radio 
-} from '@mui/material';
+  RadioGroupItem 
+} from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
 
 interface ExportFormatSelectorProps {
   value: string;
@@ -14,25 +12,32 @@ interface ExportFormatSelectorProps {
 }
 
 const ExportFormatSelector: React.FC<ExportFormatSelectorProps> = ({ value, onChange }) => {
-  const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
-    onChange(event.target.value);
+  const handleChange = (newValue: string) => {
+    onChange(newValue);
   };
 
   return (
-    <FormControl component="fieldset">
-      <FormLabel component="legend">Formato de Exportação</FormLabel>
+    <div className="space-y-2">
+      <Label className="text-base font-medium">Formato de Exportação</Label>
       <RadioGroup
-        row
-        aria-label="formato-exportacao"
-        name="formato-exportacao"
         value={value}
-        onChange={handleChange}
+        onValueChange={handleChange}
+        className="flex space-x-4"
       >
-        <FormControlLabel value="PDF" control={<Radio />} label="PDF" />
-        <FormControlLabel value="WORD" control={<Radio />} label="Word" />
-        <FormControlLabel value="EXCEL" control={<Radio />} label="Excel" />
+        <div className="flex items-center space-x-2">
+          <RadioGroupItem value="PDF" id="pdf" />
+          <Label htmlFor="pdf">PDF</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <RadioGroupItem value="WORD" id="word" />
+          <Label htmlFor="word">Word</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <RadioGroupItem value="EXCEL" id="excel" />
+          <Label htmlFor="excel">Excel</Label>
+        </div>
       </RadioGroup>
-    </FormControl>
+    </div>
   );
 };
 

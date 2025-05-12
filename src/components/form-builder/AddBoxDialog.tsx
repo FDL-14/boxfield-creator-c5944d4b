@@ -2,14 +2,15 @@
 import React, { useState } from 'react';
 import {
   Dialog,
-  DialogTitle,
   DialogContent,
-  DialogActions,
-  TextField,
-  Button,
-  FormControlLabel,
-  Switch
-} from '@mui/material';
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 interface AddBoxDialogProps {
   open: boolean;
@@ -41,35 +42,41 @@ const AddBoxDialog: React.FC<AddBoxDialogProps> = ({ open, onClose, onAddBox }) 
   };
 
   return (
-    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
-      <DialogTitle>Adicionar Nova Seção</DialogTitle>
+    <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent>
-        <TextField
-          autoFocus
-          margin="dense"
-          label="Título da Seção"
-          fullWidth
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-        />
-        <FormControlLabel
-          control={
-            <Switch
-              checked={lockWhenSigned}
-              onChange={(e) => setLockWhenSigned(e.target.checked)}
+        <DialogHeader>
+          <DialogTitle>Adicionar Nova Seção</DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 py-4">
+          <div className="space-y-2">
+            <Label htmlFor="section-title">Título da Seção</Label>
+            <Input
+              id="section-title"
+              autoFocus
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Título da Seção"
             />
-          }
-          label="Travar seção após documento ser assinado"
-        />
+          </div>
+
+          <div className="flex items-center space-x-2">
+            <Switch
+              id="lock-signed"
+              checked={lockWhenSigned}
+              onCheckedChange={setLockWhenSigned}
+            />
+            <Label htmlFor="lock-signed">Travar seção após documento ser assinado</Label>
+          </div>
+        </div>
+        <DialogFooter>
+          <Button variant="outline" onClick={handleClose}>
+            Cancelar
+          </Button>
+          <Button onClick={handleSubmit} disabled={!title.trim()}>
+            Adicionar
+          </Button>
+        </DialogFooter>
       </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} color="primary">
-          Cancelar
-        </Button>
-        <Button onClick={handleSubmit} color="primary" disabled={!title.trim()}>
-          Adicionar
-        </Button>
-      </DialogActions>
     </Dialog>
   );
 };

@@ -8,34 +8,36 @@ import EmptyState from "./EmptyState";
 interface BoxListProps {
   boxes: any[];
   fields: any[];
-  onAddField: (boxId: string) => void;
   onDeleteBox: (boxId: string) => void;
-  onDeleteField: (fieldId: string) => void;
-  onEditField: (fieldId: string, newData: any) => void;
   onEditBox: (boxId: string, newData: any) => void;
-  onAddBox: () => void;
-  onMoveBox: (boxId: string, direction: 'up' | 'down') => void;
-  onMoveField: (fieldId: string, direction: 'up' | 'down') => void;
-  onUpdateLayout: (boxId: string, layoutData: any) => void;
+  onAddField: (boxId: string, fieldData: any) => void;
+  onEditField: (fieldId: string, newData: any) => void;
+  onDeleteField: (fieldId: string) => void;
+  onMoveFieldUp: (fieldId: string) => void;
+  onMoveFieldDown: (fieldId: string) => void;
+  onAddBox?: () => void;
+  onMoveBox?: (boxId: string, direction: 'up' | 'down') => void;
+  onUpdateLayout?: (boxId: string, layoutData: any) => void;
   onToggleLockWhenSigned?: (boxId: string, value: boolean) => void;
-  isLoading: boolean;
+  isLoading?: boolean;
   isLocked?: boolean;
 }
 
 export default function BoxList({
   boxes,
   fields,
-  onAddField,
   onDeleteBox,
-  onDeleteField,
-  onEditField,
   onEditBox,
+  onAddField,
+  onEditField,
+  onDeleteField,
+  onMoveFieldUp,
+  onMoveFieldDown,
   onAddBox,
   onMoveBox,
-  onMoveField,
   onUpdateLayout,
   onToggleLockWhenSigned,
-  isLoading,
+  isLoading = false,
   isLocked = false
 }: BoxListProps) {
   // Ordenar boxes pela propriedade order
@@ -43,43 +45,29 @@ export default function BoxList({
     (a.order || 0) - (b.order || 0)
   );
 
-  if (sortedBoxes.length === 0) {
+  if (sortedBoxes.length === 0 && onAddBox) {
     return <EmptyState onAddBox={onAddBox} isLoading={isLoading} />;
   }
 
   return (
     <div className="space-y-6">
-      {sortedBoxes.map((box, index) => {
-        const boxFields = fields.filter(field => field.box_id === box.id);
-        
-        // Ordenar campos pelo order
-        const sortedBoxFields = [...boxFields].sort((a, b) => 
-          (a.order || 0) - (b.order || 0)
-        );
-
-        return (
-          <FormBoxComponent
-            key={box.id}
-            box={box}
-            fields={sortedBoxFields}
-            onAddField={() => onAddField(box.id)}
-            onDeleteBox={() => onDeleteBox(box.id)}
-            onDeleteField={onDeleteField}
-            onEditField={onEditField}
-            onEditBox={(newData) => onEditBox(box.id, newData)}
-            onMoveUp={index > 0 ? () => onMoveBox(box.id, 'up') : undefined}
-            onMoveDown={index < sortedBoxes.length - 1 ? () => onMoveBox(box.id, 'down') : undefined}
-            onMoveField={onMoveField}
-            onUpdateLayout={(layoutData) => onUpdateLayout(box.id, layoutData)}
-            onToggleLockWhenSigned={onToggleLockWhenSigned ? 
-              (value) => onToggleLockWhenSigned(box.id, value) : undefined}
-            isLoading={isLoading}
-            isLocked={isLocked}
-          />
-        );
-      })}
+      {sortedBoxes.map((box, index) => (
+        <FormBoxComponent
+          key={box.id}
+          box={box}
+          index={index}
+          fields={fields.filter(field => field.box_id === box.id)}
+          onDeleteBox={() => onDeleteBox(box.id)}
+          onEditBox={(data) => onEditBox(box.id, data)}
+          onAddField={(boxId, fieldData) => onAddField(boxId, fieldData)}
+          onEditField={onEditField}
+          onDeleteField={onDeleteField}
+          onMoveFieldUp={onMoveFieldUp}
+          onMoveFieldDown={onMoveFieldDown}
+        />
+      ))}
       
-      {!isLocked && (
+      {!isLocked && onAddBox && (
         <div className="mt-6 flex justify-center">
           <Button
             onClick={onAddBox}

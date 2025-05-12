@@ -5,6 +5,7 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogFooter
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,6 +17,13 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Plus, Loader2, Trash2 } from "lucide-react";
+
+interface AddFieldDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onAdd: (fieldData: any) => void;
+  isLoading: boolean;
+}
 
 const fieldTypes = [
   { value: "short_text", label: "Texto Curto" },
@@ -29,7 +37,7 @@ const fieldTypes = [
   { value: "image", label: "Foto/Imagem" }
 ];
 
-export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
+const AddFieldDialog: React.FC<AddFieldDialogProps> = ({ open, onClose, onAdd, isLoading }) => {
   const [field, setField] = useState({
     label: "",
     type: "",
@@ -45,7 +53,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
     });
   };
   
-  const handleRemoveOption = (index) => {
+  const handleRemoveOption = (index: number) => {
     const newOptions = [...field.options];
     newOptions.splice(index, 1);
     setField({
@@ -54,7 +62,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
     });
   };
   
-  const handleOptionChange = (index, value) => {
+  const handleOptionChange = (index: number, value: string) => {
     const newOptions = [...field.options];
     newOptions[index].text = value;
     setField({
@@ -63,7 +71,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
     });
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     
     // Garantir que campos de seleção tenham pelo menos duas opções
@@ -102,7 +110,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
   };
   
   // Quando o tipo mudar para um tipo de seleção, garantir que tenha duas opções
-  const handleTypeChange = (type) => {
+  const handleTypeChange = (type: string) => {
     if ((type === "checkbox" || type === "flag" || type === "flag_with_text") && 
         field.options.length < 2) {
       setField({
@@ -117,7 +125,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="transition-gpu animate-fade-in">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>Novo Campo</DialogTitle>
         </DialogHeader>
@@ -128,7 +136,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
               onChange={(e) => setField({ ...field, label: e.target.value })}
               placeholder="Rótulo do campo"
               disabled={isLoading}
-              className="transition-all duration-300"
+              className="w-full"
               autoFocus
             />
 
@@ -137,10 +145,10 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
               onValueChange={handleTypeChange}
               disabled={isLoading}
             >
-              <SelectTrigger className="transition-all duration-300">
+              <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecione o tipo do campo" />
               </SelectTrigger>
-              <SelectContent className="transition-all duration-300">
+              <SelectContent>
                 {fieldTypes.map((type) => (
                   <SelectItem key={type.value} value={type.value}>
                     {type.label}
@@ -150,7 +158,7 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
             </Select>
 
             {(field.type === "flag" || field.type === "flag_with_text" || field.type === "checkbox") && (
-              <div className="space-y-3 p-3 border rounded-lg animate-fade-in">
+              <div className="space-y-3 p-3 border rounded-lg">
                 <h4 className="font-medium text-sm">Opções de Seleção</h4>
                 
                 {field.options.map((option, index) => (
@@ -198,18 +206,17 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
                 onChange={(e) => setField({ ...field, signature_label: e.target.value })}
                 placeholder="Nome/Cargo de quem irá assinar"
                 disabled={isLoading}
-                className="transition-all duration-300 animate-fade-in"
+                className="w-full"
               />
             )}
           </div>
 
-          <div className="flex justify-end">
+          <DialogFooter>
             <Button 
               type="submit" 
               disabled={!field.label.trim() || !field.type || isLoading ||
                 ((field.type === "flag" || field.type === "flag_with_text" || field.type === "checkbox") && 
                 field.options.some(opt => !opt.text.trim()))}
-              className="bg-blue-600 hover:bg-blue-700 transition-all duration-300"
             >
               {isLoading ? (
                 <>
@@ -223,9 +230,11 @@ export default function AddFieldDialog({ open, onClose, onAdd, isLoading }) {
                 </>
               )}
             </Button>
-          </div>
+          </DialogFooter>
         </form>
       </DialogContent>
     </Dialog>
   );
-}
+};
+
+export default AddFieldDialog;
