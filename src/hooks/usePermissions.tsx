@@ -88,7 +88,7 @@ const isMasterUser = (profile: any): boolean => {
   return userCPF === masterCPF || profile.is_master === true;
 };
 
-// Define the expected type for roleData 
+// Explicitly define the type for our RPC function's return value
 interface UserRoleData {
   is_admin: boolean;
   is_master: boolean;
@@ -145,13 +145,13 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Use direct RPC call to avoid recursion issues
-      const { data: roleData, error: roleError } = await supabase.rpc('get_user_role', {
+      // Use our fixed RPC call with proper typing
+      const { data, error } = await supabase.rpc('check_user_role', {
         user_id: currentUserId
-      }) as { data: UserRoleData, error: any };
+      });
       
-      if (roleError) {
-        console.error("Error getting user role:", roleError);
+      if (error) {
+        console.error("Error checking user role:", error);
         
         // Fallback in case RPC fails - direct SQL query
         try {
@@ -183,8 +183,29 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           console.error("Fallback error:", fallbackError);
           // Continue to attempt loading permissions
         }
-      } else if (roleData) {
-        // Fix: roleData is an object with properties is_admin and is_master, not an array
+      } else if (data && Array.isArray(data) && data.length > 0) {
+        // Handle array response from RPC function
+        const roleData = data[0] as UserRoleData;
+        const userIsAdmin = roleData.is_admin === true;
+        const userIsMaster = roleData.is_master === true;
+        
+        setIsAdmin(userIsAdmin);
+        setIsMaster(userIsMaster);
+        
+        if (userIsMaster) {
+          // Grant all permissions to master
+          const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
+            (acc, key) => ({ ...acc, [key]: true }),
+            {} as UserPermissions
+          );
+          
+          setPermissions(allPermissions);
+          setLoading(false);
+          return;
+        }
+      } else if (data && !Array.isArray(data)) {
+        // Handle single object response from RPC function
+        const roleData = data as unknown as UserRoleData;
         const userIsAdmin = roleData.is_admin === true;
         const userIsMaster = roleData.is_master === true;
         

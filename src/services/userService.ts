@@ -200,14 +200,22 @@ export const UserService = {
    */
   hasPermission: async (userId: string, permission: string) => {
     try {
-      // Primeiro, verificar se o usuário é admin ou master
-      const { data, error } = await supabase.rpc('get_user_role', {
+      // Primeiro, verificar se o usuário é admin ou master usando a nova função
+      const { data, error } = await supabase.rpc('check_user_role', {
         user_id: userId
-      }) as { data: { is_admin: boolean, is_master: boolean }, error: any };
+      });
       
       if (!error && data) {
+        // Corretamente lidar com o formato de retorno da função RPC
+        let userRole;
+        if (Array.isArray(data) && data.length > 0) {
+          userRole = data[0];
+        } else {
+          userRole = data;
+        }
+        
         // Se for admin ou master, conceder permissão automaticamente
-        if (data.is_master === true || data.is_admin === true) {
+        if (userRole.is_master === true || userRole.is_admin === true) {
           return true;
         }
       }
@@ -217,7 +225,7 @@ export const UserService = {
         .from('user_permissions')
         .select(permission)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle();
       
       if (permError) return false;
       
@@ -229,17 +237,28 @@ export const UserService = {
   },
   
   /**
-   * Cria um hook personalizado para verificar permissões do usuário atual
+   * Verifica se o usuário tem permissão para editar um documento específico
    */
-  useUserPermissions: () => {
-    // Este é um exemplo - a implementação real seria em um custom React hook
-    return {
-      checkPermission: async (permission: string) => {
-        const { data } = await supabase.auth.getSession();
-        if (!data.session) return false;
+  canEditDocument: async (userId: string, documentId: string) => {
+    try {
+      // Verificar se é admin/master primeiro
+      const isAdmin = await UserService.hasPermission(userId, 'can_edit_document');
+      if (isAdmin) return true;
+      
+      // Verificar permissões específicas para o documento
+      const { data, error } = await supabase
+        .from('document_templates')
+        .select('*')
+        .eq('id', documentId)
+        .single();
         
-        return UserService.hasPermission(data.session.user.id, permission);
-      }
-    };
+      if (error) return false;
+      
+      // Verificar se o usuário é o criador do documento
+      return data.created_by === userId;
+    } catch (error) {
+      console.error("Erro ao verificar permissão do documento:", error);
+      return false;
+    }
   }
 };
