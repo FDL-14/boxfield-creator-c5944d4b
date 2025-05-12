@@ -6,9 +6,10 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Trash2 } from "lucide-react";
+import { Trash2, Lock, Edit } from "lucide-react";
 import FieldList from "./FieldList";
 import AddFieldDialog from "./AddFieldDialog";
+import EditSectionDialog from "./EditSectionDialog";
 import { FormBox, FormField } from "@/entities/all";
 
 interface FormBoxComponentProps {
@@ -37,6 +38,7 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
   onMoveFieldDown,
 }) => {
   const [isAddFieldDialogOpen, setIsAddFieldDialogOpen] = useState(false);
+  const [isEditSectionDialogOpen, setIsEditSectionDialogOpen] = useState(false);
   const boxFields = fields.filter((f) => f.box_id === box.id);
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -55,9 +57,22 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
     setIsAddFieldDialogOpen(false);
   };
 
+  const openEditSectionDialog = () => {
+    setIsEditSectionDialogOpen(true);
+  };
+
+  const closeEditSectionDialog = () => {
+    setIsEditSectionDialogOpen(false);
+  };
+
   const handleAddField = (fieldData: any) => {
     onAddField(box.id, fieldData);
     closeAddFieldDialog();
+  };
+
+  const handleSaveSection = (sectionData: any) => {
+    onEditBox(box.id, sectionData);
+    closeEditSectionDialog();
   };
 
   return (
@@ -69,26 +84,40 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
           className="mr-2 max-w-md"
           placeholder="Título da Seção"
         />
-        <Button
-          variant="outline"
-          size="sm"
-          className="text-destructive border-destructive hover:bg-destructive/10"
-          onClick={() => onDeleteBox(box.id)}
-        >
-          <Trash2 className="h-4 w-4 mr-2" />
-          Excluir
-        </Button>
+        <div className="flex space-x-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={openEditSectionDialog}
+            className="text-blue-600 border-blue-600 hover:bg-blue-600/10"
+          >
+            <Edit className="h-4 w-4 mr-2" />
+            Editar
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="text-destructive border-destructive hover:bg-destructive/10"
+            onClick={() => onDeleteBox(box.id)}
+          >
+            <Trash2 className="h-4 w-4 mr-2" />
+            Excluir
+          </Button>
+        </div>
       </div>
 
       <div className="flex items-center space-x-2 mb-4">
+        <div className="flex items-center">
+          <Lock className="h-4 w-4 mr-2 text-amber-500" />
+          <Label htmlFor={`lock-when-signed-${box.id}`}>
+            Travar seção após documento ser assinado
+          </Label>
+        </div>
         <Switch
           id={`lock-when-signed-${box.id}`}
           checked={box.lockWhenSigned !== false}
           onCheckedChange={handleLockWhenSignedChange}
         />
-        <Label htmlFor={`lock-when-signed-${box.id}`}>
-          Travar seção após documento ser assinado
-        </Label>
       </div>
 
       <FieldList
@@ -113,6 +142,14 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
         open={isAddFieldDialogOpen}
         onClose={closeAddFieldDialog}
         onAdd={handleAddField}
+        isLoading={false}
+      />
+
+      <EditSectionDialog
+        open={isEditSectionDialogOpen}
+        onClose={closeEditSectionDialog}
+        onSave={handleSaveSection}
+        section={box}
         isLoading={false}
       />
     </Card>

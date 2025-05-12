@@ -516,6 +516,13 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_user_role: {
+        Args: { user_id: string }
+        Returns: {
+          is_admin: boolean
+          is_master: boolean
+        }[]
+      }
       is_admin_user: {
         Args: { user_id: string }
         Returns: boolean

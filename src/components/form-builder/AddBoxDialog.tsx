@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
+import { Lock } from "lucide-react";
 
 interface AddBoxDialogProps {
   open: boolean;
@@ -60,14 +61,22 @@ const AddBoxDialog: React.FC<AddBoxDialogProps> = ({ open, onClose, onAddBox, is
             />
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center">
+              <Lock className="h-4 w-4 mr-2 text-amber-500" />
+              <Label htmlFor="lock-signed">Travar seção após documento ser assinado</Label>
+            </div>
             <Switch
               id="lock-signed"
               checked={lockWhenSigned}
               onCheckedChange={setLockWhenSigned}
             />
-            <Label htmlFor="lock-signed">Travar seção após documento ser assinado</Label>
           </div>
+          <p className="text-xs text-gray-500">
+            {lockWhenSigned 
+              ? "Esta seção será bloqueada para edição após qualquer assinatura no documento." 
+              : "Esta seção continuará editável mesmo após assinaturas no documento."}
+          </p>
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={handleClose}>
