@@ -11,6 +11,7 @@ import FieldList from "./FieldList";
 import AddFieldDialog from "./AddFieldDialog";
 import EditSectionDialog from "./EditSectionDialog";
 import { FormBox, FormField } from "@/entities/all";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface FormBoxComponentProps {
   box: any;
@@ -40,6 +41,11 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
   const [isAddFieldDialogOpen, setIsAddFieldDialogOpen] = useState(false);
   const [isEditSectionDialogOpen, setIsEditSectionDialogOpen] = useState(false);
   const boxFields = fields.filter((f) => f.box_id === box.id);
+  const { checkPermission } = usePermissions();
+
+  const canEditSection = checkPermission('can_edit_section');
+  const canDeleteSection = checkPermission('can_delete_section');
+  const canCreateField = checkPermission('can_create_field');
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     onEditBox(box.id, { title: e.target.value });
@@ -83,26 +89,31 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
           onChange={handleTitleChange}
           className="mr-2 max-w-md"
           placeholder="Título da Seção"
+          disabled={!canEditSection}
         />
         <div className="flex space-x-2">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={openEditSectionDialog}
-            className="text-blue-600 border-blue-600 hover:bg-blue-600/10"
-          >
-            <Edit className="h-4 w-4 mr-2" />
-            Editar
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            className="text-destructive border-destructive hover:bg-destructive/10"
-            onClick={() => onDeleteBox(box.id)}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Excluir
-          </Button>
+          {canEditSection && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={openEditSectionDialog}
+              className="text-blue-600 border-blue-600 hover:bg-blue-600/10"
+            >
+              <Edit className="h-4 w-4 mr-2" />
+              Editar
+            </Button>
+          )}
+          {canDeleteSection && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="text-destructive border-destructive hover:bg-destructive/10"
+              onClick={() => onDeleteBox(box.id)}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Excluir
+            </Button>
+          )}
         </div>
       </div>
 
@@ -117,6 +128,7 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
           id={`lock-when-signed-${box.id}`}
           checked={box.lockWhenSigned !== false}
           onCheckedChange={handleLockWhenSignedChange}
+          disabled={!canEditSection}
         />
       </div>
 
@@ -129,13 +141,15 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
       />
 
       <div className="mt-4">
-        <Button
-          variant="outline"
-          onClick={openAddFieldDialog}
-          className="w-full"
-        >
-          Adicionar Campo
-        </Button>
+        {canCreateField && (
+          <Button
+            variant="outline"
+            onClick={openAddFieldDialog}
+            className="w-full"
+          >
+            Adicionar Campo
+          </Button>
+        )}
       </div>
 
       <AddFieldDialog

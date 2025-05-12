@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Lock } from "lucide-react";
+import { usePermissions } from "@/hooks/usePermissions";
 
 interface AddBoxDialogProps {
   open: boolean;
@@ -23,6 +24,9 @@ interface AddBoxDialogProps {
 const AddBoxDialog: React.FC<AddBoxDialogProps> = ({ open, onClose, onAddBox, isLoading = false }) => {
   const [title, setTitle] = useState('');
   const [lockWhenSigned, setLockWhenSigned] = useState(true);
+  const { checkPermission } = usePermissions();
+
+  const canEditSection = checkPermission('can_edit_section');
 
   const handleSubmit = () => {
     if (!title.trim()) return;
@@ -70,6 +74,7 @@ const AddBoxDialog: React.FC<AddBoxDialogProps> = ({ open, onClose, onAddBox, is
               id="lock-signed"
               checked={lockWhenSigned}
               onCheckedChange={setLockWhenSigned}
+              disabled={!canEditSection}
             />
           </div>
           <p className="text-xs text-gray-500">
