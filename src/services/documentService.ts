@@ -41,6 +41,15 @@ export const DocumentService = {
         export_format: exportFormat
       };
       
+      // Collect section locks from boxes if available
+      if (data.boxes && !data.section_locks) {
+        docDataWithId.section_locks = data.boxes.map((box: any) => ({
+          section_id: box.id,
+          lock_when_signed: box.lockWhenSigned !== false,
+          document_id: documentId
+        }));
+      }
+      
       // Upsert na tabela document_templates
       const { error, data: insertedData } = await supabase
         .from('document_templates')
@@ -71,7 +80,7 @@ export const DocumentService = {
       }
       
       // Salvar bloqueios de seção
-      if (data.section_locks && data.section_locks.length > 0) {
+      if (docDataWithId.section_locks && docDataWithId.section_locks.length > 0) {
         try {
           // Remover bloqueios existentes
           await supabase
@@ -82,7 +91,7 @@ export const DocumentService = {
           // Inserir novos bloqueios
           const { error: lockError } = await supabase
             .from('document_section_locks')
-            .insert(data.section_locks.map((lock: any) => ({
+            .insert(docDataWithId.section_locks.map((lock: any) => ({
               document_id: documentId,
               section_id: lock.section_id,
               lock_when_signed: lock.lock_when_signed !== false
@@ -282,5 +291,40 @@ export const DocumentService = {
       });
     
     return hasSignature || hasDocumentValueSignature;
+  },
+  
+  /**
+   * Check if a section is locked due to document being signed
+   */
+  isSectionLocked: (document: any, sectionId: string) => {
+    if (!document) return false;
+    
+    // Check if document is signed
+    const isDocumentSigned = DocumentService.isDocumentSigned(document);
+    if (!isDocumentSigned) return false;
+    
+    // If document is signed, check section lock settings
+    if (document.section_locks && document.section_locks.length > 0) {
+      const sectionLock = document.section_locks.find((lock: any) => 
+        lock.section_id === sectionId
+      );
+      
+      if (sectionLock) {
+        return sectionLock.lock_when_signed !== false;
+      }
+    }
+    
+    // If no specific section lock found but document is signed,
+    // check the box settings in document data
+    if (document.boxes) {
+      const box = document.boxes.find((b: any) => b.id === sectionId);
+      if (box) {
+        // Default to locking if not explicitly set to false
+        return box.lockWhenSigned !== false;
+      }
+    }
+    
+    // Default behavior: lock all sections when document is signed
+    return true;
   }
 };

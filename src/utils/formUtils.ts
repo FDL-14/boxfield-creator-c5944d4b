@@ -536,15 +536,24 @@ export const getLockedSections = (formValues: any, boxes: any[], fields: any[]) 
       .filter(field => formValues[field.id]) // Only signature fields that are signed
       .map(field => field.box_id); // IDs of sections containing signatures
     
-    // Return IDs of sections that should be locked
+    // Get section locks configuration
+    const sectionLocks = formValues.section_locks || [];
+    
+    // Return IDs of sections that should be locked based on their lockWhenSigned setting
     return boxes
       .filter(box => {
+        // If we have specific section lock configuration, use it
+        const sectionLock = sectionLocks.find((lock: any) => lock.section_id === box.id);
+        if (sectionLock) {
+          return sectionLock.lock_when_signed !== false;
+        }
+        
         // If lockWhenSigned is explicitly false, don't lock
         if (box.lockWhenSigned === false) {
           return false;
         }
         
-        return true; // Lock all other sections
+        return true; // Lock all other sections by default
       })
       .map(box => box.id);
   }

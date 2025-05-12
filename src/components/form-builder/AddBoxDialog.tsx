@@ -1,69 +1,77 @@
 
-import React from "react";
+import React, { useState } from 'react';
 import {
   Dialog,
-  DialogContent,
-  DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Plus, Loader2 } from "lucide-react";
+  DialogContent,
+  DialogActions,
+  TextField,
+  Button,
+  FormControlLabel,
+  Switch
+} from '@mui/material';
 
-export default function AddBoxDialog({ open, onClose, onAdd, isLoading }) {
-  const [title, setTitle] = React.useState("");
+interface AddBoxDialogProps {
+  open: boolean;
+  onClose: () => void;
+  onAddBox: (boxData: any) => void;
+}
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    onAdd({ title });
-    setTitle("");
+const AddBoxDialog: React.FC<AddBoxDialogProps> = ({ open, onClose, onAddBox }) => {
+  const [title, setTitle] = useState('');
+  const [lockWhenSigned, setLockWhenSigned] = useState(true);
+
+  const handleSubmit = () => {
+    if (!title.trim()) return;
+    
+    onAddBox({
+      title,
+      lockWhenSigned
+    });
+    
+    // Reset form
+    setTitle('');
+    setLockWhenSigned(true);
   };
 
   const handleClose = () => {
-    if (!isLoading) {
-      setTitle("");
-      onClose();
-    }
+    setTitle('');
+    setLockWhenSigned(true);
+    onClose();
   };
 
   return (
-    <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="transition-gpu animate-fade-in">
-        <DialogHeader>
-          <DialogTitle>Nova Seção</DialogTitle>
-        </DialogHeader>
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <Input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Título da seção"
-              className="w-full transition-all duration-300"
-              disabled={isLoading}
-              autoFocus
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <DialogTitle>Adicionar Nova Seção</DialogTitle>
+      <DialogContent>
+        <TextField
+          autoFocus
+          margin="dense"
+          label="Título da Seção"
+          fullWidth
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+        />
+        <FormControlLabel
+          control={
+            <Switch
+              checked={lockWhenSigned}
+              onChange={(e) => setLockWhenSigned(e.target.checked)}
             />
-          </div>
-          <div className="flex justify-end">
-            <Button 
-              type="submit" 
-              disabled={!title.trim() || isLoading}
-              className="transition-all duration-300 bg-orange-600 hover:bg-orange-700"
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Criando...
-                </>
-              ) : (
-                <>
-                  <Plus className="w-4 h-4 mr-2" />
-                  Criar Seção
-                </>
-              )}
-            </Button>
-          </div>
-        </form>
+          }
+          label="Travar seção após documento ser assinado"
+        />
       </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} color="primary">
+          Cancelar
+        </Button>
+        <Button onClick={handleSubmit} color="primary" disabled={!title.trim()}>
+          Adicionar
+        </Button>
+      </DialogActions>
     </Dialog>
   );
-}
+};
+
+export default AddBoxDialog;
