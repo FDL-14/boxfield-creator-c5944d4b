@@ -145,7 +145,7 @@ export default function Index() {
               alt="Total Data Logo"
               className="h-10 object-contain"
             />
-            <h1 className="text-xl font-bold">Sistema em Formulário Inteligente</h1>
+            <h1 className="text-xl font-bold"> Formulário Inteligente</h1>
           </div>
           <div className="flex items-center gap-4">
             <nav className="flex gap-2">
@@ -181,7 +181,7 @@ export default function Index() {
       
       <div className="max-w-6xl mx-auto flex-1 p-4">
         <div className="mb-8 text-center animate-slide-down">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Sistema em Formulário Inteligente</h1>
+          <h1 className="text-4xl font-bold text-gray-900 mb-2"> Formulário Inteligente</h1>
           <p className="text-gray-600 max-w-2xl mx-auto">
             Crie, personalize e gerencie formulários e documentos para sua empresa. 
             Escolha uma das opções abaixo para começar.
