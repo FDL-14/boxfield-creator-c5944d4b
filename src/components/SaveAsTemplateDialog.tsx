@@ -5,8 +5,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { saveDocumentToSupabase, saveAsTemplate } from "@/utils/documentUtils";
 import { useToast } from "@/hooks/use-toast";
@@ -31,7 +29,7 @@ export default function SaveAsTemplateDialog({
   const [title, setTitle] = useState(initialData?.title || "");
   const [description, setDescription] = useState(initialData?.description || "");
   const [saveAsModel, setSaveAsModel] = useState(false);
-  const [exportFormat, setExportFormat] = useState(initialData?.export_format || "pdf");
+  const [exportFormat, setExportFormat] = useState(initialData?.export_format || "PDF");
   const [saving, setSaving] = useState(false);
   
   const handleSave = async () => {
@@ -58,8 +56,8 @@ export default function SaveAsTemplateDialog({
       
       // Salvar no Supabase de acordo com a opção selecionada
       const result = saveAsModel
-        ? await saveAsTemplate(docType, title, dataToSave)
-        : await saveDocumentToSupabase(docType, title, dataToSave);
+        ? await saveAsTemplate(docType, title, dataToSave, exportFormat)
+        : await saveDocumentToSupabase(docType, title, dataToSave, false, exportFormat);
       
       if (result.success) {
         toast({
@@ -115,54 +113,55 @@ export default function SaveAsTemplateDialog({
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Descrição opcional do documento"
+              placeholder="Descrição do documento..."
+              rows={3}
             />
           </div>
           
           <div className="space-y-2">
-            <Label htmlFor="export-format">Formato para exportação</Label>
-            <Select
+            <Label htmlFor="exportFormat">Formato de Exportação</Label>
+            <Select 
               value={exportFormat}
-              onValueChange={setExportFormat}
+              onValueChange={(value) => setExportFormat(value)}
             >
-              <SelectTrigger id="export-format">
-                <SelectValue placeholder="Selecione o formato" />
+              <SelectTrigger>
+                <SelectValue placeholder="Selecione o formato de exportação" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="pdf">PDF</SelectItem>
-                <SelectItem value="excel">Excel</SelectItem>
-                <SelectItem value="word">Word</SelectItem>
+                <SelectItem value="PDF">PDF</SelectItem>
+                <SelectItem value="WORD">Word</SelectItem>
+                <SelectItem value="EXCEL">Excel</SelectItem>
               </SelectContent>
             </Select>
-            <p className="text-xs text-muted-foreground mt-1">
-              Este será o único formato disponível para download deste documento.
+            <p className="text-xs text-muted-foreground">
+              Este formato será o padrão para exportação do documento.
             </p>
           </div>
           
           <div className="flex items-center space-x-2">
-            <Switch
-              id="save-as-model"
+            <input
+              type="checkbox"
+              id="saveAsModel"
               checked={saveAsModel}
-              onCheckedChange={setSaveAsModel}
+              onChange={(e) => setSaveAsModel(e.target.checked)}
+              className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
-            <Label htmlFor="save-as-model">Salvar como modelo</Label>
+            <Label htmlFor="saveAsModel" className="text-sm font-medium text-gray-700">
+              Salvar como modelo
+            </Label>
           </div>
-          
-          {saveAsModel && (
-            <div className="text-sm text-muted-foreground bg-muted p-3 rounded-md">
-              Ao salvar como modelo, este documento poderá ser usado como base para criar novos documentos.
-            </div>
-          )}
         </div>
+        
         <DialogFooter>
-          <Button 
-            variant="outline" 
-            onClick={onClose} 
+          <Button
+            variant="outline"
+            onClick={onClose}
             disabled={saving}
           >
             Cancelar
           </Button>
-          <Button 
+          <Button
+            type="submit"
             onClick={handleSave}
             disabled={saving}
           >
@@ -172,7 +171,10 @@ export default function SaveAsTemplateDialog({
                 Salvando...
               </>
             ) : (
-              'Salvar'
+              <>
+                <FileText className="mr-2 h-4 w-4" />
+                Salvar
+              </>
             )}
           </Button>
         </DialogFooter>
