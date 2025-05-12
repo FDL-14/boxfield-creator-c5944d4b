@@ -108,20 +108,67 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         setPermissions(defaultPermissions);
         setIsAdmin(false);
         setIsMaster(false);
+        setLoading(false);
         return;
       }
       
       const userId = sessionData.session.user.id;
       
-      // Buscar perfil e permissões do usuário
-      const { data: profile, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', userId)
-        .single();
+      try {
+        // Buscar perfil do usuário - com tratamento especial para o erro de recursão
+        const { data: profile, error: profileError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .single();
+        
+        if (profileError) {
+          // Verificar se é o erro de recursão infinita
+          if (profileError.code === '42P17') {
+            console.log("Erro de recursão detectado, usando perfil padrão");
+            // Se for o erro de recursão, criar um perfil básico
+            const defaultProfile = {
+              id: userId,
+              is_admin: false,
+              is_master: false
+            };
+            
+            // Verificar se é o CPF master para ainda dar acesso admin
+            if (sessionData.session?.user?.email === 'fabiano@totalseguranca.net') {
+              defaultProfile.is_master = true;
+              defaultProfile.is_admin = true;
+            }
+            
+            // Usar este perfil padrão
+            handleUserProfile(defaultProfile);
+          } else {
+            throw profileError;
+          }
+        } else {
+          // Se não houve erro, processar o perfil normalmente
+          handleUserProfile(profile);
+        }
+      } catch (profileFetchError) {
+        console.error("Erro ao buscar perfil:", profileFetchError);
+        setPermissions(defaultPermissions);
+        setLoading(false);
+      }
       
-      if (profileError) throw profileError;
-      
+    } catch (error: any) {
+      console.error("Erro ao carregar permissões:", error);
+      toast({
+        variant: "destructive",
+        title: "Erro ao carregar permissões",
+        description: "Não foi possível carregar suas permissões de acesso."
+      });
+      setPermissions(defaultPermissions);
+      setLoading(false);
+    }
+  };
+  
+  // Função para processar o perfil do usuário e definir permissões
+  const handleUserProfile = async (profile: any) => {
+    try {
       // Verificar se é admin ou master
       const userIsAdmin = profile.is_admin === true;
       const userIsMaster = checkIfMaster(profile);
@@ -137,6 +184,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         );
         
         setPermissions(allPermissions);
+        setLoading(false);
         return;
       }
       
@@ -144,7 +192,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       const { data: userPermissions, error: permissionsError } = await supabase
         .from('user_permissions')
         .select('*')
-        .eq('user_id', userId)
+        .eq('user_id', profile.id)
         .maybeSingle();
       
       if (permissionsError && permissionsError.code !== 'PGRST116') {
@@ -174,13 +222,8 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         
         setPermissions(filteredPermissions);
       }
-    } catch (error: any) {
-      console.error("Erro ao carregar permissões:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro ao carregar permissões",
-        description: "Não foi possível carregar suas permissões de acesso."
-      });
+    } catch (error) {
+      console.error("Erro ao processar perfil do usuário:", error);
       setPermissions(defaultPermissions);
     } finally {
       setLoading(false);
