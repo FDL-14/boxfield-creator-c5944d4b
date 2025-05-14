@@ -32,7 +32,7 @@ const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
   isLoading = false 
 }) => {
   const [label, setLabel] = useState("");
-  const [type, setType] = useState("text");
+  const [type, setType] = useState("short_text");
   const [required, setRequired] = useState(false);
 
   const handleSubmit = () => {
@@ -50,7 +50,7 @@ const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
 
   const resetForm = () => {
     setLabel("");
-    setType("text");
+    setType("short_text");
     setRequired(false);
   };
 
@@ -86,14 +86,17 @@ const AddFieldDialog: React.FC<AddFieldDialogProps> = ({
                 <SelectValue placeholder="Selecione o tipo de campo" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="text">Texto</SelectItem>
-                <SelectItem value="number">Número</SelectItem>
-                <SelectItem value="date">Data</SelectItem>
+                <SelectItem value="short_text">Texto Curto</SelectItem>
+                <SelectItem value="long_text">Texto Longo</SelectItem>
                 <SelectItem value="checkbox">Caixa de Seleção</SelectItem>
-                <SelectItem value="select">Lista de Seleção</SelectItem>
-                <SelectItem value="textarea">Área de Texto</SelectItem>
+                <SelectItem value="flag">FLAG (seleção múltipla)</SelectItem>
+                <SelectItem value="flag_with_text">FLAG + Texto</SelectItem>
+                <SelectItem value="date">Data</SelectItem>
+                <SelectItem value="time">Hora</SelectItem>
+                <SelectItem value="select">Lista Suspensa</SelectItem>
+                <SelectItem value="toggle">Botão de Ativar/Inativar</SelectItem>
                 <SelectItem value="signature">Assinatura</SelectItem>
-                <SelectItem value="image">Imagem</SelectItem>
+                <SelectItem value="image">Foto/Imagem</SelectItem>
               </SelectContent>
             </Select>
           </div>
