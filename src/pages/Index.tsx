@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { FileText, FileEdit, ClipboardList, LineChart, PlusCircle, Users, Building, UserCircle, LogOut } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
+import { toast } from "@/hooks/use-toast";
+import { usePermissions } from "@/hooks/usePermissions";
+import Header from "@/components/Header";
 
 export default function Index() {
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { isAdmin, isMaster, loading: permissionsLoading } = usePermissions();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
@@ -68,7 +70,8 @@ export default function Index() {
     }
   };
 
-  const menuItems = [
+  // Base menu items that all users can see
+  const baseMenuItems = [
     {
       title: "Construtor de Formulário",
       description: "Crie e gerencie campos personalizados para seus formulários",
@@ -103,7 +106,11 @@ export default function Index() {
       icon: <PlusCircle className="h-12 w-12 text-indigo-600" />,
       path: "/document-types",
       color: "bg-indigo-50 hover:bg-indigo-100"
-    },
+    }
+  ];
+  
+  // Admin-only menu items
+  const adminMenuItems = [
     {
       title: "Empresas",
       description: "Gerencie o cadastro de empresas",
@@ -127,7 +134,10 @@ export default function Index() {
     }
   ];
 
-  if (loading) {
+  // Combine menu items based on user role
+  const menuItems = isAdmin || isMaster ? [...baseMenuItems, ...adminMenuItems] : baseMenuItems;
+
+  if (loading || permissionsLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -158,6 +168,11 @@ export default function Index() {
               <Button variant="outline" asChild>
                 <Link to="/biometrics">Gerenciar Biometria</Link>
               </Button>
+              {(isAdmin || isMaster) && (
+                <Button variant="outline" asChild>
+                  <Link to="/users">Usuários</Link>
+                </Button>
+              )}
             </nav>
             
             {user && (
@@ -181,11 +196,7 @@ export default function Index() {
       
       <div className="max-w-6xl mx-auto flex-1 p-4">
         <div className="mb-8 text-center animate-slide-down">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2"> Formulário Inteligente</h1>
-          <p className="text-gray-600 max-w-2xl mx-auto">
-            Crie, personalize e gerencie formulários e documentos para sua empresa. 
-            Escolha uma das opções abaixo para começar.
-          </p>
+          <Header title="Formulário Inteligente" subtitle="Crie, personalize e gerencie formulários e documentos para sua empresa" />
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-fade-in">

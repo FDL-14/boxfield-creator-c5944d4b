@@ -1,5 +1,5 @@
-
 import { supabase } from "@/integrations/supabase/client";
+import { checkUserPermission, isMasterUser, isAdminUser } from '@/utils/permissionUtils';
 
 /**
  * Serviço responsável por gerenciar usuários e permissões
@@ -10,6 +10,18 @@ export const UserService = {
    */
   listUsers: async () => {
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+      
+      // Verifica se o usuário é admin ou master primeiro
+      const isAdmin = await isAdminUser(userId);
+      const isMaster = await isMasterUser(userId);
+      
+      if (!isAdmin && !isMaster) {
+        console.warn("User does not have permission to list users");
+        return { users: [], error: "Permissão negada para listar usuários" };
+      }
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*, permissions:user_permissions(*)')
@@ -29,11 +41,23 @@ export const UserService = {
    */
   getUserById: async (id: string) => {
     try {
+      // Primeiro verificar se o usuário atual tem permissão para ver outros usuários
+      const { data: sessionData } = await supabase.auth.getSession();
+      const currentUserId = sessionData.session?.user?.id;
+      
+      // Se estiver tentando ver o próprio perfil, ou for admin/master, permitir
+      const canViewOthers = await checkUserPermission(currentUserId, 'can_edit_user');
+      const isCurrentUser = currentUserId === id;
+      
+      if (!isCurrentUser && !canViewOthers) {
+        return { user: null, error: "Permissão negada para visualizar este usuário" };
+      }
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*, permissions:user_permissions(*)')
         .eq('id', id)
-        .single();
+        .maybeSingle(); // Usar maybeSingle para evitar erros quando não encontra
       
       if (error) throw error;
       
@@ -199,33 +223,7 @@ export const UserService = {
    * Verifica se o usuário tem determinada permissão
    */
   hasPermission: async (userId: string, permission: string) => {
-    try {
-      // Primeiro, verificar se o usuário é admin ou master usando nossa função RPC
-      const { data, error } = await supabase.rpc('check_user_role', {
-        user_id: userId
-      });
-      
-      if (!error && data && data.length > 0) {
-        // Se for admin ou master, conceder permissão automaticamente
-        if (data[0].is_master === true || data[0].is_admin === true) {
-          return true;
-        }
-      }
-      
-      // Caso contrário, verificar permissões específicas
-      const { data: permData, error: permError } = await supabase
-        .from('user_permissions')
-        .select(permission)
-        .eq('user_id', userId)
-        .single();
-      
-      if (permError) return false;
-      
-      return permData && permData[permission] === true;
-    } catch (error) {
-      console.error("Erro ao verificar permissão:", error);
-      return false;
-    }
+    return await checkUserPermission(userId, permission);
   },
   
   /**
@@ -238,7 +236,7 @@ export const UserService = {
         const { data } = await supabase.auth.getSession();
         if (!data.session) return false;
         
-        return UserService.hasPermission(data.session.user.id, permission);
+        return checkUserPermission(data.session.user.id, permission);
       }
     };
   }
