@@ -200,14 +200,14 @@ export const UserService = {
    */
   hasPermission: async (userId: string, permission: string) => {
     try {
-      // Primeiro, verificar se o usuário é admin ou master
-      const { data, error } = await supabase.rpc('get_user_role', {
+      // Primeiro, verificar se o usuário é admin ou master usando nossa função RPC
+      const { data, error } = await supabase.rpc('check_user_role', {
         user_id: userId
-      }) as { data: { is_admin: boolean, is_master: boolean }, error: any };
+      });
       
-      if (!error && data) {
+      if (!error && data && data.length > 0) {
         // Se for admin ou master, conceder permissão automaticamente
-        if (data.is_master === true || data.is_admin === true) {
+        if (data[0].is_master === true || data[0].is_admin === true) {
           return true;
         }
       }

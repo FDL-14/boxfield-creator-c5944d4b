@@ -88,12 +88,6 @@ const isMasterUser = (profile: any): boolean => {
   return userCPF === masterCPF || profile.is_master === true;
 };
 
-// Define the expected type for roleData 
-interface UserRoleData {
-  is_admin: boolean;
-  is_master: boolean;
-}
-
 // Permissions provider
 export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
@@ -145,10 +139,10 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Use direct RPC call to avoid recursion issues
-      const { data: roleData, error: roleError } = await supabase.rpc('get_user_role', {
+      // Use nossa função RPC atualizada para verificar o papel do usuário
+      const { data: roleData, error: roleError } = await supabase.rpc('check_user_role', {
         user_id: currentUserId
-      }) as { data: UserRoleData, error: any };
+      });
       
       if (roleError) {
         console.error("Error getting user role:", roleError);
@@ -183,10 +177,10 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           console.error("Fallback error:", fallbackError);
           // Continue to attempt loading permissions
         }
-      } else if (roleData) {
-        // Fix: roleData is an object with properties is_admin and is_master, not an array
-        const userIsAdmin = roleData.is_admin === true;
-        const userIsMaster = roleData.is_master === true;
+      } else if (roleData && roleData.length > 0) {
+        // Corrigido: roleData agora é um array com objetos contendo is_admin e is_master
+        const userIsAdmin = roleData[0].is_admin === true;
+        const userIsMaster = roleData[0].is_master === true;
         
         setIsAdmin(userIsAdmin);
         setIsMaster(userIsMaster);
