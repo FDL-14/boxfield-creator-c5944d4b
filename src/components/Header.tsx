@@ -2,16 +2,17 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
-import { Home } from "lucide-react";
+import { Home, LogOut } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   title: string;
   subtitle?: string;
+  showLogout?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
+const Header: React.FC<HeaderProps> = ({ title, subtitle, showLogout = false }) => {
   const navigate = useNavigate();
 
   const handleBackToHome = () => {
@@ -54,6 +55,17 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
         </div>
       </div>
       <div className="flex items-center gap-4">
+        {showLogout && (
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={handleSignOut}
+            className="flex items-center gap-1"
+          >
+            <LogOut className="h-4 w-4" />
+            Sair
+          </Button>
+        )}
         <img
           src="/lovable-uploads/38edc1d3-2b5d-4e63-be2a-7ead983b2bb8.png"
           alt="Total Data Logo"

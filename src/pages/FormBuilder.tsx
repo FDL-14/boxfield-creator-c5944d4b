@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
@@ -9,6 +10,7 @@ import AddBoxDialog from "@/components/form-builder/AddBoxDialog";
 import { useFormService } from "@/services/formService";
 import { saveDocumentTypeConfig, loadDocumentTypeConfig } from "@/utils/formUtils";
 import ExportFormatSelector from "@/components/ExportFormatSelector";
+import Header from "@/components/Header";
 
 const FormBuilder = () => {
   const [boxes, setBoxes] = useState<any[]>([]);
@@ -176,19 +178,21 @@ const FormBuilder = () => {
 
   return (
     <div className="container mx-auto py-8 px-4">
+      <Header 
+        title="Construtor de Formulário" 
+        subtitle="Crie e personalize seções e campos para seus formulários" 
+      />
+
       <div className="space-y-6">
-        <div>
-          <h1 className="text-2xl font-bold mb-4">Construtor de Formulário</h1>
-          <Card className="p-4 mb-6">
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-              <h2 className="text-lg font-medium">Configurações</h2>
-              <ExportFormatSelector 
-                value={exportFormat}
-                onChange={handleExportFormatChange}
-              />
-            </div>
-          </Card>
-        </div>
+        <Card className="p-4 mb-6">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <h2 className="text-lg font-medium">Configurações</h2>
+            <ExportFormatSelector 
+              value={exportFormat}
+              onChange={handleExportFormatChange}
+            />
+          </div>
+        </Card>
 
         <div className="flex flex-wrap gap-2 mb-6">
           <Button
