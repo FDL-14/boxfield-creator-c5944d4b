@@ -1,8 +1,7 @@
 
-// Only fixing the showBase64Dialog function
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { toast } from "@/hooks/use-toast";
+import { useToast } from "@/hooks/use-toast";
 import { Trash2, Download, Code } from "lucide-react";
 import SignatureBase64Dialog from "./SignatureBase64Dialog";
 
@@ -21,6 +20,7 @@ export default function DrawSignature({ onSignatureCapture, onClose, initialSign
   const [hasSignature, setHasSignature] = useState(false);
   const [base64Signature, setBase64Signature] = useState('');
   const [showBase64DialogOpen, setShowBase64DialogOpen] = useState(false);
+  const { toast } = useToast();
 
   // Support both new and old prop patterns
   const handleCapture = (base64: string) => {
@@ -49,9 +49,11 @@ export default function DrawSignature({ onSignatureCapture, onClose, initialSign
       const img = new Image();
       img.src = initialSignature;
       img.onload = () => {
-        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-        setHasSignature(true);
-        setBase64Signature(initialSignature);
+        if (ctx && canvas) {
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          setHasSignature(true);
+          setBase64Signature(initialSignature);
+        }
       };
     }
   }, [initialSignature]);
@@ -108,7 +110,6 @@ export default function DrawSignature({ onSignatureCapture, onClose, initialSign
     handleClose();
   };
 
-  // Add the missing function
   const showBase64Dialog = () => {
     if (!hasSignature) {
       toast({
@@ -135,7 +136,6 @@ export default function DrawSignature({ onSignatureCapture, onClose, initialSign
         onMouseLeave={endDrawing}
       />
       
-      {/* Make sure we use the function properly */}
       <div className="flex justify-between">
         <Button 
           type="button" 
@@ -160,12 +160,11 @@ export default function DrawSignature({ onSignatureCapture, onClose, initialSign
         </Button>
       </div>
       
-      {/* Show Base64 Dialog */}
       <SignatureBase64Dialog
         open={showBase64DialogOpen}
+        onClose={() => setShowBase64DialogOpen(false)}
         onOpenChange={setShowBase64DialogOpen}
         base64Data={base64Signature}
-        onClose={() => setShowBase64DialogOpen(false)} 
         signatureName="Assinatura"
       />
     </div>

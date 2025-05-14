@@ -45,13 +45,21 @@ export default function SaveAsTemplateDialog({
     setSaving(true);
     
     try {
-      // Preparar dados para salvar
+      // Preparar dados para salvar, assegurando que mantemos boxes e fields
       const dataToSave = {
         ...initialData,
         title,
         description,
         export_format: exportFormat,
-        updated_at: new Date().toISOString()
+        updated_at: new Date().toISOString(),
+        boxes: initialData?.boxes || [],
+        fields: initialData?.fields || [],
+        // Garantir que section_locks esteja atualizado com base em boxes
+        section_locks: initialData?.boxes?.map((box: any) => ({
+          section_id: box.id,
+          lock_when_signed: box.lockWhenSigned !== false,
+          document_id: initialData.id
+        })) || initialData?.section_locks || []
       };
       
       // Salvar no Supabase de acordo com a opção selecionada

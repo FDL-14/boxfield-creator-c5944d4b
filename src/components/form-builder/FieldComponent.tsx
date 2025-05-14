@@ -1,377 +1,228 @@
 
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Trash2, Edit2, Save, X, Loader2, ArrowUp, ArrowDown, Plus, Image, Lock, Asterisk } from "lucide-react";
+import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Textarea } from "@/components/ui/textarea";
-import { Checkbox } from "@/components/ui/checkbox";
-import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { ChevronUp, ChevronDown, Trash2, Edit } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-const fieldTypeLabels = {
-  short_text: "Texto Curto",
-  long_text: "Texto Longo",
-  checkbox: "Caixa de Seleção",
-  flag: "FLAG (Seleção Múltipla)",
-  flag_with_text: "FLAG + Texto",
-  date: "Data",
-  time: "Hora",
-  select: "Lista Suspensa",
-  toggle: "Botão de Ativar/Inativar",
-  signature: "Assinatura",
-  image: "Foto/Imagem"
-};
+interface FieldComponentProps {
+  field: any;
+  onDelete: (id: string) => void;
+  onEdit: (id: string, data: any) => void;
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  isLoading: boolean;
+}
 
-export default function FieldComponent({ 
-  field, 
-  onDelete, 
-  onEdit, 
-  onMoveUp, 
-  onMoveDown, 
-  isLoading,
-  isLocked = false
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const [editedField, setEditedField] = useState(field);
-  const [selectedCheckboxes, setSelectedCheckboxes] = useState({});
+const FieldComponent: React.FC<FieldComponentProps> = ({
+  field,
+  onDelete,
+  onEdit,
+  onMoveUp,
+  onMoveDown,
+  isLoading
+}) => {
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editedField, setEditedField] = useState({ ...field });
 
-  const handleAddOption = () => {
-    setEditedField({
-      ...editedField,
-      options: [...(editedField.options || []), {text: ""}]
-    });
-  };
-  
-  const handleRemoveOption = (index) => {
-    const newOptions = [...(editedField.options || [])];
-    newOptions.splice(index, 1);
-    setEditedField({
-      ...editedField,
-      options: newOptions
-    });
-  };
-  
-  const handleOptionChange = (index, value) => {
-    const newOptions = [...(editedField.options || [])];
-    newOptions[index].text = value;
-    setEditedField({
-      ...editedField,
-      options: newOptions
-    });
+  const getFieldTypeLabel = (type: string) => {
+    const fieldTypes: Record<string, string> = {
+      short_text: "Texto Curto",
+      long_text: "Texto Longo",
+      checkbox: "Caixa de Seleção",
+      flag: "FLAG (Seleção Múltipla)",
+      flag_with_text: "FLAG + Texto",
+      date: "Data",
+      time: "Hora",
+      signature: "Assinatura",
+      image: "Foto/Imagem",
+      number: "Número",
+      select: "Lista de Seleção"
+    };
+    return fieldTypes[type] || type;
   };
 
-  const handleSave = () => {
+  const handleOpenEditDialog = () => {
+    setEditedField({ ...field });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleCloseEditDialog = () => {
+    setIsEditDialogOpen(false);
+  };
+
+  const handleEditField = () => {
     onEdit(field.id, editedField);
-    setIsEditing(false);
+    setIsEditDialogOpen(false);
   };
 
-  const toggleCheckbox = (id) => {
-    setSelectedCheckboxes(prev => ({
-      ...prev,
-      [id]: !prev[id]
-    }));
-  };
-
-  const handleRequiredChange = (checked) => {
-    setEditedField({
-      ...editedField,
-      required: checked
-    });
-  };
-
-  const renderPreview = () => {
-    switch (field.type) {
-      case "short_text":
-        return <Input disabled placeholder="Campo de texto curto" className="transition-all duration-300" />;
-      case "long_text":
-        return <Textarea disabled placeholder="Campo de texto longo" className="transition-all duration-300" />;
-      case "checkbox":
-        return (
-          <div className="space-y-2 transition-all duration-300">
-            <RadioGroup disabled>
-              {(field.options || [{text: "Opção 1"}, {text: "Opção 2"}]).map((option, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <RadioGroupItem value={`option-${index}`} id={`option-${index}`} disabled />
-                  <Label htmlFor={`option-${index}`} className="text-sm">{option.text}</Label>
-                </div>
-              ))}
-            </RadioGroup>
-          </div>
-        );
-      case "flag":
-        return (
-          <div className="space-y-2 transition-all duration-300">
-            {(field.options || [{text: "Opção 1"}, {text: "Opção 2"}]).map((option, index) => (
-                <div key={index} className="flex items-center space-x-2">
-                  <Checkbox 
-                    id={`flag-${field.id}-${index}`}
-                    checked={selectedCheckboxes[`flag-${field.id}-${index}`] || false}
-                    onCheckedChange={() => toggleCheckbox(`flag-${field.id}-${index}`)}
-                    disabled={isLocked}
-                  />
-                  <Label htmlFor={`flag-${field.id}-${index}`} className="text-sm">{option.text}</Label>
-                </div>
-            ))}
-          </div>
-        );
-      case "flag_with_text":
-        return (
-          <div className="space-y-3 transition-all duration-300">
-            {(field.options || [{text: "Opção 1"}]).map((option, index) => (
-              <div key={index} className="flex items-start gap-2">
-                <div className="flex items-center h-6">
-                  <Checkbox 
-                    id={`flag-text-${field.id}-${index}`}
-                    checked={selectedCheckboxes[`flag-text-${field.id}-${index}`] || false}
-                    onCheckedChange={() => toggleCheckbox(`flag-text-${field.id}-${index}`)}
-                    disabled={isLocked}
-                    className="mt-1"
-                  />
-                </div>
-                <div className="flex-1">
-                  <Label className="text-sm mb-1 block">{option.text}</Label>
-                  <Input disabled={!selectedCheckboxes[`flag-text-${field.id}-${index}`] || isLocked} className="w-full" placeholder="Texto adicional" />
-                </div>
-              </div>
-            ))}
-          </div>
-        );
-      case "date":
-        return <Input type="date" disabled className="transition-all duration-300" />;
-      case "time":
-        return <Input type="time" disabled className="transition-all duration-300" />;
-      case "select":
-        return (
-          <div className="space-y-2 transition-all duration-300 border rounded p-2">
-            <p className="text-sm text-gray-500">Lista suspensa com opções:</p>
-            <div className="pl-4">
-              {(field.options || [{text: "Opção 1"}, {text: "Opção 2"}]).map((option, index) => (
-                <div key={index} className="text-sm">• {option.text}</div>
-              ))}
-            </div>
-          </div>
-        );
-      case "toggle":
-        return (
-          <div className="flex items-center justify-between transition-all duration-300 p-2">
-            <Label htmlFor="toggle-preview">Ativar/Desativar</Label>
-            <Switch id="toggle-preview" disabled />
-          </div>
-        );
-      case "image":
-        return (
-          <div className="border-2 border-dashed rounded p-4 text-center text-gray-500 transition-all duration-300">
-            <Image className="mx-auto h-6 w-6 mb-2 opacity-50" />
-            <p>Campo para Upload de Imagem</p>
-          </div>
-        );
-      case "signature":
-        return (
-          <div className="space-y-2 transition-all duration-300">
-            <div className="border-2 border-dashed rounded p-4 text-center text-gray-500">
-              <svg className="mx-auto h-6 w-6 mb-2 opacity-50" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M5 17h14M5 7h14M13 7v10M7 7v10" />
-              </svg>
-              <p>Área para Assinatura</p>
-            </div>
-            {field.signature_label && (
-              <Input 
-                value={field.signature_label} 
-                disabled 
-                className="text-center" 
-                placeholder="Nome/Cargo" 
-              />
-            )}
-          </div>
-        );
-      default:
-        return null;
+  const handleDeleteClick = () => {
+    if (confirm("Tem certeza que deseja excluir este campo?")) {
+      onDelete(field.id);
     }
   };
 
-  if (isEditing && !isLocked) {
-    return (
-      <div className="border p-4 rounded-lg bg-gray-50 animate-slide-up transition-all duration-300">
-        <div className="space-y-4">
-          <div className="flex items-center gap-3">
-            <Input
-              value={editedField.label}
-              onChange={(e) => setEditedField({ ...editedField, label: e.target.value })}
-              placeholder="Rótulo do campo"
-              disabled={isLoading}
-              className="transition-all duration-300"
-            />
-            <div className="flex items-center whitespace-nowrap">
-              <Label htmlFor={`required-${field.id}`} className="mr-2">Obrigatório</Label>
-              <Switch
-                id={`required-${field.id}`}
-                checked={editedField.required || false}
-                onCheckedChange={handleRequiredChange}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-          
-          {(editedField.type === "flag" || editedField.type === "flag_with_text" || 
-            editedField.type === "checkbox" || editedField.type === "select") && (
-            <div className="space-y-3 p-3 border rounded-lg animate-fade-in">
-              <h4 className="font-medium text-sm">Opções de Seleção</h4>
-              
-              {(editedField.options || [{text: ""}]).map((option, index) => (
-                <div key={index} className="flex items-center gap-2">
-                  <Input
-                    value={option.text}
-                    onChange={(e) => handleOptionChange(index, e.target.value)}
-                    placeholder={`Opção ${index + 1}`}
-                    disabled={isLoading}
-                    className="flex-1"
-                  />
-                  
-                  {(editedField.options || []).length > 1 && (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => handleRemoveOption(index)}
-                      disabled={isLoading}
-                      className="h-8 w-8 text-red-600 hover:text-red-700"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  )}
-                </div>
-              ))}
-              
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleAddOption}
-                disabled={isLoading}
-                className="w-full mt-2"
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Adicionar Opção
-              </Button>
-            </div>
-          )}
-          
-          {editedField.type === "signature" && (
-            <Input
-              value={editedField.signature_label || ""}
-              onChange={(e) => setEditedField({ ...editedField, signature_label: e.target.value })}
-              placeholder="Nome/Cargo de quem irá assinar"
-              disabled={isLoading}
-              className="transition-all duration-300"
-            />
-          )}
-          
-          <div className="flex justify-end gap-2">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditing(false)}
-              disabled={isLoading}
-              className="transition-all duration-300"
-            >
-              <X className="w-4 h-4 mr-1" />
-              Cancelar
-            </Button>
-            <Button
-              size="sm"
-              onClick={handleSave}
-              className="bg-green-600 hover:bg-green-700 transition-all duration-300"
-              disabled={isLoading || 
-                ((editedField.type === "flag" || editedField.type === "flag_with_text" || 
-                  editedField.type === "checkbox" || editedField.type === "select") && 
-                (editedField.options || []).some(opt => !opt.text.trim()))}
-            >
-              {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
-              Salvar
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
+  const handleRequiredChange = (checked: boolean) => {
+    setEditedField({ ...editedField, required: checked });
+  };
+
+  const handleFieldTypeChange = (type: string) => {
+    setEditedField({ ...editedField, type });
+  };
 
   return (
-    <div className="border p-4 rounded-lg hover:bg-gray-50 transition-all duration-300 animate-fade-in">
-      <div className="flex items-start justify-between mb-3">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <p className="font-medium">{field.label}</p>
-            {field.required && (
-              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
-                <Asterisk className="h-3 w-3 mr-1" /> Obrigatório
-              </Badge>
-            )}
-          </div>
-          <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="transition-all duration-300">
-              {fieldTypeLabels[field.type]}
-            </Badge>
-            {isLocked && (
-              <Badge variant="outline" className="bg-yellow-50 text-yellow-700 border-yellow-300">
-                <Lock className="h-3 w-3 mr-1" /> Bloqueado
-              </Badge>
-            )}
-          </div>
-        </div>
-        <div className="flex gap-2">
-          {!isLocked && (
-            <>
-              {onMoveUp && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onMoveUp}
-                  disabled={isLoading}
-                  className="h-8 w-8"
-                >
-                  <ArrowUp className="h-4 w-4" />
-                </Button>
+    <>
+      <Card className="p-3 hover:bg-gray-50/50">
+        <div className="flex items-center justify-between">
+          <div className="flex-grow">
+            <div className="font-medium flex items-center gap-2">
+              {field.label}
+              {field.required && (
+                <Badge variant="destructive" className="text-xs">Obrigatório</Badge>
               )}
-              
-              {onMoveDown && (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={onMoveDown}
-                  disabled={isLoading}
-                  className="h-8 w-8"
-                >
-                  <ArrowDown className="h-4 w-4" />
-                </Button>
+            </div>
+            <div className="text-sm text-muted-foreground flex gap-2 items-center">
+              {getFieldTypeLabel(field.type)}
+              {field.placeholder && (
+                <span className="text-xs text-slate-500">
+                  Placeholder: {field.placeholder}
+                </span>
               )}
-              
+            </div>
+          </div>
+          <div className="flex space-x-1">
+            {onMoveUp && (
               <Button
+                size="sm"
                 variant="ghost"
-                size="icon"
-                onClick={() => setIsEditing(true)}
-                disabled={isLoading}
-                className="transition-all duration-300 h-8 w-8"
-              >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Edit2 className="w-4 h-4" />}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="text-red-600 hover:text-red-700 transition-all duration-300 h-8 w-8"
-                onClick={() => onDelete(field.id)}
+                onClick={onMoveUp}
                 disabled={isLoading}
               >
-                {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+                <ChevronUp className="h-4 w-4" />
               </Button>
-            </>
-          )}
+            )}
+            
+            {onMoveDown && (
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={onMoveDown}
+                disabled={isLoading}
+              >
+                <ChevronDown className="h-4 w-4" />
+              </Button>
+            )}
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleOpenEditDialog}
+              disabled={isLoading}
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+            
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={handleDeleteClick}
+              disabled={isLoading}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
-      </div>
-      <div className="transition-all duration-300">
-        {renderPreview()}
-      </div>
-    </div>
+      </Card>
+      
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Campo</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="field-label">Nome do campo</Label>
+              <Input
+                id="field-label"
+                value={editedField.label}
+                onChange={(e) => setEditedField({ ...editedField, label: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="field-placeholder">Placeholder</Label>
+              <Input
+                id="field-placeholder"
+                value={editedField.placeholder || ""}
+                onChange={(e) => setEditedField({ ...editedField, placeholder: e.target.value })}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="field-type">Tipo de Campo</Label>
+              <Select 
+                value={editedField.type} 
+                onValueChange={handleFieldTypeChange}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione um tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="short_text">Texto Curto</SelectItem>
+                  <SelectItem value="long_text">Texto Longo</SelectItem>
+                  <SelectItem value="number">Número</SelectItem>
+                  <SelectItem value="checkbox">Caixa de Seleção</SelectItem>
+                  <SelectItem value="flag">FLAG (Seleção Múltipla)</SelectItem>
+                  <SelectItem value="flag_with_text">FLAG + Texto</SelectItem>
+                  <SelectItem value="date">Data</SelectItem>
+                  <SelectItem value="time">Hora</SelectItem>
+                  <SelectItem value="signature">Assinatura</SelectItem>
+                  <SelectItem value="image">Foto/Imagem</SelectItem>
+                  <SelectItem value="select">Lista de Seleção</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="field-help">Texto de ajuda (opcional)</Label>
+              <Textarea
+                id="field-help"
+                value={editedField.help_text || ""}
+                onChange={(e) => setEditedField({ ...editedField, help_text: e.target.value })}
+                placeholder="Texto de ajuda para o usuário"
+              />
+            </div>
+            
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="required-field"
+                checked={editedField.required === true}
+                onCheckedChange={handleRequiredChange}
+              />
+              <Label htmlFor="required-field">Campo obrigatório</Label>
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCloseEditDialog}>
+              Cancelar
+            </Button>
+            <Button onClick={handleEditField} disabled={isLoading || !editedField.label}>
+              Salvar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
-}
+};
+
+export default FieldComponent;

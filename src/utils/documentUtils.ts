@@ -1,3 +1,4 @@
+
 // Only fixing the specific issue with export_format property access
 import { supabase } from "@/integrations/supabase/client";
 import { saveFormData, getSavedForms } from "./formUtils";
@@ -40,7 +41,10 @@ export const saveDocumentToSupabase = async (
     const docDataWithId = {
       ...data,
       id: documentId,
-      export_format: exportFormat
+      export_format: exportFormat,
+      // Garantir que boxes e fields estejam no objeto
+      boxes: data.boxes || [],
+      fields: data.fields || []
     };
     
     // Processar configurações de travamento de seção
@@ -51,6 +55,8 @@ export const saveDocumentToSupabase = async (
         document_id: documentId
       }));
     }
+    
+    console.log("Dados a serem salvos:", docDataWithId);
     
     // Upsert na tabela document_templates
     const { error, data: insertedData } = await supabase
@@ -244,7 +250,10 @@ export const saveAsTemplate = async (
   const templateData = {
     ...data,
     isTemplate: true,
-    export_format: exportFormat
+    export_format: exportFormat,
+    // Garantir que boxes e fields estejam no objeto
+    boxes: data.boxes || [],
+    fields: data.fields || []
   };
   
   // Salvar como modelo

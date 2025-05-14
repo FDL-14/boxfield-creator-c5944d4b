@@ -91,15 +91,15 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
 
   return (
     <Card className="mb-6 p-4 shadow-sm">
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-2">
         <Input
           value={box.title || ""}
           onChange={handleTitleChange}
-          className="mr-2 max-w-md"
+          className="mr-2 sm:max-w-md"
           placeholder="Título da Seção"
           disabled={!canEditSection}
         />
-        <div className="flex space-x-2">
+        <div className="flex flex-wrap gap-2">
           {onMoveBoxUp && !isFirst && (
             <Button
               variant="outline"
