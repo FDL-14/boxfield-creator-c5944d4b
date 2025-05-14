@@ -134,10 +134,8 @@ export default function Index() {
     }
   ];
 
-  // Combine menu items based on user role - Force showing admin menu items if user has admin profile
-  const menuItems = (isAdmin || isMaster || user?.profile?.is_admin || user?.profile?.is_master) 
-    ? [...baseMenuItems, ...adminMenuItems] 
-    : baseMenuItems;
+  // Combine menu items based on user role
+  const menuItems = isAdmin || isMaster ? [...baseMenuItems, ...adminMenuItems] : baseMenuItems;
 
   if (loading || permissionsLoading) {
     return (
@@ -157,7 +155,7 @@ export default function Index() {
               alt="Total Data Logo"
               className="h-10 object-contain"
             />
-            <h1 className="text-xl font-bold">Formulário Inteligente</h1>
+            <h1 className="text-xl font-bold"> Formulário Inteligente</h1>
           </div>
           <div className="flex items-center gap-4">
             <nav className="flex gap-2">
@@ -170,7 +168,7 @@ export default function Index() {
               <Button variant="outline" asChild>
                 <Link to="/biometrics">Gerenciar Biometria</Link>
               </Button>
-              {(isAdmin || isMaster || user?.profile?.is_admin || user?.profile?.is_master) && (
+              {(isAdmin || isMaster) && (
                 <Button variant="outline" asChild>
                   <Link to="/users">Usuários</Link>
                 </Button>

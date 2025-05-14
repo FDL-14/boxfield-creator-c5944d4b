@@ -1,4 +1,3 @@
-
 /**
  * Utility functions for permission handling
  */
@@ -16,17 +15,14 @@ export const checkUserPermission = async (
   try {
     if (!userId) return false;
     
-    // First check if user is admin or master directly via profiles
-    const { data: profileData, error: profileError } = await supabase
-      .from('profiles')
-      .select('is_admin, is_master, cpf')
-      .eq('id', userId)
-      .maybeSingle();
+    // Check if user is admin or master first via RPC
+    const { data: roleData, error: roleError } = await supabase.rpc('check_user_role', {
+      user_id: userId
+    });
     
     // If user is admin or master, they have all permissions
-    if (!profileError && profileData) {
-      const isSpecialMaster = profileData.cpf === '80243088191';
-      if (profileData.is_master === true || isSpecialMaster || profileData.is_admin === true) {
+    if (!roleError && roleData && roleData.length > 0) {
+      if (roleData[0].is_master === true || roleData[0].is_admin === true) {
         return true;
       }
     }
@@ -57,20 +53,11 @@ export const isMasterUser = async (userId: string | undefined): Promise<boolean>
   if (!userId) return false;
   
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('is_master, cpf')
-      .eq('id', userId)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('check_user_role', {
+      user_id: userId
+    });
     
-    if (error) {
-      console.error("Error checking master status:", error);
-      return false;
-    }
-    
-    // Special master user check by CPF
-    const isSpecialMaster = data?.cpf === '80243088191';
-    return (data?.is_master === true) || isSpecialMaster;
+    return !error && data && data.length > 0 && data[0].is_master === true;
   } catch (error) {
     console.error("Error checking master status:", error);
     return false;
@@ -84,20 +71,11 @@ export const isAdminUser = async (userId: string | undefined): Promise<boolean> 
   if (!userId) return false;
   
   try {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('is_admin, is_master, cpf')
-      .eq('id', userId)
-      .maybeSingle();
+    const { data, error } = await supabase.rpc('check_user_role', {
+      user_id: userId
+    });
     
-    if (error) {
-      console.error("Error checking admin status:", error);
-      return false;
-    }
-    
-    // Special master users are also admins
-    const isSpecialMaster = data?.cpf === '80243088191';
-    return (data?.is_admin === true) || (data?.is_master === true) || isSpecialMaster;
+    return !error && data && data.length > 0 && data[0].is_admin === true;
   } catch (error) {
     console.error("Error checking admin status:", error);
     return false;
