@@ -16,7 +16,8 @@ interface BoxListProps {
   onMoveFieldUp: (fieldId: string) => void;
   onMoveFieldDown: (fieldId: string) => void;
   onAddBox?: () => void;
-  onMoveBox?: (boxId: string, direction: 'up' | 'down') => void;
+  onMoveBoxUp?: (boxId: string) => void; 
+  onMoveBoxDown?: (boxId: string) => void;
   onUpdateLayout?: (boxId: string, layoutData: any) => void;
   onToggleLockWhenSigned?: (boxId: string, value: boolean) => void;
   isLoading?: boolean;
@@ -34,13 +35,14 @@ export default function BoxList({
   onMoveFieldUp,
   onMoveFieldDown,
   onAddBox,
-  onMoveBox,
+  onMoveBoxUp,
+  onMoveBoxDown,
   onUpdateLayout,
   onToggleLockWhenSigned,
   isLoading = false,
   isLocked = false
 }: BoxListProps) {
-  // Ordenar boxes pela propriedade order
+  // Sort boxes by their order property
   const sortedBoxes = [...boxes].sort((a, b) => 
     (a.order || 0) - (b.order || 0)
   );
@@ -64,6 +66,10 @@ export default function BoxList({
           onDeleteField={onDeleteField}
           onMoveFieldUp={onMoveFieldUp}
           onMoveFieldDown={onMoveFieldDown}
+          onMoveBoxUp={onMoveBoxUp}
+          onMoveBoxDown={onMoveBoxDown}
+          isFirst={index === 0}
+          isLast={index === sortedBoxes.length - 1}
         />
       ))}
       

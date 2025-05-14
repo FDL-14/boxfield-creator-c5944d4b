@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { Trash2, Lock, Edit } from "lucide-react";
+import { Trash2, Lock, Edit, MoveUp, MoveDown } from "lucide-react";
 import FieldList from "./FieldList";
 import AddFieldDialog from "./AddFieldDialog";
 import EditSectionDialog from "./EditSectionDialog";
@@ -24,6 +24,10 @@ interface FormBoxComponentProps {
   onDeleteField: (id: string) => void;
   onMoveFieldUp: (id: string) => void;
   onMoveFieldDown: (id: string) => void;
+  onMoveBoxUp?: (id: string) => void;
+  onMoveBoxDown?: (id: string) => void;
+  isFirst?: boolean;
+  isLast?: boolean;
 }
 
 const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
@@ -37,6 +41,10 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
   onDeleteField,
   onMoveFieldUp,
   onMoveFieldDown,
+  onMoveBoxUp,
+  onMoveBoxDown,
+  isFirst = false,
+  isLast = false,
 }) => {
   const [isAddFieldDialogOpen, setIsAddFieldDialogOpen] = useState(false);
   const [isEditSectionDialogOpen, setIsEditSectionDialogOpen] = useState(false);
@@ -92,6 +100,30 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
           disabled={!canEditSection}
         />
         <div className="flex space-x-2">
+          {onMoveBoxUp && !isFirst && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onMoveBoxUp(box.id)}
+              className="text-gray-600 border-gray-300 hover:bg-gray-100"
+            >
+              <MoveUp className="h-4 w-4 mr-2" />
+              Mover para cima
+            </Button>
+          )}
+          
+          {onMoveBoxDown && !isLast && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => onMoveBoxDown(box.id)}
+              className="text-gray-600 border-gray-300 hover:bg-gray-100"
+            >
+              <MoveDown className="h-4 w-4 mr-2" />
+              Mover para baixo
+            </Button>
+          )}
+          
           {canEditSection && (
             <Button
               variant="outline"
@@ -103,6 +135,7 @@ const FormBoxComponent: React.FC<FormBoxComponentProps> = ({
               Editar
             </Button>
           )}
+          
           {canDeleteSection && (
             <Button
               variant="outline"

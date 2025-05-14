@@ -12,6 +12,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Lock } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
 
 interface EditSectionDialogProps {
   open: boolean;
@@ -29,11 +30,13 @@ const EditSectionDialog: React.FC<EditSectionDialogProps> = ({
   isLoading = false 
 }) => {
   const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
   const [lockWhenSigned, setLockWhenSigned] = useState(true);
 
   useEffect(() => {
     if (section) {
       setTitle(section.title || '');
+      setDescription(section.description || '');
       setLockWhenSigned(section.lockWhenSigned !== false); // Default to true if not specified
     }
   }, [section]);
@@ -44,6 +47,7 @@ const EditSectionDialog: React.FC<EditSectionDialogProps> = ({
     onSave({
       ...section,
       title,
+      description,
       lockWhenSigned
     });
   };
@@ -54,7 +58,7 @@ const EditSectionDialog: React.FC<EditSectionDialogProps> = ({
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Editar Seção</DialogTitle>
         </DialogHeader>
@@ -67,6 +71,17 @@ const EditSectionDialog: React.FC<EditSectionDialogProps> = ({
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder="Título da Seção"
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="section-description">Descrição (opcional)</Label>
+            <Textarea
+              id="section-description"
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Descrição da seção"
+              rows={3}
             />
           </div>
 

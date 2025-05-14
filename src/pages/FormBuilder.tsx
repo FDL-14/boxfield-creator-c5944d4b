@@ -9,6 +9,7 @@ import AddBoxDialog from "@/components/form-builder/AddBoxDialog";
 import { useFormService } from "@/services/formService";
 import { saveDocumentTypeConfig, loadDocumentTypeConfig } from "@/utils/formUtils";
 import ExportFormatSelector from "@/components/ExportFormatSelector";
+import { useToast } from "@/hooks/use-toast";
 
 const FormBuilder = () => {
   const [boxes, setBoxes] = useState<any[]>([]);
@@ -16,6 +17,7 @@ const FormBuilder = () => {
   const [isAddBoxDialogOpen, setIsAddBoxDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState("PDF");
   const { loadData, addBox, addField, editBox, deleteBox, editField, deleteField, updateBoxOrder, updateFieldOrder } = useFormService();
+  const { toast } = useToast();
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -37,13 +39,15 @@ const FormBuilder = () => {
   }, []);
 
   const handleAddBox = async (boxData: any) => {
-    const newBox = await addBox({
+    const newBox = {
       ...boxData,
       id: uuidv4(),
       order: boxes.length,
       lockWhenSigned: boxData.lockWhenSigned !== false, // Default to true if not specified
-    });
-    if (newBox) {
+    };
+    
+    const success = await addBox(newBox);
+    if (success) {
       setBoxes([...boxes, newBox]);
     }
     setIsAddBoxDialogOpen(false);
@@ -68,16 +72,15 @@ const FormBuilder = () => {
 
   const handleAddField = async (boxId: string, fieldData: any) => {
     const boxFields = fields.filter((f) => f.box_id === boxId);
-    const newField = await addField(
-      {
-        ...fieldData,
-        id: uuidv4(),
-        order: boxFields.length,
-        box_id: boxId,
-      },
-      boxId
-    );
-    if (newField) {
+    const newField = {
+      ...fieldData,
+      id: uuidv4(),
+      order: boxFields.length,
+      box_id: boxId,
+    };
+    
+    const success = await addField(newField, boxId);
+    if (success) {
       setFields([...fields, newField]);
     }
   };
@@ -150,6 +153,56 @@ const FormBuilder = () => {
     setFields(newFields);
   };
 
+  const handleMoveBoxUp = (id: string) => {
+    const sortedBoxes = [...boxes].sort((a, b) => a.order - b.order);
+    const boxIndex = sortedBoxes.findIndex((box) => box.id === id);
+    
+    if (boxIndex <= 0) return; // Already at the top
+    
+    const newBoxes = [...sortedBoxes];
+    // Swap with previous box
+    const temp = newBoxes[boxIndex].order;
+    newBoxes[boxIndex].order = newBoxes[boxIndex - 1].order;
+    newBoxes[boxIndex - 1].order = temp;
+    
+    // Update backend
+    updateBoxOrder(newBoxes[boxIndex].id, newBoxes[boxIndex].order);
+    updateBoxOrder(newBoxes[boxIndex - 1].id, newBoxes[boxIndex - 1].order);
+    
+    // Update state
+    setBoxes(newBoxes);
+    
+    toast({
+      title: "Seção movida",
+      description: "A seção foi movida para cima com sucesso.",
+    });
+  };
+
+  const handleMoveBoxDown = (id: string) => {
+    const sortedBoxes = [...boxes].sort((a, b) => a.order - b.order);
+    const boxIndex = sortedBoxes.findIndex((box) => box.id === id);
+    
+    if (boxIndex >= sortedBoxes.length - 1) return; // Already at the bottom
+    
+    const newBoxes = [...sortedBoxes];
+    // Swap with next box
+    const temp = newBoxes[boxIndex].order;
+    newBoxes[boxIndex].order = newBoxes[boxIndex + 1].order;
+    newBoxes[boxIndex + 1].order = temp;
+    
+    // Update backend
+    updateBoxOrder(newBoxes[boxIndex].id, newBoxes[boxIndex].order);
+    updateBoxOrder(newBoxes[boxIndex + 1].id, newBoxes[boxIndex + 1].order);
+    
+    // Update state
+    setBoxes(newBoxes);
+    
+    toast({
+      title: "Seção movida",
+      description: "A seção foi movida para baixo com sucesso.",
+    });
+  };
+
   const handleSave = () => {
     // Save the current state to localStorage
     const config = {
@@ -167,6 +220,11 @@ const FormBuilder = () => {
       ...config,
       title: "Form Builder Configuration",
       updated_at: new Date().toISOString(),
+    });
+    
+    toast({
+      title: "Configuração Salva",
+      description: "A configuração do formulário foi salva com sucesso.",
     });
   };
 
@@ -215,6 +273,9 @@ const FormBuilder = () => {
             onDeleteField={handleDeleteField}
             onMoveFieldUp={handleMoveFieldUp}
             onMoveFieldDown={handleMoveFieldDown}
+            onMoveBoxUp={handleMoveBoxUp}
+            onMoveBoxDown={handleMoveBoxDown}
+            onAddBox={() => setIsAddBoxDialogOpen(true)}
           />
         </ScrollArea>
 

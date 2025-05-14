@@ -1,12 +1,14 @@
+
 import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Trash2, Edit2, Save, X, Loader2, ArrowUp, ArrowDown, Plus, Image, Lock } from "lucide-react";
+import { Trash2, Edit2, Save, X, Loader2, ArrowUp, ArrowDown, Plus, Image, Lock, Asterisk } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 
 const fieldTypeLabels = {
   short_text: "Texto Curto",
@@ -16,6 +18,8 @@ const fieldTypeLabels = {
   flag_with_text: "FLAG + Texto",
   date: "Data",
   time: "Hora",
+  select: "Lista Suspensa",
+  toggle: "Botão de Ativar/Inativar",
   signature: "Assinatura",
   image: "Foto/Imagem"
 };
@@ -68,6 +72,13 @@ export default function FieldComponent({
       ...prev,
       [id]: !prev[id]
     }));
+  };
+
+  const handleRequiredChange = (checked) => {
+    setEditedField({
+      ...editedField,
+      required: checked
+    });
   };
 
   const renderPreview = () => {
@@ -131,6 +142,24 @@ export default function FieldComponent({
         return <Input type="date" disabled className="transition-all duration-300" />;
       case "time":
         return <Input type="time" disabled className="transition-all duration-300" />;
+      case "select":
+        return (
+          <div className="space-y-2 transition-all duration-300 border rounded p-2">
+            <p className="text-sm text-gray-500">Lista suspensa com opções:</p>
+            <div className="pl-4">
+              {(field.options || [{text: "Opção 1"}, {text: "Opção 2"}]).map((option, index) => (
+                <div key={index} className="text-sm">• {option.text}</div>
+              ))}
+            </div>
+          </div>
+        );
+      case "toggle":
+        return (
+          <div className="flex items-center justify-between transition-all duration-300 p-2">
+            <Label htmlFor="toggle-preview">Ativar/Desativar</Label>
+            <Switch id="toggle-preview" disabled />
+          </div>
+        );
       case "image":
         return (
           <div className="border-2 border-dashed rounded p-4 text-center text-gray-500 transition-all duration-300">
@@ -166,15 +195,27 @@ export default function FieldComponent({
     return (
       <div className="border p-4 rounded-lg bg-gray-50 animate-slide-up transition-all duration-300">
         <div className="space-y-4">
-          <Input
-            value={editedField.label}
-            onChange={(e) => setEditedField({ ...editedField, label: e.target.value })}
-            placeholder="Rótulo do campo"
-            disabled={isLoading}
-            className="transition-all duration-300"
-          />
+          <div className="flex items-center gap-3">
+            <Input
+              value={editedField.label}
+              onChange={(e) => setEditedField({ ...editedField, label: e.target.value })}
+              placeholder="Rótulo do campo"
+              disabled={isLoading}
+              className="transition-all duration-300"
+            />
+            <div className="flex items-center whitespace-nowrap">
+              <Label htmlFor={`required-${field.id}`} className="mr-2">Obrigatório</Label>
+              <Switch
+                id={`required-${field.id}`}
+                checked={editedField.required || false}
+                onCheckedChange={handleRequiredChange}
+                disabled={isLoading}
+              />
+            </div>
+          </div>
           
-          {(editedField.type === "flag" || editedField.type === "flag_with_text" || editedField.type === "checkbox") && (
+          {(editedField.type === "flag" || editedField.type === "flag_with_text" || 
+            editedField.type === "checkbox" || editedField.type === "select") && (
             <div className="space-y-3 p-3 border rounded-lg animate-fade-in">
               <h4 className="font-medium text-sm">Opções de Seleção</h4>
               
@@ -243,7 +284,8 @@ export default function FieldComponent({
               onClick={handleSave}
               className="bg-green-600 hover:bg-green-700 transition-all duration-300"
               disabled={isLoading || 
-                ((editedField.type === "flag" || editedField.type === "flag_with_text" || editedField.type === "checkbox") && 
+                ((editedField.type === "flag" || editedField.type === "flag_with_text" || 
+                  editedField.type === "checkbox" || editedField.type === "select") && 
                 (editedField.options || []).some(opt => !opt.text.trim()))}
             >
               {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <Save className="w-4 h-4 mr-1" />}
@@ -259,7 +301,14 @@ export default function FieldComponent({
     <div className="border p-4 rounded-lg hover:bg-gray-50 transition-all duration-300 animate-fade-in">
       <div className="flex items-start justify-between mb-3">
         <div>
-          <p className="font-medium mb-1">{field.label}</p>
+          <div className="flex items-center gap-2 mb-1">
+            <p className="font-medium">{field.label}</p>
+            {field.required && (
+              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-300">
+                <Asterisk className="h-3 w-3 mr-1" /> Obrigatório
+              </Badge>
+            )}
+          </div>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="transition-all duration-300">
               {fieldTypeLabels[field.type]}
