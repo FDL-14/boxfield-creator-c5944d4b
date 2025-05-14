@@ -2,7 +2,6 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import { checkUserPermission, isMasterUser, isAdminUser } from '@/utils/permissionUtils';
 
 // Permission types
 export interface UserPermissions {
@@ -78,6 +77,17 @@ const PermissionsContext = createContext<PermissionsContextType>({
   refreshPermissions: async () => {}
 });
 
+// Helper function to safely check if a user is a master user
+const isMasterUser = (profile: any): boolean => {
+  if (!profile) return false;
+  
+  // Check by CPF (master CPF hardcoded for security)
+  const masterCPF = '80243088191';
+  const userCPF = profile.cpf ? profile.cpf.replace(/\D/g, '') : '';
+  
+  return userCPF === masterCPF || profile.is_master === true;
+};
+
 // Permissions provider
 export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
@@ -129,7 +139,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Use RPC function to get user role safely
+      // Use nossa função RPC atualizada para verificar o papel do usuário
       const { data: roleData, error: roleError } = await supabase.rpc('check_user_role', {
         user_id: currentUserId
       });
@@ -137,32 +147,23 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       if (roleError) {
         console.error("Error getting user role:", roleError);
         
-        // Fallback: direct SQL query with more safety checks
+        // Fallback in case RPC fails - direct SQL query
         try {
           const { data: userData, error: userError } = await supabase
             .from('profiles')
             .select('is_admin, is_master, cpf')
             .eq('id', currentUserId)
-            .maybeSingle();
+            .single();
           
-          if (userError) {
-            console.error("Error getting user profile:", userError);
-            throw userError;
-          }
+          if (userError) throw userError;
           
-          if (!userData) {
-            console.warn("No user profile found");
-            setIsAdmin(false);
-            setIsMaster(false);
-            setPermissions(defaultPermissions);
-            setLoading(false);
-            return;
-          }
+          // Check if user is master
+          const userIsMaster = isMasterUser(userData);
           
-          setIsAdmin(userData.is_admin || false);
-          setIsMaster(userData.is_master || userData.cpf === '80243088191');
+          setIsAdmin(userData.is_admin || userIsMaster);
+          setIsMaster(userIsMaster);
           
-          if (userData.is_master || userData.cpf === '80243088191') {
+          if (userIsMaster) {
             // Grant all permissions to master
             const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
               (acc, key) => ({ ...acc, [key]: true }),
@@ -174,9 +175,10 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           }
         } catch (fallbackError) {
           console.error("Fallback error:", fallbackError);
+          // Continue to attempt loading permissions
         }
       } else if (roleData && roleData.length > 0) {
-        // roleData is an array with objects containing is_admin and is_master
+        // Corrigido: roleData agora é um array com objetos contendo is_admin e is_master
         const userIsAdmin = roleData[0].is_admin === true;
         const userIsMaster = roleData[0].is_master === true;
         
@@ -194,8 +196,6 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           setLoading(false);
           return;
         }
-      } else {
-        console.warn("No role data returned from RPC function");
       }
       
       // Get specific user permissions
@@ -207,7 +207,6 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           .maybeSingle();
         
         if (permissionsError) {
-          console.error("Error getting user permissions:", permissionsError);
           throw permissionsError;
         }
         

@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Home } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
 
 interface HeaderProps {
   title: string;
@@ -16,24 +15,6 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
 
   const handleBackToHome = () => {
     navigate('/');
-  };
-
-  const handleSignOut = async () => {
-    try {
-      await supabase.auth.signOut();
-      navigate('/auth');
-      toast({
-        title: "Logout realizado",
-        description: "Você foi desconectado com sucesso"
-      });
-    } catch (error) {
-      console.error("Error signing out:", error);
-      toast({
-        title: "Erro ao desconectar",
-        description: "Ocorreu um erro ao tentar fazer logout",
-        variant: "destructive"
-      });
-    }
   };
 
   return (
