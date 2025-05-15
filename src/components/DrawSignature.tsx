@@ -148,6 +148,7 @@ export default function DrawSignature({ onSignatureCapture, onClose, initialSign
           type="button"
           variant="outline"
           onClick={showBase64Dialog}
+          className="text-blue-600 border-blue-600 hover:bg-blue-600/10"
         >
           <Code className="mr-2 h-4 w-4" /> Ver Base64
         </Button>
