@@ -216,9 +216,9 @@ export default function UsersManager() {
       
       // Check if user has permission to access this page
       if (!isSpecialMaster && 
-          !processedUserProfile?.is_admin && 
-          !processedUserProfile?.is_master && 
-          (!processedUserProfile?.permissions || !processedUserProfile?.permissions[0]?.can_create_user)) {
+          !processedUserProfile.is_admin && 
+          !processedUserProfile.is_master && 
+          (!processedUserProfile.permissions || !processedUserProfile.permissions[0]?.can_create_user)) {
         toast({
           title: "Acesso negado",
           description: "Você não tem permissão para gerenciar usuários.",
