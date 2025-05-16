@@ -192,8 +192,8 @@ export default function UsersManager() {
         setCurrentUserProfile(processUserProfile(newProfile));
       } else {
         // Use the processUserProfile helper to ensure all required properties exist
-        const processedProfile = processUserProfile(userProfile);
-        setCurrentUserProfile(processedProfile);
+        const processedUserProfile = processUserProfile(userProfile);
+        setCurrentUserProfile(processedUserProfile);
       }
       
       // Check if the current user is allowed to access the Users page
@@ -216,9 +216,9 @@ export default function UsersManager() {
       
       // Check if user has permission to access this page
       if (!isSpecialMaster && 
-          !processedProfile?.is_admin && 
-          !processedProfile?.is_master && 
-          (!processedProfile?.permissions || !processedProfile?.permissions[0]?.can_create_user)) {
+          !processedUserProfile?.is_admin && 
+          !processedUserProfile?.is_master && 
+          (!processedUserProfile?.permissions || !processedUserProfile?.permissions[0]?.can_create_user)) {
         toast({
           title: "Acesso negado",
           description: "Você não tem permissão para gerenciar usuários.",
