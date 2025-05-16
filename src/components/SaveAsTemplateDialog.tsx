@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { saveDocumentToSupabase, saveAsTemplate } from "@/utils/documentUtils";
+import { DocumentService } from "@/services/documentService";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, FileText } from "lucide-react";
 
@@ -45,6 +45,8 @@ export default function SaveAsTemplateDialog({
     setSaving(true);
     
     try {
+      console.log("Initial data to save:", initialData);
+      
       // Preparar dados para salvar, assegurando que mantemos boxes e fields
       const dataToSave = {
         ...initialData,
@@ -61,11 +63,13 @@ export default function SaveAsTemplateDialog({
           document_id: initialData.id
         })) || initialData?.section_locks || []
       };
+
+      console.log("Data being saved:", dataToSave);
       
       // Salvar no Supabase de acordo com a opção selecionada
       const result = saveAsModel
-        ? await saveAsTemplate(docType, title, dataToSave, exportFormat)
-        : await saveDocumentToSupabase(docType, title, dataToSave, false, exportFormat);
+        ? await DocumentService.saveAsTemplate(docType, title, dataToSave, exportFormat)
+        : await DocumentService.saveDocument(docType, title, dataToSave, false, exportFormat);
       
       if (result.success) {
         toast({

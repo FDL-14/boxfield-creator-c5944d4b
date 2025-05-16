@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { saveFormData, getSavedForms } from "@/utils/formUtils";
 import { v4 as uuidv4 } from 'uuid';
@@ -37,7 +38,10 @@ export const DocumentService = {
       const docDataWithId = {
         ...data,
         id: documentId,
-        export_format: exportFormat
+        export_format: exportFormat,
+        // Garantir que boxes e fields estejam no objeto
+        boxes: data.boxes || [],
+        fields: data.fields || []
       };
       
       // Collect section locks from boxes if available
@@ -48,6 +52,8 @@ export const DocumentService = {
           document_id: documentId
         }));
       }
+      
+      console.log("Dados a serem salvos:", docDataWithId);
       
       // Upsert na tabela document_templates
       const { error, data: insertedData } = await supabase
@@ -165,12 +171,7 @@ export const DocumentService = {
         if (Array.isArray(docData)) {
           console.log("doc.data é um array, usando valor padrão para export_format");
         } else {
-          exportFormat = (docData as any).export_format || 'PDF';
-        }
-        
-        // Verificar se o próprio documento tem a propriedade export_format
-        if ((doc as any).export_format) {
-          exportFormat = (doc as any).export_format;
+          exportFormat = (docData as any).export_format || doc.export_format || 'PDF';
         }
         
         return {
@@ -185,7 +186,9 @@ export const DocumentService = {
           isTemplate: doc.is_template,
           export_format: exportFormat,
           section_locks: doc.section_locks || [],
-          supabaseId: doc.id
+          supabaseId: doc.id,
+          boxes: docData.boxes || [],
+          fields: docData.fields || []
         };
       });
       
@@ -216,7 +219,9 @@ export const DocumentService = {
     const templateData = {
       ...data,
       isTemplate: true,
-      export_format: exportFormat
+      export_format: exportFormat,
+      boxes: data.boxes || [],
+      fields: data.fields || []
     };
     
     return DocumentService.saveDocument(docType, title, templateData, true, exportFormat);
@@ -234,6 +239,28 @@ export const DocumentService = {
         .single();
       
       if (error) throw error;
+      
+      // Processar dados para garantir estrutura correta
+      if (data && data.data) {
+        const processedData = {
+          ...data.data,
+          id: data.id,
+          title: data.title,
+          name: data.title,
+          description: data.description,
+          date: data.created_at,
+          updated_at: data.updated_at,
+          formType: data.type,
+          isTemplate: data.is_template,
+          export_format: data.export_format || data.data.export_format || 'PDF',
+          section_locks: data.section_locks || [],
+          supabaseId: data.id,
+          boxes: data.data.boxes || [],
+          fields: data.data.fields || []
+        };
+        
+        return { document: processedData, error: null };
+      }
       
       return { document: data, error: null };
     } catch (error: any) {

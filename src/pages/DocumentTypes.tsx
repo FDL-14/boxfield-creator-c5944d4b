@@ -3,12 +3,11 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Plus, Pencil } from "lucide-react";
+import { FileText, Plus, Pencil, Trash2 } from "lucide-react";
 import { supabase, processUserProfile } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import Header from "@/components/Header";
@@ -19,6 +18,8 @@ export default function DocumentTypes() {
   const [loading, setLoading] = useState(true);
   const [documentTypes, setDocumentTypes] = useState([]);
   const [showDialog, setShowDialog] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [selectedDocTypeId, setSelectedDocTypeId] = useState(null);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -166,6 +167,55 @@ export default function DocumentTypes() {
     setDescription(docType.description || "");
     setShowDialog(true);
   };
+
+  const handleDelete = (docTypeId) => {
+    if (!canEditDocumentTypes()) {
+      toast({
+        title: "Permissão negada",
+        description: "Você não tem permissão para excluir tipos de documento.",
+        variant: "destructive"
+      });
+      return;
+    }
+    
+    setSelectedDocTypeId(docTypeId);
+    setDeleteDialogOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!selectedDocTypeId) return;
+
+    try {
+      setLoading(true);
+      
+      // Mark document as deleted rather than actually deleting it
+      const { error } = await supabase
+        .from('document_templates')
+        .update({ is_deleted: true })
+        .eq('id', selectedDocTypeId);
+      
+      if (error) throw error;
+      
+      toast({
+        title: "Tipo de documento excluído",
+        description: "O tipo de documento foi excluído com sucesso.",
+      });
+      
+      loadDocumentTypes();
+      setDeleteDialogOpen(false);
+      setSelectedDocTypeId(null);
+      
+    } catch (error) {
+      console.error('Error deleting document type:', error);
+      toast({
+        title: "Erro ao excluir",
+        description: "Ocorreu um problema ao excluir o tipo de documento.",
+        variant: "destructive"
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
   
   const handleCreateDocument = (templateId) => {
     navigate(`/document-creator/${templateId}`);
@@ -218,16 +268,28 @@ export default function DocumentTypes() {
                     <div className="p-3 bg-primary/10 rounded-lg">
                       <FileText className="h-6 w-6 text-primary" />
                     </div>
-                    {canEditDocumentTypes() && (
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => handleEdit(docType)}
-                        className="h-8 w-8 p-0"
-                      >
-                        <Pencil className="h-4 w-4" />
-                      </Button>
-                    )}
+                    <div className="flex space-x-2">
+                      {canEditDocumentTypes() && (
+                        <>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleEdit(docType)}
+                            className="h-8 w-8 p-0"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            onClick={() => handleDelete(docType.id)}
+                            className="h-8 w-8 p-0 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                   <h3 className="text-lg font-medium mb-2">{docType.title}</h3>
                   <p className="text-sm text-gray-500 mb-4 line-clamp-2">
@@ -312,6 +374,44 @@ export default function DocumentTypes() {
               disabled={loading}
             >
               {loading ? 'Salvando...' : editingId ? 'Atualizar' : 'Criar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete confirmation dialog */}
+      <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir Tipo de Documento</DialogTitle>
+            <DialogDescription>
+              Esta ação não pode ser desfeita. O tipo de documento será permanentemente excluído.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="py-4">
+            <p>Tem certeza que deseja excluir este tipo de documento?</p>
+          </div>
+          
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => {
+                setDeleteDialogOpen(false);
+                setSelectedDocTypeId(null);
+              }}
+              disabled={loading}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              variant="destructive"
+              onClick={confirmDelete}
+              disabled={loading}
+            >
+              {loading ? 'Excluindo...' : 'Excluir'}
             </Button>
           </DialogFooter>
         </DialogContent>

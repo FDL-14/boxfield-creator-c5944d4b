@@ -4,8 +4,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { DocumentService } from "@/services/documentService";
 import { getSavedForms, prepareFormTemplate, deleteSavedForm } from "@/utils/formUtils";
-import { loadDocumentsFromSupabase } from "@/utils/documentUtils";
 import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck, Copy, Loader2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
@@ -40,8 +40,8 @@ export default function SavedDocumentsDialog({
   const loadSavedDocuments = async () => {
     try {
       setLoading(true);
-      // Tentar carregar do Supabase primeiro e depois fallback para localStorage
-      const docs = await loadDocumentsFromSupabase(docType);
+      // Carregar documentos usando DocumentService
+      const docs = await DocumentService.loadDocuments(docType);
       console.log("Documentos carregados:", docs);
       setSavedDocuments(docs);
     } catch (error) {
@@ -61,8 +61,8 @@ export default function SavedDocumentsDialog({
     setLoading(true);
     
     try {
-      // Pass id directly as string or number based on the updated deleteSavedForm function
-      const success = await deleteSavedForm(docType || "custom", id);
+      // Use DocumentService para marcar como excluído
+      const success = await DocumentService.markDocumentAsDeleted(id);
       
       if (success) {
         toast({
@@ -99,6 +99,7 @@ export default function SavedDocumentsDialog({
   };
   
   const handleSelectDocument = (name: string, document: any) => {
+    console.log("Selecting document:", document);
     // For form-builder templates, prepare the template first
     if (docType === 'form-builder' && document.isTemplate) {
       const preparedTemplate = prepareFormTemplate(document);
@@ -188,11 +189,10 @@ export default function SavedDocumentsDialog({
                   
                   // Check if document has boxes and fields data (for form-builder)
                   const hasFormBuilderData = doc.boxes && doc.fields && doc.boxes.length > 0;
-                  const hasDataObject = doc.data && Object.keys(doc.data).length > 0;
                   const isTemplate = doc.isTemplate || false;
                   
                   // Determine the data to pass when clicked
-                  const documentToPass = hasFormBuilderData ? doc : doc.data || doc;
+                  const documentToPass = hasFormBuilderData ? doc : (doc.data && Object.keys(doc.data).length > 0) ? doc.data : doc;
                   
                   // Get the ID to use
                   const docId = doc.supabaseId || doc.id || "";
