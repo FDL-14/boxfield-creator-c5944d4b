@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,8 @@ import { useFormService } from "@/services/formService";
 import { saveDocumentTypeConfig, loadDocumentTypeConfig } from "@/utils/formUtils";
 import ExportFormatSelector from "@/components/ExportFormatSelector";
 import { useToast } from "@/hooks/use-toast";
+import SaveAsDocumentButton from "@/components/SaveAsDocumentButton";
+import { DocumentService } from "@/services/documentService";
 
 const FormBuilder = () => {
   const [boxes, setBoxes] = useState<any[]>([]);
@@ -232,6 +235,28 @@ const FormBuilder = () => {
     setExportFormat(format);
   };
 
+  // Create document data for SaveAs function
+  const getDocumentData = () => {
+    return {
+      boxes,
+      fields,
+      export_format: exportFormat,
+      section_locks: boxes.map(box => ({
+        section_id: box.id,
+        lock_when_signed: box.lockWhenSigned !== false
+      })),
+      updated_at: new Date().toISOString()
+    };
+  };
+
+  // Handle document saved event
+  const handleDocumentSaved = (savedDoc: any) => {
+    toast({
+      title: "Formulário Salvo",
+      description: `O formulário "${savedDoc.title}" foi salvo com sucesso e está disponível como modelo.`,
+    });
+  };
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="space-y-6">
@@ -260,6 +285,13 @@ const FormBuilder = () => {
           >
             Salvar Configuração
           </Button>
+          
+          <SaveAsDocumentButton 
+            docType="form-builder" 
+            documentData={getDocumentData()}
+            onSaved={handleDocumentSaved}
+            label="Salvar Como Modelo"
+          />
         </div>
 
         <ScrollArea className="h-[calc(100vh-300px)]">

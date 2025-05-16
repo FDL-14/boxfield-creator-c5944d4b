@@ -154,8 +154,12 @@ export const DocumentService = {
       let query = supabase
         .from('document_templates')
         .select('*, section_locks:document_section_locks(*)')
-        .eq('type', docType)
         .eq('is_deleted', false);
+      
+      // Se docType não for 'all', filtrar por tipo
+      if (docType !== 'all') {
+        query = query.eq('type', docType);
+      }
       
       if (isTemplate !== undefined) {
         query = query.eq('is_template', isTemplate);

@@ -10,6 +10,7 @@ import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck, Copy
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface SavedDocumentsDialogProps {
   open: boolean;
@@ -30,18 +31,19 @@ export default function SavedDocumentsDialog({
   const [loading, setLoading] = useState(false);
   const [showDetails, setShowDetails] = useState<string | null>(null);
   const [documentJson, setDocumentJson] = useState("");
+  const [filterType, setFilterType] = useState(docType === "all" ? "all" : docType);
   
   useEffect(() => {
     if (open) {
       loadSavedDocuments();
     }
-  }, [open, docType]);
+  }, [open, filterType]);
   
   const loadSavedDocuments = async () => {
     try {
       setLoading(true);
       // Carregar documentos usando DocumentService
-      const docs = await DocumentService.loadDocuments(docType);
+      const docs = await DocumentService.loadDocuments(filterType === "all" ? "all" : filterType);
       console.log("Documentos carregados:", docs);
       setSavedDocuments(docs);
     } catch (error) {
@@ -101,7 +103,7 @@ export default function SavedDocumentsDialog({
   const handleSelectDocument = (name: string, document: any) => {
     console.log("Selecting document:", document);
     // For form-builder templates, prepare the template first
-    if (docType === 'form-builder' && document.isTemplate) {
+    if (document.formType === 'form-builder' && document.isTemplate) {
       const preparedTemplate = prepareFormTemplate(document);
       onSelectDocument(name, preparedTemplate || document);
     } else {
@@ -139,6 +141,17 @@ export default function SavedDocumentsDialog({
     }
   };
   
+  const getDocTypeBadge = (type: string) => {
+    switch(type) {
+      case 'form-builder':
+        return <Badge variant="outline" className="bg-blue-100 text-blue-800 border-blue-200">FORMULÁRIO</Badge>;
+      case 'custom':
+        return <Badge variant="outline" className="bg-green-100 text-green-800 border-green-200">DOCUMENTO</Badge>;
+      default:
+        return <Badge variant="outline">{type?.toUpperCase()}</Badge>;
+    }
+  };
+  
   const filteredDocuments = searchTerm 
     ? savedDocuments.filter(doc => 
         doc.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -164,14 +177,32 @@ export default function SavedDocumentsDialog({
         </DialogHeader>
         
         <div className="space-y-4 py-2 flex-grow">
-          <div className="relative">
-            <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-            <Input
-              placeholder="Buscar documentos..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-8"
-            />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="relative">
+              <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
+              <Input
+                placeholder="Buscar documentos..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-8"
+              />
+            </div>
+            
+            {docType === "all" && (
+              <Select 
+                value={filterType}
+                onValueChange={setFilterType}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Filtrar por tipo" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">Todos os tipos</SelectItem>
+                  <SelectItem value="form-builder">Formulários</SelectItem>
+                  <SelectItem value="custom">Documentos</SelectItem>
+                </SelectContent>
+              </Select>
+            )}
           </div>
           
           {loading ? (
@@ -196,6 +227,9 @@ export default function SavedDocumentsDialog({
                   
                   // Get the ID to use
                   const docId = doc.supabaseId || doc.id || "";
+                  
+                  // Get document type
+                  const docType = doc.formType || doc.type || "custom";
                   
                   return (
                     <div 
@@ -228,6 +262,7 @@ export default function SavedDocumentsDialog({
                                 MODELO
                               </Badge>
                             )}
+                            {getDocTypeBadge(docType)}
                             {doc.supabaseId && (
                               <Badge variant="secondary" className="text-xs whitespace-nowrap">
                                 BANCO DE DADOS
@@ -259,6 +294,12 @@ export default function SavedDocumentsDialog({
                                 <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
                                 Tipo: {isTemplate ? "Modelo de Formulário" : "Formulário"} 
                                 ({doc.boxes.length} seções, {doc.fields.length} campos)
+                              </p>
+                            )}
+                            {doc.export_format && (
+                              <p className="text-xs text-gray-500 flex items-center">
+                                <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
+                                Formato: {doc.export_format}
                               </p>
                             )}
                           </div>
