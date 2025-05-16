@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -159,6 +158,11 @@ export default function Auth() {
           refresh_token: result.session.refresh_token
         });
         
+        // After setting session, ensure master user is initialized
+        if (cleanedCpf === "80243088191") {
+          await createMasterUser();
+        }
+        
         toast({
           title: "Login realizado com sucesso!",
           description: "Você está sendo redirecionado para a página inicial.",
@@ -235,7 +239,7 @@ export default function Auth() {
     setCpf(formatCPF(e.target.value));
   };
   
-  // Create master user function
+  // Create master user function with better error handling
   const createMasterUser = async () => {
     try {
       console.log("Initializing master user...");
@@ -250,8 +254,13 @@ export default function Auth() {
         }
       );
       
-      const result = await response.json();
-      console.log("Master user initialization result:", result);
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error("Error response from master user initialization:", errorText);
+      } else {
+        const result = await response.json();
+        console.log("Master user initialization result:", result);
+      }
       
     } catch (error) {
       console.error("Error initializing master user:", error);

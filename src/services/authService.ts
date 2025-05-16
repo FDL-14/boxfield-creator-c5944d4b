@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -36,7 +37,7 @@ export const AuthService = {
               .from('profiles')
               .select('*')
               .eq('id', masterSignInData.user.id)
-              .single();
+              .maybeSingle(); // Changed from single() to maybeSingle()
               
             if (profileData && (!profileData.is_master || !profileData.is_admin)) {
               // Update profile to ensure master status
@@ -183,13 +184,19 @@ export const AuthService = {
       
       if (!session) return { profile: null, error: "Nenhuma sessão ativa" };
       
+      // Changed from single() to maybeSingle() to handle no profile found case
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', session.user.id)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
+      
+      // If no profile is found, return null but don't throw an error
+      if (!data) {
+        return { profile: null, error: "Perfil não encontrado" };
+      }
       
       // Processar o perfil para incluir metadados importantes
       const processedProfile = {
@@ -235,7 +242,7 @@ export const AuthService = {
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle(); // Changed from single() to maybeSingle()
         
       // If master user, return all permissions enabled
       if (profile && (profile.is_master || profile.cpf === '80243088191')) {
@@ -273,7 +280,7 @@ export const AuthService = {
         .from('user_permissions')
         .select('*')
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // Changed from single() to maybeSingle()
       
       if (error) throw error;
       

@@ -153,23 +153,66 @@ export default function UsersManager() {
       const userId = data.session.user.id;
       setCurrentUserId(userId);
       
-      // Fetch the user profile
-      const { data: userProfile, error } = await supabase
+      // Fetch the user profile - switched from single() to maybeSingle()
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*, permissions:user_permissions(*)')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
         
-      if (error) {
-        throw error;
+      // Handle case where the profile might not exist yet - create it dynamically
+      if (!userProfile || profileError) {
+        // Try to create a basic profile if one doesn't exist
+        const user = data.session.user;
+        const newProfile = {
+          id: userId,
+          name: user.user_metadata?.name || user.email || "Novo Usuário",
+          email: user.email,
+          cpf: user.user_metadata?.cpf,
+          is_admin: false,
+          is_master: false
+        };
+        
+        // Create basic profile
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert(newProfile);
+          
+        if (createError) {
+          console.error("Error creating profile:", createError);
+          toast({
+            title: "Erro ao criar perfil",
+            description: "Não foi possível inicializar o perfil do usuário",
+            variant: "destructive"
+          });
+          navigate('/auth');
+          return;
+        }
+        
+        setCurrentUserProfile(processUserProfile(newProfile));
+      } else {
+        // Use the processUserProfile helper to ensure all required properties exist
+        const processedProfile = processUserProfile(userProfile);
+        setCurrentUserProfile(processedProfile);
       }
       
-      // Use the processUserProfile helper to ensure all required properties exist
-      const processedProfile = processUserProfile(userProfile);
-      setCurrentUserProfile(processedProfile);
+      // Check if the current user is allowed to access the Users page
+      // If no permission exists yet, initialize from init-master-user function
+      const { data: permissionCheck } = await supabase.rpc('check_user_role', {
+        user_id: userId
+      });
+      
+      // If no permission is returned, try the initialization
+      if (!permissionCheck || permissionCheck.length === 0) {
+        console.log("No permissions found, trying master initialization");
+        await fetch(
+          "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/init-master-user",
+          { method: "POST", headers: { "Content-Type": "application/json" } }
+        );
+      }
       
       // Verifica se é o usuário master por CPF
-      const isSpecialMaster = isMasterUser(processedProfile);
+      const isSpecialMaster = isMasterUser(currentUserProfile);
       
       // Check if user has permission to access this page
       if (!isSpecialMaster && 

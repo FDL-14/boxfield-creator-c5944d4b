@@ -29,11 +29,12 @@ export const UserService = {
    */
   getUserById: async (id: string) => {
     try {
+      // Changed from .single() to .maybeSingle() to handle case where user might not exist
       const { data, error } = await supabase
         .from('profiles')
         .select('*, permissions:user_permissions(*)')
         .eq('id', id)
-        .single();
+        .maybeSingle();
       
       if (error) throw error;
       
@@ -86,7 +87,7 @@ export const UserService = {
         .from('user_permissions')
         .select('id')
         .eq('user_id', userId)
-        .maybeSingle();
+        .maybeSingle(); // Changed from potential single() to maybeSingle()
       
       let result;
       
@@ -217,7 +218,7 @@ export const UserService = {
         .from('user_permissions')
         .select(permission)
         .eq('user_id', userId)
-        .single();
+        .maybeSingle(); // Changed from single() to maybeSingle()
       
       if (permError) return false;
       

@@ -63,7 +63,7 @@ serve(async (req) => {
             .from("profiles")
             .select("*")
             .eq("id", masterSignInData.user.id)
-            .single();
+            .maybeSingle(); // Changed from single() to maybeSingle()
             
           if (!profileError && profileData) {
             // Update profile to ensure it's marked as master and admin
@@ -208,7 +208,7 @@ async function ensureMasterPermissions(supabase: any, userId: string) {
       .from("user_permissions")
       .select("*")
       .eq("user_id", userId)
-      .maybeSingle();
+      .maybeSingle(); // Changed from maybeSingle() to maybeSingle()
       
     // Create all permissions with full access
     const fullPermissions = {
