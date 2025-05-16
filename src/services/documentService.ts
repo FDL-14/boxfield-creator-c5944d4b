@@ -73,7 +73,7 @@ export const DocumentService = {
           description: data.description || "",
           data: docDataWithId as any,
           is_template: isTemplate,
-          export_format: exportFormat,
+          export_format: exportFormat,  // Add export_format directly to the document_templates table
           created_by: userId,
           updated_at: new Date().toISOString()
         }, 
@@ -182,8 +182,12 @@ export const DocumentService = {
           ? (doc.data as DocumentData) 
           : {};
         
+        // Fix: Use the export_format property safely, checking both document and document.data
+        // Use type assertion to access the property that TypeScript doesn't know exists
+        const documentObj = doc as any; // Cast to any to bypass TypeScript checking
+        
         // Determinar o valor correto para export_format
-        const exportFormat = typeof doc.export_format === 'string' ? doc.export_format : 
+        const exportFormat = typeof documentObj.export_format === 'string' ? documentObj.export_format : 
                          (typeof docData.export_format === 'string' ? docData.export_format : 'PDF');
         
         // Acessar boxes e fields de forma segura
@@ -264,8 +268,11 @@ export const DocumentService = {
           ? (data.data as DocumentData) 
           : {};
         
+        // Fix: Use type assertion to access the property that TypeScript doesn't know exists
+        const documentObj = data as any; // Cast to any to bypass TypeScript checking
+        
         // Acessar export_format de forma segura
-        const exportFormat = typeof data.export_format === 'string' ? data.export_format :
+        const exportFormat = typeof documentObj.export_format === 'string' ? documentObj.export_format :
                          (typeof docData.export_format === 'string' ? docData.export_format : 'PDF');
                             
         // Acessar boxes e fields de forma segura
