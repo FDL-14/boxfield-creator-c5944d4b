@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { Home } from "lucide-react";
 
-interface HeaderProps {
+interface MainHeaderProps {
   title: string;
   subtitle?: string;
+  rightContent?: React.ReactNode;
 }
 
-// This is now a wrapper around MainHeader for backward compatibility
-const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
+const MainHeader: React.FC<MainHeaderProps> = ({ title, subtitle, rightContent }) => {
   const navigate = useNavigate();
 
   const handleBackToHome = () => {
@@ -18,7 +18,7 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
   };
 
   return (
-    <div className="flex items-center justify-between mb-6">
+    <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 gap-4">
       <div className="flex items-center gap-4">
         <Button 
           onClick={handleBackToHome} 
@@ -34,15 +34,13 @@ const Header: React.FC<HeaderProps> = ({ title, subtitle }) => {
           {subtitle && <p className="text-gray-500">{subtitle}</p>}
         </div>
       </div>
-      <div className="flex items-center gap-4">
-        <img
-          src="/lovable-uploads/38edc1d3-2b5d-4e63-be2a-7ead983b2bb8.png"
-          alt="Total Data Logo"
-          className="h-10 object-contain"
-        />
-      </div>
+      {rightContent && (
+        <div className="flex items-center gap-4">
+          {rightContent}
+        </div>
+      )}
     </div>
   );
 };
 
-export default Header;
+export default MainHeader;

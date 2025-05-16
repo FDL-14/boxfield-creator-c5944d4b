@@ -8,10 +8,10 @@ import { Textarea } from "@/components/ui/textarea";
 import { FileText, Plus, Pencil, Trash2, Save, FilePlus } from "lucide-react";
 import { supabase, processUserProfile } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-import Header from "@/components/Header";
 import { DocumentService } from "@/services/documentService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SavedDocumentsDialog from "@/components/SavedDocumentsDialog";
+import MainHeader from "@/components/MainHeader";
 
 export default function DocumentTypes() {
   const { toast } = useToast();
@@ -348,9 +348,16 @@ export default function DocumentTypes() {
 
   return (
     <div className="container mx-auto p-6">
-      <Header 
+      <MainHeader 
         title="Tipos de Documento" 
         subtitle="Crie e gerencie modelos de documento" 
+        rightContent={
+          <img
+            src="/lovable-uploads/38edc1d3-2b5d-4e63-be2a-7ead983b2bb8.png"
+            alt="Total Data Logo"
+            className="h-10 object-contain"
+          />
+        }
       />
       
       <div className="flex justify-between mb-6">

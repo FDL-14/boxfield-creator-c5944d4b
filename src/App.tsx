@@ -1,4 +1,3 @@
-
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -22,6 +21,7 @@ import UsersManager from "./pages/UsersManager";
 const queryClient = new QueryClient();
 
 const App = () => {
+  // The structure remains the same, we'll just make sure the MainHeader component is used in each page
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
