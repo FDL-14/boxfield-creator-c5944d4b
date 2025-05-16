@@ -6,11 +6,12 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DocumentService } from "@/services/documentService";
 import { getSavedForms, prepareFormTemplate, deleteSavedForm } from "@/utils/formUtils";
-import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck, Copy, Loader2 } from "lucide-react";
+import { Search, FileText, Calendar, Trash2, AlertCircle, Clock, FileCheck, Copy, Loader2, User, Database } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SavedDocumentsDialogProps {
   open: boolean;
@@ -32,12 +33,46 @@ export default function SavedDocumentsDialog({
   const [showDetails, setShowDetails] = useState<string | null>(null);
   const [documentJson, setDocumentJson] = useState("");
   const [filterType, setFilterType] = useState(docType === "all" ? "all" : docType);
+  const [userProfiles, setUserProfiles] = useState<Record<string, any>>({});
+  const [currentUser, setCurrentUser] = useState<any>(null);
   
   useEffect(() => {
     if (open) {
       loadSavedDocuments();
+      checkCurrentUser();
     }
   }, [open, filterType]);
+  
+  const checkCurrentUser = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (data.session?.user) {
+      setCurrentUser(data.session.user);
+    }
+  };
+
+  const loadUserProfiles = async (userIds: string[]) => {
+    if (!userIds.length) return;
+
+    const uniqueIds = [...new Set(userIds.filter(id => id && !userProfiles[id]))];
+    if (!uniqueIds.length) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('id, name')
+        .in('id', uniqueIds);
+
+      if (!error && data) {
+        const newProfiles = { ...userProfiles };
+        data.forEach(profile => {
+          newProfiles[profile.id] = profile;
+        });
+        setUserProfiles(newProfiles);
+      }
+    } catch (error) {
+      console.error("Erro ao carregar perfis de usuários:", error);
+    }
+  };
   
   const loadSavedDocuments = async () => {
     try {
@@ -46,6 +81,13 @@ export default function SavedDocumentsDialog({
       const docs = await DocumentService.loadDocuments(filterType === "all" ? "all" : filterType);
       console.log("Documentos carregados:", docs);
       setSavedDocuments(docs);
+
+      // Carregar perfis de usuários criadores dos documentos
+      const userIds = docs
+        .map(doc => doc.created_by || (doc.data && doc.data.created_by))
+        .filter(Boolean);
+      
+      await loadUserProfiles(userIds);
     } catch (error) {
       console.error("Erro ao carregar documentos:", error);
       toast({
@@ -151,6 +193,24 @@ export default function SavedDocumentsDialog({
         return <Badge variant="outline">{type?.toUpperCase()}</Badge>;
     }
   };
+
+  const getUserName = (userId: string | null | undefined) => {
+    if (!userId) return "Usuário desconhecido";
+    if (userProfiles[userId]) return userProfiles[userId].name;
+    return "Usuário " + userId.substring(0, 4);
+  };
+  
+  const canDeleteDocument = (doc: any) => {
+    // Se não tem usuário atual, não pode excluir
+    if (!currentUser) return false;
+    
+    // Se o documento foi criado pelo usuário atual, pode excluir
+    if (doc.created_by === currentUser.id) return true;
+
+    // Adicionar verificação de permissões aqui, quando disponível
+    // Por enquanto, permitir exclusão de documentos sem criador definido
+    return !doc.created_by;
+  };
   
   const filteredDocuments = searchTerm 
     ? savedDocuments.filter(doc => 
@@ -230,6 +290,10 @@ export default function SavedDocumentsDialog({
                   
                   // Get document type
                   const docType = doc.formType || doc.type || "custom";
+
+                  // Get creator info
+                  const creatorId = doc.created_by || (doc.data && doc.data.created_by);
+                  const creatorName = getUserName(creatorId);
                   
                   return (
                     <div 
@@ -239,7 +303,7 @@ export default function SavedDocumentsDialog({
                                 ${isTemplate ? 'bg-blue-50 border-blue-200' : ''}`}
                       onClick={() => handleSelectDocument(doc.name || doc.title, documentToPass)}
                     >
-                      <div className="flex items-center space-x-3">
+                      <div className="flex items-center space-x-3 w-full">
                         <div className={`p-2 rounded-md ${isCancelled ? 'bg-red-100' : isTemplate ? 'bg-blue-100' : 'bg-green-100'}`}>
                           {isCancelled ? (
                             <AlertCircle className="h-5 w-5 text-red-500" />
@@ -250,7 +314,7 @@ export default function SavedDocumentsDialog({
                           )}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
                             <p className="font-medium truncate">{doc.name || doc.title}</p>
                             {isCancelled && (
                               <Badge variant="destructive" className="text-xs whitespace-nowrap">
@@ -264,7 +328,8 @@ export default function SavedDocumentsDialog({
                             )}
                             {getDocTypeBadge(docType)}
                             {doc.supabaseId && (
-                              <Badge variant="secondary" className="text-xs whitespace-nowrap">
+                              <Badge variant="secondary" className="text-xs whitespace-nowrap flex items-center gap-1">
+                                <Database className="h-3 w-3" />
                                 BANCO DE DADOS
                               </Badge>
                             )}
@@ -273,6 +338,12 @@ export default function SavedDocumentsDialog({
                             <p className="text-sm text-gray-500 truncate mt-1">{doc.description}</p>
                           )}
                           <div className="flex flex-col gap-1 mt-1">
+                            {creatorId && (
+                              <p className="text-xs text-gray-500 flex items-center">
+                                <User className="h-3 w-3 mr-1 flex-shrink-0" />
+                                Criado por: {creatorName}
+                              </p>
+                            )}
                             <p className="text-xs text-gray-500 flex items-center">
                               <Calendar className="h-3 w-3 mr-1 flex-shrink-0" />
                               Criado: {formatDate(doc.date)}
@@ -293,7 +364,7 @@ export default function SavedDocumentsDialog({
                               <p className="text-xs text-blue-500 flex items-center">
                                 <FileText className="h-3 w-3 mr-1 flex-shrink-0" />
                                 Tipo: {isTemplate ? "Modelo de Formulário" : "Formulário"} 
-                                ({doc.boxes.length} seções, {doc.fields.length} campos)
+                                ({doc.boxes?.length || 0} seções, {doc.fields?.length || 0} campos)
                               </p>
                             )}
                             {doc.export_format && (
@@ -314,19 +385,21 @@ export default function SavedDocumentsDialog({
                         >
                           <Copy className="h-4 w-4" />
                         </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={(e) => handleDeleteDocument(docId, e)}
-                          className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
-                          disabled={loading}
-                        >
-                          {loading ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
-                          ) : (
-                            <Trash2 className="h-4 w-4" />
-                          )}
-                        </Button>
+                        {canDeleteDocument(doc) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={(e) => handleDeleteDocument(docId, e)}
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 flex-shrink-0"
+                            disabled={loading}
+                          >
+                            {loading ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        )}
                       </div>
                     </div>
                   );

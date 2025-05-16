@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { DocumentService } from "@/services/documentService";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, FileText } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SaveAsTemplateDialogProps {
   open: boolean;
@@ -47,6 +48,10 @@ export default function SaveAsTemplateDialog({
     try {
       console.log("Initial data to save:", initialData);
       
+      // Verificar se o usuário está autenticado
+      const { data: sessionData } = await supabase.auth.getSession();
+      const userId = sessionData.session?.user?.id;
+
       // Preparar dados para salvar, assegurando que mantemos boxes e fields
       const dataToSave = {
         ...initialData,
@@ -54,6 +59,7 @@ export default function SaveAsTemplateDialog({
         description,
         export_format: exportFormat,
         updated_at: new Date().toISOString(),
+        created_by: userId || initialData?.created_by || null,
         boxes: initialData?.boxes || [],
         fields: initialData?.fields || [],
         // Garantir que section_locks esteja atualizado com base em boxes

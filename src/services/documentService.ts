@@ -14,6 +14,7 @@ interface DocumentData {
   fields?: any[];
   export_format?: string;
   section_locks?: any[];
+  created_by?: string | null;
   [key: string]: any;
 }
 
@@ -37,25 +38,18 @@ export const DocumentService = {
       // Verificar se já temos uma sessão do usuário
       const { data: sessionData } = await supabase.auth.getSession();
       
-      if (!sessionData.session) {
-        console.log("Usuário não autenticado, salvando localmente");
-        // Se não estiver autenticado, salvar localmente
-        saveFormData(docType, title, {...data, export_format: exportFormat});
-        return { success: true };
-      }
-      
       // Preparar dados para salvar
-      const userId = sessionData.session.user.id;
+      const userId = sessionData.session?.user?.id || data.created_by || null;
       const documentId = data.id || uuidv4();
       
       // Adicionar ID à cópia dos dados
-      const docDataWithId = {
+      const docDataWithId: DocumentData = {
         ...data,
         id: documentId,
         export_format: exportFormat,
         // Garantir que boxes e fields estejam no objeto
-        boxes: data.boxes || [],
-        fields: data.fields || []
+        boxes: Array.isArray(data.boxes) ? data.boxes : [],
+        fields: Array.isArray(data.fields) ? data.fields : []
       };
       
       // Collect section locks from boxes if available
@@ -69,7 +63,7 @@ export const DocumentService = {
       
       console.log("Dados a serem salvos:", docDataWithId);
       
-      // Upsert na tabela document_templates
+      // Upsert na tabela document_templates - sempre salvar no banco de dados
       const { error, data: insertedData } = await supabase
         .from('document_templates')
         .upsert({
@@ -77,7 +71,7 @@ export const DocumentService = {
           type: docType,
           title: title,
           description: data.description || "",
-          data: docDataWithId,
+          data: docDataWithId as any,
           is_template: isTemplate,
           export_format: exportFormat,
           created_by: userId,
@@ -124,7 +118,7 @@ export const DocumentService = {
         }
       }
       
-      // Se salvou com sucesso, também atualizar no localStorage
+      // Se salvou com sucesso, também atualizar no localStorage para compatibilidade
       saveFormData(docType, title, {
         ...docDataWithId,
         supabaseId: documentId
@@ -169,11 +163,13 @@ export const DocumentService = {
       
       if (error) {
         console.error("Erro ao carregar documentos do Supabase:", error);
+        // Fallback para documentos locais
         return getSavedForms(docType);
       }
       
       if (!data || data.length === 0) {
         console.log("Nenhum documento encontrado no Supabase, carregando do localStorage");
+        // Fallback para documentos locais
         return getSavedForms(docType);
       }
       
@@ -187,16 +183,8 @@ export const DocumentService = {
           : {};
         
         // Determinar o valor correto para export_format
-        let exportFormat = 'PDF'; // valor padrão
-        
-        if (Array.isArray(docData)) {
-          console.log("doc.data é um array, usando valor padrão para export_format");
-        } else {
-          // Acessar export_format de forma segura
-          exportFormat = docData.export_format || 
-                        (doc as any).export_format || 
-                        'PDF';
-        }
+        const exportFormat = typeof doc.export_format === 'string' ? doc.export_format : 
+                         (typeof docData.export_format === 'string' ? docData.export_format : 'PDF');
         
         // Acessar boxes e fields de forma segura
         const boxes = Array.isArray(docData.boxes) ? docData.boxes : [];
@@ -215,6 +203,7 @@ export const DocumentService = {
           export_format: exportFormat,
           section_locks: doc.section_locks || [],
           supabaseId: doc.id,
+          created_by: doc.created_by,
           boxes: boxes,
           fields: fields
         };
@@ -248,8 +237,8 @@ export const DocumentService = {
       ...data,
       isTemplate: true,
       export_format: exportFormat,
-      boxes: data.boxes || [],
-      fields: data.fields || []
+      boxes: Array.isArray(data.boxes) ? data.boxes : [],
+      fields: Array.isArray(data.fields) ? data.fields : []
     };
     
     return DocumentService.saveDocument(docType, title, templateData, true, exportFormat);
@@ -276,9 +265,8 @@ export const DocumentService = {
           : {};
         
         // Acessar export_format de forma segura
-        const exportFormat = docData.export_format || 
-                            (data as any).export_format || 
-                            'PDF';
+        const exportFormat = typeof data.export_format === 'string' ? data.export_format :
+                         (typeof docData.export_format === 'string' ? docData.export_format : 'PDF');
                             
         // Acessar boxes e fields de forma segura
         const boxes = Array.isArray(docData.boxes) ? docData.boxes : [];
@@ -296,6 +284,7 @@ export const DocumentService = {
           isTemplate: data.is_template,
           export_format: exportFormat,
           section_locks: data.section_locks || [],
+          created_by: data.created_by,
           supabaseId: data.id,
           boxes: boxes,
           fields: fields
