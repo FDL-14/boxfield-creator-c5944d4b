@@ -4,6 +4,20 @@ import { saveFormData, getSavedForms } from "@/utils/formUtils";
 import { v4 as uuidv4 } from 'uuid';
 
 /**
+ * Interface for document data structure
+ */
+interface DocumentData {
+  id?: string;
+  title?: string;
+  description?: string;
+  boxes?: any[];
+  fields?: any[];
+  export_format?: string;
+  section_locks?: any[];
+  [key: string]: any;
+}
+
+/**
  * Serviço responsável por gerenciar documentos
  */
 export const DocumentService = {
@@ -163,7 +177,10 @@ export const DocumentService = {
       
       // Processar documentos
       const processedDocs = data.map(doc => {
-        const docData = doc.data && typeof doc.data === 'object' ? doc.data : {};
+        // Garantir que doc.data seja um objeto
+        const docData: DocumentData = (typeof doc.data === 'object' && doc.data !== null) 
+          ? (doc.data as DocumentData) 
+          : {};
         
         // Determinar o valor correto para export_format
         let exportFormat = 'PDF'; // valor padrão
@@ -171,8 +188,15 @@ export const DocumentService = {
         if (Array.isArray(docData)) {
           console.log("doc.data é um array, usando valor padrão para export_format");
         } else {
-          exportFormat = (docData as any).export_format || doc.export_format || 'PDF';
+          // Acessar export_format de forma segura
+          exportFormat = docData.export_format || 
+                        (doc as any).export_format || 
+                        'PDF';
         }
+        
+        // Acessar boxes e fields de forma segura
+        const boxes = Array.isArray(docData.boxes) ? docData.boxes : [];
+        const fields = Array.isArray(docData.fields) ? docData.fields : [];
         
         return {
           ...docData,
@@ -187,8 +211,8 @@ export const DocumentService = {
           export_format: exportFormat,
           section_locks: doc.section_locks || [],
           supabaseId: doc.id,
-          boxes: docData.boxes || [],
-          fields: docData.fields || []
+          boxes: boxes,
+          fields: fields
         };
       });
       
@@ -242,8 +266,22 @@ export const DocumentService = {
       
       // Processar dados para garantir estrutura correta
       if (data && data.data) {
+        // Garantir que data.data é um objeto
+        const docData: DocumentData = (typeof data.data === 'object' && data.data !== null) 
+          ? (data.data as DocumentData) 
+          : {};
+        
+        // Acessar export_format de forma segura
+        const exportFormat = docData.export_format || 
+                            (data as any).export_format || 
+                            'PDF';
+                            
+        // Acessar boxes e fields de forma segura
+        const boxes = Array.isArray(docData.boxes) ? docData.boxes : [];
+        const fields = Array.isArray(docData.fields) ? docData.fields : [];
+        
         const processedData = {
-          ...data.data,
+          ...docData,
           id: data.id,
           title: data.title,
           name: data.title,
@@ -252,11 +290,11 @@ export const DocumentService = {
           updated_at: data.updated_at,
           formType: data.type,
           isTemplate: data.is_template,
-          export_format: data.export_format || data.data.export_format || 'PDF',
+          export_format: exportFormat,
           section_locks: data.section_locks || [],
           supabaseId: data.id,
-          boxes: data.data.boxes || [],
-          fields: data.data.fields || []
+          boxes: boxes,
+          fields: fields
         };
         
         return { document: processedData, error: null };
