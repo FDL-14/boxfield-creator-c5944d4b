@@ -130,7 +130,10 @@ serve(async (req) => {
           name: masterName,
           email: masterEmail,
           is_admin: true,
-          is_master: true
+          is_master: true,
+          // Add empty arrays for company_ids and client_ids to avoid null issues
+          company_ids: [],
+          client_ids: []
         });
         
       if (insertProfileError) {
@@ -163,7 +166,10 @@ serve(async (req) => {
             name: masterName,
             email: masterEmail,
             is_admin: true,
-            is_master: true
+            is_master: true,
+            // Add empty arrays for company_ids and client_ids to avoid null issues
+            company_ids: [],
+            client_ids: []
           });
           
         if (insertNewProfileError) {
@@ -179,7 +185,10 @@ serve(async (req) => {
             name: masterName,
             email: masterEmail,
             is_admin: true,
-            is_master: true
+            is_master: true,
+            // Add empty arrays for company_ids and client_ids if they're null
+            company_ids: existingProfiles[0].company_ids || [],
+            client_ids: existingProfiles[0].client_ids || []
           })
           .eq("id", masterUserId);
           

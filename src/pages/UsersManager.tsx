@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -189,11 +190,13 @@ export default function UsersManager() {
           return;
         }
         
-        setCurrentUserProfile(processUserProfile(newProfile));
+        // Use processUserProfile to ensure profile has all required fields
+        const processedProfile = processUserProfile(newProfile);
+        setCurrentUserProfile(processedProfile);
       } else {
         // Use the processUserProfile helper to ensure all required properties exist
-        const processedUserProfile = processUserProfile(userProfile);
-        setCurrentUserProfile(processedUserProfile);
+        const processedProfile = processUserProfile(userProfile);
+        setCurrentUserProfile(processedProfile);
       }
       
       // Check if the current user is allowed to access the Users page
