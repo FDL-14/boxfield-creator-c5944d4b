@@ -1,397 +1,257 @@
 
-// Supabase Edge Function for CPF-based login
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import { serve } from 'https://deno.land/std@0.168.0/http/server.ts'
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2'
 
 const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-};
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+}
 
 serve(async (req) => {
-  // Handle CORS preflight requests
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: corsHeaders });
+  // Handle CORS
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders })
   }
-  
+
   try {
-    const { cpf, password } = await req.json();
-    
-    if (!cpf || !password) {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') as string
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
+
+    // Get the request body
+    const requestData = await req.json()
+    const { cpf } = requestData
+
+    if (!cpf) {
       return new Response(
-        JSON.stringify({ message: "CPF e senha são obrigatórios" }),
+        JSON.stringify({ error: 'CPF is required' }),
         {
           status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
-    
-    console.log("Login attempt with CPF:", cpf);
-    
-    // Clean the CPF (remove non-digits)
-    const cleanedCpf = cpf.replace(/\D/g, '');
-    
-    // Create a Supabase client with the admin role
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      {
-        auth: {
-          autoRefreshToken: false,
-          persistSession: false,
-        },
-      }
-    );
-    
-    // 1. First, try direct login with master credentials for the hardcoded master user
-    if (cleanedCpf === "80243088191") {
-      console.log("Attempting master user login");
-      
-      try {
-        // Check for existing master user by email
-        const { data: masterUserData, error: userError } = await supabaseAdmin.auth.admin
-          .getUserByEmail("fabiano@totalseguranca.net");
-        
-        if (userError) {
-          console.error("Error checking master user by email:", userError);
-        } else if (masterUserData && masterUserData.user) {
-          // If user exists but email is not confirmed, update to confirm it
-          if (!masterUserData.user.email_confirmed_at) {
-            console.log("Master user email not confirmed. Confirming it now.");
-            
-            // Update user to confirm the email
-            const { error: updateError } = await supabaseAdmin.auth.admin
-              .updateUserById(
-                masterUserData.user.id,
-                { email_confirmed: true }
-              );
-              
-            if (updateError) {
-              console.error("Error confirming master user email:", updateError);
-            } else {
-              console.log("Master user email confirmed successfully");
-            }
-          }
-        }
-        
-        // Try to sign in with email
-        const { data: masterSignInData, error: masterSignInError } = await supabaseAdmin.auth.signInWithPassword({
-          email: "fabiano@totalseguranca.net",
-          password: password,
-        });
-        
-        if (!masterSignInError && masterSignInData.session) {
-          console.log("Master login successful with direct email");
-          
-          // Ensure the profile is marked as master
-          const { data: profileData, error: profileError } = await supabaseAdmin
-            .from("profiles")
-            .select("*")
-            .eq("id", masterSignInData.user.id)
-            .maybeSingle();
-            
-          if (!profileError && profileData) {
-            // Update profile to ensure it's marked as master and admin
-            if (!profileData.is_master || !profileData.is_admin) {
-              await supabaseAdmin
-                .from("profiles")
-                .update({ 
-                  is_master: true, 
-                  is_admin: true,
-                  cpf: cleanedCpf 
-                })
-                .eq("id", masterSignInData.user.id);
-                
-              console.log("Master profile updated to ensure master status");
-            }
-          } else {
-            // Create profile if it doesn't exist
-            await supabaseAdmin
-              .from("profiles")
-              .insert({
-                id: masterSignInData.user.id,
-                name: "Master Admin",
-                email: "fabiano@totalseguranca.net",
-                cpf: cleanedCpf,
-                is_master: true,
-                is_admin: true
-              });
-              
-            console.log("Master profile created");
-          }
-          
-          // Ensure user permissions are set
-          await ensureMasterPermissions(supabaseAdmin, masterSignInData.user.id);
-          
-          return new Response(
-            JSON.stringify({ 
-              session: masterSignInData.session, 
-              user: masterSignInData.user
-            }),
-            {
-              status: 200,
-              headers: { ...corsHeaders, "Content-Type": "application/json" },
-            }
-          );
-        } else {
-          console.log("Master login attempt failed with direct email, will try profile lookup", masterSignInError);
-          
-          // If login failed due to email not confirmed, try to create or update the master user
-          if (masterSignInError && masterSignInError.message && masterSignInError.message.includes("Email not confirmed")) {
-            console.log("Attempting to create/update master user with confirmed email");
-            
-            // Check if the user exists
-            const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail("fabiano@totalseguranca.net");
-            
-            if (existingUser && existingUser.user) {
-              // User exists, update to confirm email
-              const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-                existingUser.user.id, 
-                { 
-                  email_confirmed: true,
-                  password: password
-                }
-              );
-              
-              if (updateError) {
-                console.error("Error updating master user:", updateError);
-              } else {
-                console.log("Master user updated with confirmed email");
-                
-                // Try login again after updating
-                const { data: retrySignIn, error: retryError } = await supabaseAdmin.auth.signInWithPassword({
-                  email: "fabiano@totalseguranca.net",
-                  password: password,
-                });
-                
-                if (!retryError && retrySignIn.session) {
-                  console.log("Master login successful after email confirmation");
-                  
-                  // Ensure master permissions
-                  await ensureMasterPermissions(supabaseAdmin, retrySignIn.user.id);
-                  
-                  return new Response(
-                    JSON.stringify({ 
-                      session: retrySignIn.session, 
-                      user: retrySignIn.user
-                    }),
-                    {
-                      status: 200,
-                      headers: { ...corsHeaders, "Content-Type": "application/json" },
-                    }
-                  );
-                }
-              }
-            } else {
-              // User doesn't exist, create new master user with confirmed email
-              const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
-                email: "fabiano@totalseguranca.net",
-                password: password,
-                email_confirm: true,
-                user_metadata: {
-                  name: "Master Admin",
-                  cpf: cleanedCpf
-                }
-              });
-              
-              if (createError) {
-                console.error("Error creating master user:", createError);
-              } else if (newUser && newUser.user) {
-                console.log("New master user created with ID:", newUser.user.id);
-                
-                // Create profile for the new user
-                await supabaseAdmin
-                  .from("profiles")
-                  .insert({
-                    id: newUser.user.id,
-                    name: "Master Admin",
-                    email: "fabiano@totalseguranca.net",
-                    cpf: cleanedCpf,
-                    is_master: true,
-                    is_admin: true
-                  });
-                
-                // Set permissions
-                await ensureMasterPermissions(supabaseAdmin, newUser.user.id);
-                
-                // Sign in with the new user
-                const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
-                  email: "fabiano@totalseguranca.net",
-                  password: password,
-                });
-                
-                if (!signInError && signInData.session) {
-                  console.log("Master login successful with newly created user");
-                  
-                  return new Response(
-                    JSON.stringify({ 
-                      session: signInData.session, 
-                      user: signInData.user
-                    }),
-                    {
-                      status: 200,
-                      headers: { ...corsHeaders, "Content-Type": "application/json" },
-                    }
-                  );
-                }
-              }
-            }
-          }
-        }
-      } catch (directMasterError) {
-        console.error("Direct master login error:", directMasterError);
-      }
-    }
-    
-    // 2. Find the user by CPF in the profiles table
-    const { data: profiles, error: profilesError } = await supabaseAdmin
-      .from("profiles")
-      .select("id, cpf, email")
-      .eq("cpf", cleanedCpf)
-      .limit(1);
-    
-    if (profilesError) {
-      console.error("Error fetching profile by CPF:", profilesError);
-      throw new Error("Erro ao buscar usuário");
-    }
-    
-    console.log("Profiles found:", profiles ? profiles.length : 0);
-    
-    if (!profiles || profiles.length === 0) {
+
+    // Clean CPF (remove non-numeric characters)
+    const cleanCpf = cpf.replace(/\D/g, '')
+
+    // Check if this is the master CPF
+    const isMasterCpf = cleanCpf === '80243088191'
+
+    // Find user by CPF
+    const { data: users, error: findError } = await supabaseAdmin
+      .from('profiles')
+      .select('id, email, name, cpf')
+      .eq('cpf', cleanCpf)
+      .limit(1)
+
+    if (findError) {
+      console.error('Error finding user:', findError)
       return new Response(
-        JSON.stringify({ message: "Usuário não encontrado com este CPF" }),
-        {
-          status: 404,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-    
-    const userId = profiles[0].id;
-    const userEmail = profiles[0].email || `${cleanedCpf}@cpflogin.local`;
-    
-    console.log("User ID found:", userId);
-    console.log("User email for login:", userEmail);
-    
-    // Check if the user's email is confirmed
-    const { data: userData, error: userDataError } = await supabaseAdmin.auth.admin.getUserById(userId);
-    
-    if (userDataError) {
-      console.error("Error getting user data:", userDataError);
-    } else if (userData && userData.user && !userData.user.email_confirmed_at) {
-      // Confirm email if not confirmed
-      console.log("User email not confirmed. Confirming it now.");
-      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
-        userId,
-        { email_confirmed: true }
-      );
-      
-      if (updateError) {
-        console.error("Error confirming user email:", updateError);
-      } else {
-        console.log("User email confirmed successfully");
-      }
-    }
-    
-    // 3. Try to sign in with password
-    try {
-      const { data, error } = await supabaseAdmin.auth.signInWithPassword({
-        email: userEmail,
-        password: password,
-      });
-      
-      if (error) {
-        console.error("Sign-in error:", error);
-        return new Response(
-          JSON.stringify({ message: "Credenciais inválidas", details: error.message }),
-          {
-            status: 401,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          }
-        );
-      }
-      
-      console.log("Login successful");
-      
-      // If this is the master user CPF, ensure permissions
-      if (cleanedCpf === "80243088191") {
-        await ensureMasterPermissions(supabaseAdmin, data.user.id);
-      }
-      
-      return new Response(
-        JSON.stringify({ session: data.session, user: data.user }),
-        {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    } catch (signInError) {
-      console.error("Sign in attempt failed:", signInError);
-      return new Response(
-        JSON.stringify({ message: "Erro ao tentar autenticação", details: signInError.message }),
+        JSON.stringify({ error: 'Error finding user' }),
         {
           status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         }
-      );
+      )
     }
-  } catch (error) {
-    console.error("General error in login-with-cpf:", error);
+
+    // If it's the master CPF but no user found, create a master user
+    if (isMasterCpf && (!users || users.length === 0)) {
+      // Create master user if not exists
+      const masterEmail = 'fabiano@totalseguranca.net'
+      const { data: newUserData, error: createUserError } = await supabaseAdmin.auth.admin.createUser({
+        email: masterEmail,
+        password: 'MasterCPF80243088191',
+        email_confirm: true,
+        user_metadata: {
+          name: 'Usuário Master',
+          cpf: cleanCpf,
+        }
+      })
+
+      if (createUserError) {
+        console.error('Error creating master user:', createUserError)
+        return new Response(
+          JSON.stringify({ error: 'Error creating master user' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      // Try to sign in the newly created master user
+      const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+        email: masterEmail,
+        password: 'MasterCPF80243088191',
+      })
+
+      if (signInError) {
+        console.error('Error signing in master user:', signInError)
+        return new Response(
+          JSON.stringify({ error: 'Error signing in master user' }),
+          {
+            status: 500,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      return new Response(
+        JSON.stringify(signInData),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    } else if (isMasterCpf) {
+      // For master CPF, ensure the user account is confirmed
+      const masterUser = users[0]
+      const masterEmail = masterUser.email || 'fabiano@totalseguranca.net'
+
+      // Get the auth user
+      const { data: authUserData } = await supabaseAdmin
+        .from('auth.users')
+        .select('id, email, email_confirmed_at')
+        .eq('id', masterUser.id)
+        .single()
+
+      // If email is not confirmed, update it
+      if (!authUserData?.email_confirmed_at) {
+        // Update user to make sure email is confirmed
+        const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+          masterUser.id,
+          { email_confirm: true }
+        )
+
+        if (updateError) {
+          console.error('Error updating master user:', updateError)
+        }
+      }
+
+      // Try to sign in with the user's email
+      const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+        email: masterEmail,
+        password: 'MasterCPF80243088191',
+      })
+
+      if (signInError) {
+        // If sign in fails, reset the password and try again
+        const { error: resetError } = await supabaseAdmin.auth.admin.updateUserById(
+          masterUser.id,
+          { password: 'MasterCPF80243088191' }
+        )
+
+        if (resetError) {
+          console.error('Error resetting master user password:', resetError)
+          return new Response(
+            JSON.stringify({ error: 'Error authenticating master user' }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          )
+        }
+
+        // Try signing in again
+        const { data: retrySignInData, error: retrySignInError } = await supabaseAdmin.auth.signInWithPassword({
+          email: masterEmail,
+          password: 'MasterCPF80243088191',
+        })
+
+        if (retrySignInError) {
+          console.error('Error signing in master user after reset:', retrySignInError)
+          return new Response(
+            JSON.stringify({ error: 'Error authenticating master user' }),
+            {
+              status: 500,
+              headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            }
+          )
+        }
+
+        return new Response(
+          JSON.stringify(retrySignInData),
+          {
+            status: 200,
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          }
+        )
+      }
+
+      return new Response(
+        JSON.stringify(signInData),
+        {
+          status: 200,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    // Regular user process (non-master)
+    if (!users || users.length === 0) {
+      return new Response(
+        JSON.stringify({ error: 'User not found with this CPF' }),
+        {
+          status: 404,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    const user = users[0]
+    if (!user.email) {
+      return new Response(
+        JSON.stringify({ error: 'User email is missing' }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
+    // Generate a magic link for the user
+    const { data: magicLinkData, error: magicLinkError } = await supabaseAdmin.auth.admin.generateLink({
+      type: 'magiclink',
+      email: user.email,
+    })
+
+    if (magicLinkError) {
+      console.error('Error generating magic link:', magicLinkError)
+      return new Response(
+        JSON.stringify({ error: 'Error generating authentication link' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        }
+      )
+    }
+
     return new Response(
-      JSON.stringify({ message: error.message || "Erro interno do servidor" }),
+      JSON.stringify({
+        user: {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          cpf: user.cpf,
+        },
+        magicLink: magicLinkData,
+      }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      }
+    )
+
+  } catch (error) {
+    console.error('Unhandled error:', error)
+    return new Response(
+      JSON.stringify({ error: 'Internal server error' }),
       {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
-    );
+    )
   }
-});
-
-// Function to ensure master user has all permissions
-async function ensureMasterPermissions(supabase: any, userId: string) {
-  try {
-    // Check if user permissions exist
-    const { data: existingPermissions } = await supabase
-      .from("user_permissions")
-      .select("*")
-      .eq("user_id", userId)
-      .maybeSingle();
-      
-    // Create all permissions with full access - Use only fields that exist in the database schema
-    const fullPermissions = {
-      user_id: userId,
-      can_create: true,
-      can_edit: true,
-      can_delete: true,
-      can_edit_user: true,
-      can_edit_action: true,
-      can_edit_client: true,
-      can_edit_company: true,
-      can_delete_client: true,
-      can_delete_company: true,
-      can_mark_complete: true,
-      can_mark_delayed: true,
-      can_add_notes: true,
-      can_view_reports: true,
-      view_all_actions: true,
-      can_edit_document_type: true
-    };
-    
-    // Insert or update permissions
-    if (existingPermissions) {
-      await supabase
-        .from("user_permissions")
-        .update(fullPermissions)
-        .eq("id", existingPermissions.id);
-    } else {
-      await supabase
-        .from("user_permissions")
-        .insert(fullPermissions);
-    }
-    
-    console.log("Master user permissions set successfully");
-  } catch (error) {
-    console.error("Error setting master permissions:", error);
-  }
-}
+})

@@ -71,8 +71,32 @@ const GroupsClientsManager: React.FC = () => {
   const { isAdmin, isMaster, checkPermission } = usePermissions();
 
   useEffect(() => {
-    fetchGroups();
+    checkAuthAndLoadGroups();
   }, []);
+
+  const checkAuthAndLoadGroups = async () => {
+    try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        console.log("No active session found");
+        toast({
+          variant: 'destructive',
+          title: 'Não autenticado',
+          description: 'Você precisa estar logado para acessar esta página.',
+        });
+        return;
+      }
+      
+      fetchGroups();
+    } catch (error: any) {
+      console.error("Auth check error:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Erro de autenticação',
+        description: error.message || 'Ocorreu um erro ao verificar autenticação',
+      });
+    }
+  };
 
   const fetchGroups = async () => {
     try {
@@ -87,6 +111,7 @@ const GroupsClientsManager: React.FC = () => {
 
       setGroups(data || []);
     } catch (error: any) {
+      console.error("Error fetching groups:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao carregar grupos/clientes',
@@ -109,6 +134,20 @@ const GroupsClientsManager: React.FC = () => {
       }
 
       setLoading(true);
+      
+      // Get session to verify authentication before insertion
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast({
+          variant: 'destructive',
+          title: 'Sessão expirada',
+          description: 'Sua sessão expirou. Por favor, faça login novamente.',
+        });
+        return;
+      }
+      
+      const currentUser = sessionData.session.user;
+      
       const { data, error } = await supabase
         .from('groups_clients')
         .insert([
@@ -120,11 +159,15 @@ const GroupsClientsManager: React.FC = () => {
             contact_name: newGroup.contact_name || null,
             notes: newGroup.notes || null,
             is_active: newGroup.is_active,
+            created_by: currentUser.id
           },
         ])
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Insert error:", error);
+        throw error;
+      }
 
       setGroups([...(data || []), ...groups]);
       setNewGroup({ 
@@ -136,6 +179,7 @@ const GroupsClientsManager: React.FC = () => {
         notes: '', 
         is_active: true 
       });
+      
       toast({
         title: 'Grupo criado',
         description: 'O grupo foi criado com sucesso.',
@@ -143,10 +187,11 @@ const GroupsClientsManager: React.FC = () => {
       
       fetchGroups();
     } catch (error: any) {
+      console.error("Create group error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao criar grupo',
-        description: error.message,
+        description: error.message || 'Ocorreu um erro ao criar o grupo',
       });
     } finally {
       setLoading(false);
@@ -165,6 +210,18 @@ const GroupsClientsManager: React.FC = () => {
       }
 
       setLoading(true);
+      
+      // Get session to verify authentication before update
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast({
+          variant: 'destructive',
+          title: 'Sessão expirada',
+          description: 'Sua sessão expirou. Por favor, faça login novamente.',
+        });
+        return;
+      }
+      
       const { error } = await supabase
         .from('groups_clients')
         .update({
@@ -179,7 +236,10 @@ const GroupsClientsManager: React.FC = () => {
         })
         .eq('id', editingGroup.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Update error:", error);
+        throw error;
+      }
 
       setIsEditing(false);
       setEditingGroup(null);
@@ -190,10 +250,11 @@ const GroupsClientsManager: React.FC = () => {
       
       fetchGroups();
     } catch (error: any) {
+      console.error("Update group error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao atualizar grupo',
-        description: error.message,
+        description: error.message || 'Ocorreu um erro ao atualizar o grupo',
       });
     } finally {
       setLoading(false);
@@ -205,12 +266,28 @@ const GroupsClientsManager: React.FC = () => {
       if (!groupToDelete) return;
 
       setLoading(true);
+      
+      // Get session to verify authentication before deletion
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData.session) {
+        toast({
+          variant: 'destructive',
+          title: 'Sessão expirada',
+          description: 'Sua sessão expirou. Por favor, faça login novamente.',
+        });
+        setIsDialogOpen(false);
+        return;
+      }
+      
       const { error } = await supabase
         .from('groups_clients')
         .update({ is_deleted: true })
         .eq('id', groupToDelete);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Delete error:", error);
+        throw error;
+      }
 
       setGroups(groups.filter(group => group.id !== groupToDelete));
       setGroupToDelete(null);
@@ -221,13 +298,15 @@ const GroupsClientsManager: React.FC = () => {
         description: 'O grupo foi excluído com sucesso.',
       });
     } catch (error: any) {
+      console.error("Delete group error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao excluir grupo',
-        description: error.message,
+        description: error.message || 'Ocorreu um erro ao excluir o grupo',
       });
     } finally {
       setLoading(false);
+      setIsDialogOpen(false);
     }
   };
 
