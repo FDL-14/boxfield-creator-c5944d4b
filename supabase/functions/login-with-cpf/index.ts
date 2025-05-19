@@ -49,6 +49,32 @@ serve(async (req) => {
       console.log("Attempting master user login");
       
       try {
+        // Check for existing master user by email
+        const { data: masterUserData, error: userError } = await supabaseAdmin.auth.admin
+          .getUserByEmail("fabiano@totalseguranca.net");
+        
+        if (userError) {
+          console.error("Error checking master user by email:", userError);
+        } else if (masterUserData && masterUserData.user) {
+          // If user exists but email is not confirmed, update to confirm it
+          if (!masterUserData.user.email_confirmed_at) {
+            console.log("Master user email not confirmed. Confirming it now.");
+            
+            // Update user to confirm the email
+            const { error: updateError } = await supabaseAdmin.auth.admin
+              .updateUserById(
+                masterUserData.user.id,
+                { email_confirmed: true }
+              );
+              
+            if (updateError) {
+              console.error("Error confirming master user email:", updateError);
+            } else {
+              console.log("Master user email confirmed successfully");
+            }
+          }
+        }
+        
         // Try to sign in with email
         const { data: masterSignInData, error: masterSignInError } = await supabaseAdmin.auth.signInWithPassword({
           email: "fabiano@totalseguranca.net",
@@ -109,7 +135,109 @@ serve(async (req) => {
             }
           );
         } else {
-          console.log("Master login attempt failed with direct email, will try profile lookup");
+          console.log("Master login attempt failed with direct email, will try profile lookup", masterSignInError);
+          
+          // If login failed due to email not confirmed, try to create or update the master user
+          if (masterSignInError && masterSignInError.message && masterSignInError.message.includes("Email not confirmed")) {
+            console.log("Attempting to create/update master user with confirmed email");
+            
+            // Check if the user exists
+            const { data: existingUser } = await supabaseAdmin.auth.admin.getUserByEmail("fabiano@totalseguranca.net");
+            
+            if (existingUser && existingUser.user) {
+              // User exists, update to confirm email
+              const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+                existingUser.user.id, 
+                { 
+                  email_confirmed: true,
+                  password: password
+                }
+              );
+              
+              if (updateError) {
+                console.error("Error updating master user:", updateError);
+              } else {
+                console.log("Master user updated with confirmed email");
+                
+                // Try login again after updating
+                const { data: retrySignIn, error: retryError } = await supabaseAdmin.auth.signInWithPassword({
+                  email: "fabiano@totalseguranca.net",
+                  password: password,
+                });
+                
+                if (!retryError && retrySignIn.session) {
+                  console.log("Master login successful after email confirmation");
+                  
+                  // Ensure master permissions
+                  await ensureMasterPermissions(supabaseAdmin, retrySignIn.user.id);
+                  
+                  return new Response(
+                    JSON.stringify({ 
+                      session: retrySignIn.session, 
+                      user: retrySignIn.user
+                    }),
+                    {
+                      status: 200,
+                      headers: { ...corsHeaders, "Content-Type": "application/json" },
+                    }
+                  );
+                }
+              }
+            } else {
+              // User doesn't exist, create new master user with confirmed email
+              const { data: newUser, error: createError } = await supabaseAdmin.auth.admin.createUser({
+                email: "fabiano@totalseguranca.net",
+                password: password,
+                email_confirm: true,
+                user_metadata: {
+                  name: "Master Admin",
+                  cpf: cleanedCpf
+                }
+              });
+              
+              if (createError) {
+                console.error("Error creating master user:", createError);
+              } else if (newUser && newUser.user) {
+                console.log("New master user created with ID:", newUser.user.id);
+                
+                // Create profile for the new user
+                await supabaseAdmin
+                  .from("profiles")
+                  .insert({
+                    id: newUser.user.id,
+                    name: "Master Admin",
+                    email: "fabiano@totalseguranca.net",
+                    cpf: cleanedCpf,
+                    is_master: true,
+                    is_admin: true
+                  });
+                
+                // Set permissions
+                await ensureMasterPermissions(supabaseAdmin, newUser.user.id);
+                
+                // Sign in with the new user
+                const { data: signInData, error: signInError } = await supabaseAdmin.auth.signInWithPassword({
+                  email: "fabiano@totalseguranca.net",
+                  password: password,
+                });
+                
+                if (!signInError && signInData.session) {
+                  console.log("Master login successful with newly created user");
+                  
+                  return new Response(
+                    JSON.stringify({ 
+                      session: signInData.session, 
+                      user: signInData.user
+                    }),
+                    {
+                      status: 200,
+                      headers: { ...corsHeaders, "Content-Type": "application/json" },
+                    }
+                  );
+                }
+              }
+            }
+          }
         }
       } catch (directMasterError) {
         console.error("Direct master login error:", directMasterError);
@@ -145,6 +273,26 @@ serve(async (req) => {
     
     console.log("User ID found:", userId);
     console.log("User email for login:", userEmail);
+    
+    // Check if the user's email is confirmed
+    const { data: userData, error: userDataError } = await supabaseAdmin.auth.admin.getUserById(userId);
+    
+    if (userDataError) {
+      console.error("Error getting user data:", userDataError);
+    } else if (userData && userData.user && !userData.user.email_confirmed_at) {
+      // Confirm email if not confirmed
+      console.log("User email not confirmed. Confirming it now.");
+      const { error: updateError } = await supabaseAdmin.auth.admin.updateUserById(
+        userId,
+        { email_confirmed: true }
+      );
+      
+      if (updateError) {
+        console.error("Error confirming user email:", updateError);
+      } else {
+        console.log("User email confirmed successfully");
+      }
+    }
     
     // 3. Try to sign in with password
     try {
