@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -257,7 +256,7 @@ const PositionsRolesManager: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6">
-      <MainHeader />
+      <MainHeader title="Gerenciar Cargos/Funções" />
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Cargos/Funções</CardTitle>

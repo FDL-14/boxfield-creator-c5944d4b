@@ -213,7 +213,7 @@ const GroupsClientsManager: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6">
-      <MainHeader />
+      <MainHeader title="Gerenciar Grupos/Clientes" />
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Grupos/Clientes</CardTitle>

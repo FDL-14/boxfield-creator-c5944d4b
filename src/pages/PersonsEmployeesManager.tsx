@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -314,7 +313,7 @@ const PersonsEmployeesManager: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6">
-      <MainHeader />
+      <MainHeader title="Gerenciar Pessoas/Empregados" />
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Pessoas/Empregados</CardTitle>

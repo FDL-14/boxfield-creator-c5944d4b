@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -257,7 +256,7 @@ const SectorsDepartmentsManager: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6">
-      <MainHeader />
+      <MainHeader title="Gerenciar Setores/Departamentos" />
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Setores/Departamentos</CardTitle>
