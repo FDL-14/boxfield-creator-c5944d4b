@@ -256,7 +256,7 @@ export type Database = {
           description: string | null
           district: string | null
           fantasy_name: string | null
-          group_client_id: string | null
+          group_client_id: string
           id: string
           inscription_type: string | null
           is_active: boolean | null
@@ -284,7 +284,7 @@ export type Database = {
           description?: string | null
           district?: string | null
           fantasy_name?: string | null
-          group_client_id?: string | null
+          group_client_id: string
           id?: string
           inscription_type?: string | null
           is_active?: boolean | null
@@ -312,7 +312,7 @@ export type Database = {
           description?: string | null
           district?: string | null
           fantasy_name?: string | null
-          group_client_id?: string | null
+          group_client_id?: string
           id?: string
           inscription_type?: string | null
           is_active?: boolean | null
@@ -559,7 +559,7 @@ export type Database = {
           nis: string | null
           phone: string | null
           position_id: string | null
-          position_role_id: string | null
+          position_role_id: string
           rg: string | null
           rg_state: string | null
           sector_department_id: string | null
@@ -586,7 +586,7 @@ export type Database = {
           nis?: string | null
           phone?: string | null
           position_id?: string | null
-          position_role_id?: string | null
+          position_role_id: string
           rg?: string | null
           rg_state?: string | null
           sector_department_id?: string | null
@@ -613,7 +613,7 @@ export type Database = {
           nis?: string | null
           phone?: string | null
           position_id?: string | null
-          position_role_id?: string | null
+          position_role_id?: string
           rg?: string | null
           rg_state?: string | null
           sector_department_id?: string | null
@@ -652,7 +652,7 @@ export type Database = {
           id: string
           is_deleted: boolean | null
           name: string
-          sector_department_id: string | null
+          sector_department_id: string
           updated_at: string | null
         }
         Insert: {
@@ -662,7 +662,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           name: string
-          sector_department_id?: string | null
+          sector_department_id: string
           updated_at?: string | null
         }
         Update: {
@@ -672,7 +672,7 @@ export type Database = {
           id?: string
           is_deleted?: boolean | null
           name?: string
-          sector_department_id?: string | null
+          sector_department_id?: string
           updated_at?: string | null
         }
         Relationships: [
@@ -777,7 +777,7 @@ export type Database = {
           building_type: string | null
           ceiling_height: number | null
           closure_type: string | null
-          company_unit_id: string | null
+          company_unit_id: string
           cover_type: string | null
           created_at: string | null
           created_by: string | null
@@ -796,7 +796,7 @@ export type Database = {
           building_type?: string | null
           ceiling_height?: number | null
           closure_type?: string | null
-          company_unit_id?: string | null
+          company_unit_id: string
           cover_type?: string | null
           created_at?: string | null
           created_by?: string | null
@@ -815,7 +815,7 @@ export type Database = {
           building_type?: string | null
           ceiling_height?: number | null
           closure_type?: string | null
-          company_unit_id?: string | null
+          company_unit_id?: string
           cover_type?: string | null
           created_at?: string | null
           created_by?: string | null

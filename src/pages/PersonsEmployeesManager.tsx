@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { usePermissions } from '@/hooks/usePermissions';
 import MainHeader from '@/components/MainHeader';
 import {
   Table,
@@ -32,11 +31,13 @@ import { format } from 'date-fns';
 interface Position {
   id: string;
   name: string;
+  sector_department_id: string;
 }
 
 interface Sector {
   id: string;
   name: string;
+  company_unit_id: string;
 }
 
 interface User {
@@ -126,7 +127,6 @@ const PersonsEmployeesManager: React.FC = () => {
   const [personToDelete, setPersonToDelete] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>('basic');
   const { toast } = useToast();
-  const { isAdmin, isMaster, checkPermission } = usePermissions();
 
   useEffect(() => {
     fetchPositions();
@@ -139,7 +139,7 @@ const PersonsEmployeesManager: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('positions_roles')
-        .select('id, name')
+        .select('id, name, sector_department_id')
         .eq('is_deleted', false)
         .order('name');
 
@@ -159,7 +159,7 @@ const PersonsEmployeesManager: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('sectors_departments')
-        .select('id, name')
+        .select('id, name, company_unit_id')
         .eq('is_deleted', false)
         .order('name');
 
@@ -257,6 +257,11 @@ const PersonsEmployeesManager: React.FC = () => {
     }
   };
 
+  // Filter positions based on selected sector
+  const getFilteredPositions = (sectorId: string) => {
+    return positions.filter(position => position.sector_department_id === sectorId);
+  };
+
   const handleCreatePerson = async () => {
     try {
       if (!newPerson.name.trim()) {
@@ -264,6 +269,15 @@ const PersonsEmployeesManager: React.FC = () => {
           variant: 'destructive',
           title: 'Erro',
           description: 'O nome da pessoa é obrigatório.',
+        });
+        return;
+      }
+
+      if (!newPerson.position_role_id) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'É necessário selecionar um cargo.',
         });
         return;
       }
@@ -284,7 +298,7 @@ const PersonsEmployeesManager: React.FC = () => {
             address: newPerson.address || null,
             admission_date: newPerson.admission_date || null,
             dismissal_date: newPerson.dismissal_date || null,
-            position_role_id: newPerson.position_role_id || null,
+            position_role_id: newPerson.position_role_id,
             sector_department_id: newPerson.sector_department_id || null,
             internal_registration: newPerson.internal_registration || null,
             esocial_registration: newPerson.esocial_registration || null,
@@ -343,6 +357,15 @@ const PersonsEmployeesManager: React.FC = () => {
           variant: 'destructive',
           title: 'Erro',
           description: 'O nome da pessoa é obrigatório.',
+        });
+        return;
+      }
+
+      if (!editingPerson.position_role_id) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'É necessário selecionar um cargo.',
         });
         return;
       }
@@ -441,8 +464,26 @@ const PersonsEmployeesManager: React.FC = () => {
     setIsEditing(false);
   };
 
-  const canEdit = isAdmin || isMaster || checkPermission('can_edit_company');
-  const canDelete = isAdmin || isMaster || checkPermission('can_delete_company');
+  // Update new person's sector based on position selection
+  const handlePositionChange = (positionId: string, isEditing: boolean = false) => {
+    const selectedPosition = positions.find(p => p.id === positionId);
+    if (selectedPosition) {
+      const sectorId = selectedPosition.sector_department_id;
+      if (isEditing) {
+        setEditingPerson(prev => ({
+          ...prev!,
+          position_role_id: positionId,
+          sector_department_id: sectorId
+        }));
+      } else {
+        setNewPerson(prev => ({
+          ...prev,
+          position_role_id: positionId,
+          sector_department_id: sectorId
+        }));
+      }
+    }
+  };
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return '';
@@ -456,6 +497,8 @@ const PersonsEmployeesManager: React.FC = () => {
   const renderFormTabs = (isPerson: Person | null = null) => {
     const person = isPerson || newPerson;
     const isUpdate = isPerson !== null;
+    const selectedSectorId = isUpdate ? editingPerson?.sector_department_id || '' : newPerson.sector_department_id;
+    const filteredPositions = positions;
     
     return (
       <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -638,14 +681,30 @@ const PersonsEmployeesManager: React.FC = () => {
             </div>
             <div>
               <Select
-                value={isUpdate ? editingPerson?.sector_department_id || '' : person.sector_department_id}
-                onValueChange={(value) => isUpdate ? 
-                  setEditingPerson({ ...editingPerson!, sector_department_id: value }) : 
-                  setNewPerson({ ...newPerson, sector_department_id: value })}
+                value={isUpdate ? editingPerson?.position_role_id || '' : person.position_role_id}
+                onValueChange={(value) => handlePositionChange(value, isUpdate)}
                 disabled={loading}
               >
                 <SelectTrigger className="mb-1">
-                  <SelectValue placeholder="Setor" />
+                  <SelectValue placeholder="Cargo *" />
+                </SelectTrigger>
+                <SelectContent>
+                  {filteredPositions.map((position) => (
+                    <SelectItem key={position.id} value={position.id}>
+                      {position.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <span className="text-xs text-muted-foreground">Cargo/Função</span>
+            </div>
+            <div>
+              <Select
+                value={isUpdate ? editingPerson?.sector_department_id || '' : person.sector_department_id}
+                disabled={true}
+              >
+                <SelectTrigger className="mb-1">
+                  <SelectValue placeholder="Setor (automático)" />
                 </SelectTrigger>
                 <SelectContent>
                   {sectors.map((sector) => (
@@ -655,28 +714,7 @@ const PersonsEmployeesManager: React.FC = () => {
                   ))}
                 </SelectContent>
               </Select>
-              <span className="text-xs text-muted-foreground">Setor/Departamento</span>
-            </div>
-            <div>
-              <Select
-                value={isUpdate ? editingPerson?.position_role_id || '' : person.position_role_id}
-                onValueChange={(value) => isUpdate ? 
-                  setEditingPerson({ ...editingPerson!, position_role_id: value }) : 
-                  setNewPerson({ ...newPerson, position_role_id: value })}
-                disabled={loading}
-              >
-                <SelectTrigger className="mb-1">
-                  <SelectValue placeholder="Cargo" />
-                </SelectTrigger>
-                <SelectContent>
-                  {positions.map((position) => (
-                    <SelectItem key={position.id} value={position.id}>
-                      {position.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">Cargo/Função</span>
+              <span className="text-xs text-muted-foreground">Setor automaticamente definido pelo cargo</span>
             </div>
             <div>
               <Input
@@ -729,8 +767,8 @@ const PersonsEmployeesManager: React.FC = () => {
               <Select
                 value={isUpdate ? editingPerson?.user_id || '' : person.user_id}
                 onValueChange={(value) => isUpdate ? 
-                  setEditingPerson({ ...editingPerson!, user_id: value }) : 
-                  setNewPerson({ ...newPerson, user_id: value })}
+                  setEditingPerson({ ...editingPerson!, user_id: value === 'none' ? null : value }) : 
+                  setNewPerson({ ...newPerson, user_id: value === 'none' ? '' : value })}
                 disabled={loading}
               >
                 <SelectTrigger className="mb-1">
@@ -755,7 +793,18 @@ const PersonsEmployeesManager: React.FC = () => {
 
   return (
     <div className="container mx-auto py-6">
-      <MainHeader title="Gerenciar Pessoas/Empregados" />
+      <MainHeader 
+        title="Gerenciar Pessoas/Empregados"
+        rightContent={
+          <Button 
+            onClick={() => setIsEditing(false)} 
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Inserir Nova Pessoa
+          </Button>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Pessoas/Empregados</CardTitle>
@@ -765,7 +814,7 @@ const PersonsEmployeesManager: React.FC = () => {
             <div className="space-y-4">
               {renderFormTabs()}
 
-              <Button onClick={handleCreatePerson} disabled={loading || !canEdit}>
+              <Button onClick={handleCreatePerson} disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 <UserPlus className="mr-2 h-4 w-4" />
                 Adicionar Pessoa/Empregado
@@ -808,16 +857,12 @@ const PersonsEmployeesManager: React.FC = () => {
                           </TableCell>
                           <TableCell>
                             <div className="flex space-x-2">
-                              {canEdit && (
-                                <Button size="sm" variant="outline" onClick={() => startEditing(person)}>
-                                  <Pencil className="h-4 w-4" />
-                                </Button>
-                              )}
-                              {canDelete && (
-                                <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(person.id)}>
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              )}
+                              <Button size="sm" variant="outline" onClick={() => startEditing(person)}>
+                                <Pencil className="h-4 w-4" />
+                              </Button>
+                              <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(person.id)}>
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
                             </div>
                           </TableCell>
                         </TableRow>

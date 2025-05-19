@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { usePermissions } from '@/hooks/usePermissions';
 import MainHeader from '@/components/MainHeader';
 import {
   Table,
@@ -26,19 +25,20 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Trash2, Users } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Sector {
   id: string;
   name: string;
+  company_unit_id: string;
 }
 
 interface Position {
   id: string;
   name: string;
   description: string | null;
-  sector_department_id: string | null;
+  sector_department_id: string;
   sector_name?: string;
   created_at: string;
   updated_at: string;
@@ -62,7 +62,6 @@ const PositionsRolesManager: React.FC = () => {
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [positionToDelete, setPositionToDelete] = useState<string | null>(null);
   const { toast } = useToast();
-  const { isAdmin, isMaster, checkPermission } = usePermissions();
 
   useEffect(() => {
     fetchSectors();
@@ -73,14 +72,16 @@ const PositionsRolesManager: React.FC = () => {
     try {
       const { data, error } = await supabase
         .from('sectors_departments')
-        .select('id, name')
+        .select('id, name, company_unit_id')
         .eq('is_deleted', false)
+        .eq('is_active', true)
         .order('name');
 
       if (error) throw error;
 
       setSectors(data || []);
     } catch (error: any) {
+      console.error("Error fetching sectors:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao carregar setores',
@@ -96,23 +97,34 @@ const PositionsRolesManager: React.FC = () => {
         .from('positions_roles')
         .select(`
           *,
-          sectors_departments(name)
+          sectors_departments(id, name)
         `)
         .eq('is_deleted', false)
         .order('name');
 
       if (error) throw error;
 
-      const formattedPositions = data?.map((position) => ({
-        ...position,
-        sector_name: position.sectors_departments?.name || 'Sem setor',
-      })) || [];
+      // Transform the data to include sector name
+      const formattedPositions = data?.map(position => {
+        let sector_name = 'Sem setor';
+        if (position.sectors_departments && 
+            typeof position.sectors_departments === 'object' && 
+            position.sectors_departments !== null) {
+          sector_name = (position.sectors_departments as any).name || 'Sem setor';
+        }
+        
+        return {
+          ...position,
+          sector_name,
+        };
+      }) || [];
 
       setPositions(formattedPositions);
     } catch (error: any) {
+      console.error("Error fetching positions:", error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao carregar cargos/funções',
+        title: 'Erro ao carregar cargos',
         description: error.message,
       });
     } finally {
@@ -131,6 +143,15 @@ const PositionsRolesManager: React.FC = () => {
         return;
       }
 
+      if (!newPosition.sector_department_id) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'É necessário selecionar um setor.',
+        });
+        return;
+      }
+
       setLoading(true);
       
       const { data, error } = await supabase
@@ -139,16 +160,19 @@ const PositionsRolesManager: React.FC = () => {
           {
             name: newPosition.name,
             description: newPosition.description || null,
-            sector_department_id: newPosition.sector_department_id || null,
+            sector_department_id: newPosition.sector_department_id
           },
         ])
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Insert error:", error);
+        throw error;
+      }
 
-      setNewPosition({
-        name: '',
-        description: '',
+      setNewPosition({ 
+        name: '', 
+        description: '', 
         sector_department_id: '',
       });
       
@@ -159,10 +183,11 @@ const PositionsRolesManager: React.FC = () => {
       
       fetchPositions();
     } catch (error: any) {
+      console.error("Create position error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao criar cargo',
-        description: error.message,
+        description: error.message || 'Ocorreu um erro ao criar o cargo',
       });
     } finally {
       setLoading(false);
@@ -180,7 +205,17 @@ const PositionsRolesManager: React.FC = () => {
         return;
       }
 
+      if (!editingPosition.sector_department_id) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'É necessário selecionar um setor.',
+        });
+        return;
+      }
+
       setLoading(true);
+      
       const { error } = await supabase
         .from('positions_roles')
         .update({
@@ -191,7 +226,10 @@ const PositionsRolesManager: React.FC = () => {
         })
         .eq('id', editingPosition.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Update error:", error);
+        throw error;
+      }
 
       setIsEditing(false);
       setEditingPosition(null);
@@ -202,10 +240,11 @@ const PositionsRolesManager: React.FC = () => {
       
       fetchPositions();
     } catch (error: any) {
+      console.error("Update position error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao atualizar cargo',
-        description: error.message,
+        description: error.message || 'Ocorreu um erro ao atualizar o cargo',
       });
     } finally {
       setLoading(false);
@@ -217,12 +256,16 @@ const PositionsRolesManager: React.FC = () => {
       if (!positionToDelete) return;
 
       setLoading(true);
+      
       const { error } = await supabase
         .from('positions_roles')
         .update({ is_deleted: true })
         .eq('id', positionToDelete);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Delete error:", error);
+        throw error;
+      }
 
       setPositions(positions.filter(position => position.id !== positionToDelete));
       setPositionToDelete(null);
@@ -233,13 +276,15 @@ const PositionsRolesManager: React.FC = () => {
         description: 'O cargo foi excluído com sucesso.',
       });
     } catch (error: any) {
+      console.error("Delete position error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao excluir cargo',
-        description: error.message,
+        description: error.message || 'Ocorreu um erro ao excluir o cargo',
       });
     } finally {
       setLoading(false);
+      setIsDialogOpen(false);
     }
   };
 
@@ -258,12 +303,20 @@ const PositionsRolesManager: React.FC = () => {
     setIsEditing(false);
   };
 
-  const canEdit = isAdmin || isMaster || checkPermission('can_edit_company');
-  const canDelete = isAdmin || isMaster || checkPermission('can_delete_company');
-
   return (
     <div className="container mx-auto py-6">
-      <MainHeader title="Gerenciar Cargos/Funções" />
+      <MainHeader 
+        title="Gerenciar Cargos/Funções"
+        rightContent={
+          <Button 
+            onClick={() => setIsEditing(false)} 
+            className="flex items-center gap-2"
+          >
+            <Users className="h-4 w-4" />
+            Inserir Novo Cargo
+          </Button>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Cargos/Funções</CardTitle>
@@ -274,7 +327,7 @@ const PositionsRolesManager: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Input
-                    placeholder="Nome do cargo/função *"
+                    placeholder="Nome do cargo *"
                     value={newPosition.name}
                     onChange={(e) => setNewPosition({ ...newPosition, name: e.target.value })}
                     disabled={loading}
@@ -284,15 +337,14 @@ const PositionsRolesManager: React.FC = () => {
                 </div>
                 <div>
                   <Select
-                    value={newPosition.sector_department_id || 'none'}
-                    onValueChange={(value) => setNewPosition({ ...newPosition, sector_department_id: value === 'none' ? '' : value })}
+                    value={newPosition.sector_department_id}
+                    onValueChange={(value) => setNewPosition({ ...newPosition, sector_department_id: value })}
                     disabled={loading}
                   >
                     <SelectTrigger className="mb-1">
-                      <SelectValue placeholder="Selecione um setor" />
+                      <SelectValue placeholder="Selecione um setor *" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
                       {sectors.map((sector) => (
                         <SelectItem key={sector.id} value={sector.id}>
                           {sector.name}
@@ -300,7 +352,7 @@ const PositionsRolesManager: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-xs text-muted-foreground">Setor relacionado</span>
+                  <span className="text-xs text-muted-foreground">Setor ao qual o cargo pertence</span>
                 </div>
                 <div className="md:col-span-3">
                   <Textarea
@@ -310,11 +362,11 @@ const PositionsRolesManager: React.FC = () => {
                     disabled={loading}
                     className="mb-1"
                   />
-                  <span className="text-xs text-muted-foreground">Informações adicionais sobre o cargo</span>
+                  <span className="text-xs text-muted-foreground">Breve descrição do cargo/função</span>
                 </div>
               </div>
 
-              <Button onClick={handleCreatePosition} disabled={loading || !canEdit}>
+              <Button onClick={handleCreatePosition} disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Adicionar Cargo/Função
               </Button>
@@ -326,7 +378,7 @@ const PositionsRolesManager: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>Setor/Departamento</TableHead>
+                      <TableHead>Setor</TableHead>
                       <TableHead>Descrição</TableHead>
                       <TableHead className="w-[150px]">Ações</TableHead>
                     </TableRow>
@@ -339,16 +391,12 @@ const PositionsRolesManager: React.FC = () => {
                         <TableCell>{position.description}</TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            {canEdit && (
-                              <Button size="sm" variant="outline" onClick={() => startEditing(position)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {canDelete && (
-                              <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(position.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <Button size="sm" variant="outline" onClick={() => startEditing(position)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(position.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -364,7 +412,7 @@ const PositionsRolesManager: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Input
-                    placeholder="Nome do cargo/função *"
+                    placeholder="Nome do cargo *"
                     value={editingPosition?.name || ''}
                     onChange={(e) => setEditingPosition({ ...editingPosition!, name: e.target.value })}
                     disabled={loading}
@@ -374,15 +422,14 @@ const PositionsRolesManager: React.FC = () => {
                 </div>
                 <div>
                   <Select
-                    value={editingPosition?.sector_department_id || 'none'}
-                    onValueChange={(value) => setEditingPosition({ ...editingPosition!, sector_department_id: value === 'none' ? null : value })}
+                    value={editingPosition?.sector_department_id || ''}
+                    onValueChange={(value) => setEditingPosition({ ...editingPosition!, sector_department_id: value })}
                     disabled={loading}
                   >
                     <SelectTrigger className="mb-1">
-                      <SelectValue placeholder="Selecione um setor" />
+                      <SelectValue placeholder="Selecione um setor *" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="none">Nenhum</SelectItem>
                       {sectors.map((sector) => (
                         <SelectItem key={sector.id} value={sector.id}>
                           {sector.name}
@@ -390,7 +437,7 @@ const PositionsRolesManager: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
-                  <span className="text-xs text-muted-foreground">Setor relacionado</span>
+                  <span className="text-xs text-muted-foreground">Setor ao qual o cargo pertence</span>
                 </div>
                 <div className="md:col-span-3">
                   <Textarea
@@ -400,7 +447,7 @@ const PositionsRolesManager: React.FC = () => {
                     disabled={loading}
                     className="mb-1"
                   />
-                  <span className="text-xs text-muted-foreground">Informações adicionais sobre o cargo</span>
+                  <span className="text-xs text-muted-foreground">Breve descrição do cargo/função</span>
                 </div>
               </div>
 
@@ -423,7 +470,7 @@ const PositionsRolesManager: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza de que deseja excluir este cargo/função? Esta ação não pode ser desfeita.
+              Tem certeza de que deseja excluir este cargo? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

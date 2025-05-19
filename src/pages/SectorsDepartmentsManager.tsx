@@ -2,7 +2,6 @@
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { usePermissions } from '@/hooks/usePermissions';
 import MainHeader from '@/components/MainHeader';
 import {
   Table,
@@ -26,13 +25,12 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Loader2, Pencil, Trash2, Building } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-interface CompanyUnit {
+interface Company {
   id: string;
   name: string;
 }
@@ -41,131 +39,80 @@ interface Sector {
   id: string;
   name: string;
   description: string | null;
-  company_unit_id: string | null;
-  company_unit_name?: string;
   building_type: string | null;
-  cover_type: string | null;
-  ceiling_height: number | null;
-  area: number | null;
   floor_type: string | null;
+  cover_type: string | null;
   closure_type: string | null;
   lighting_type: string | null;
   ventilation_type: string | null;
-  is_active: boolean | null;
+  ceiling_height: number | null;
+  area: number | null;
+  is_active: boolean;
+  company_unit_id: string;
+  company_name?: string;
   created_at: string;
   updated_at: string;
 }
 
-const buildingTypes = [
-  'Não Informado', 'Bloco', 'Casa', 'Container', 'Escritório administrativo',
-  'Escritório administrativo em prédio', 'Fábrica', 'Food Truck', 'Galpão',
-  'Loja', 'Loja (em Shopping Center)', 'Loja (em Supermercado)', 'Obra',
-  'Outras', 'Pavilhão', 'Prédio', 'Propriedade rural', 'Quiosque',
-  'Sala comercial', 'Silo'
-];
-
-const coverTypes = [
-  'Não Informado', 'Drywall', 'Forro de Gesso', 'Forro de PVC',
-  'Laje de concreto', 'Loro', 'Placas de Isopor', 'Telha de Alumínio',
-  'Telha de Barro', 'Telha de Concreto', 'Telha de Fibra translúcido',
-  'Telha de Fibrocimento', 'Telha de Zinco', 'Teto em gesso'
-];
-
-const floorTypes = [
-  'Não informado', 'Carpete', 'Cerâmico', 'Cerâmico e gesso (mesclado)',
-  'Cimentado', 'Granito', 'Gesso', 'Outros', 'Rodapé', 'Vinílico'
-];
-
-const closureTypes = [
-  'Não Informado', 'Alvenaria estrutural', 'Concreto armado',
-  'Divisório de gesso/drywall', 'Do tipo falso, revestido com Lã de rocha',
-  'Do tipo falso, revestido com Rochas de gesso', 'Estrutura em drywall',
-  'Estrutura metálica', 'Não há forro (diretamente na laje)', 'Outros',
-  'Paredes de concreto', 'Tijolo de barro comum'
-];
-
-const lightingTypes = [
-  'Não informado', 'Artificial', 'Artificial e Natural',
-  'Artificial: Lâmpadas embutidas no forro ou fixadas na laje, providas de lâmpadas fluorescentes.',
-  'Artificial: Lâmpadas de leds', 'Artificial: Lâmpadas de mercúrio',
-  'Artificial: Lâmpadas fluorescentes', 'Artificial: Lâmpadas incandescentes',
-  'Natural', 'Natural com claraboias/ domus',
-  'Natural e Artificial: Lâmpadas de leds', 'Natural e Artificial: Lâmpadas de mercúrio',
-  'Natural e Artificial: Lâmpadas fluorescentes', 'Natural e Artificial: Lâmpadas incandescentes',
-  'Natural, através de esquadrias providas de persianas e, Artificial, através de luminárias embutidas no forro ou fixadas na laje, providas de lâmpadas fluorescentes.',
-  'Natural, através de esquadrias providas de persianas.', 'Outros'
-];
-
-const ventilationTypes = [
-  'Não informado', 'Artificial e Natural', 'Artificial: Ventilador',
-  'Artificial: Ar Condicionado', 'Artificial: Ar Condicionado Central',
-  'Artificial: Exaustor(es)', 'Artificial: Ventilador(es)',
-  'Artificial: Ventilador(es) de parede', 'Artificial: Ventilador(es) de teto',
-  'Natural', 'Natural e Artificial: Ar Condicionado',
-  'Natural e Artificial: Exaustor(es)', 'Natural e Artificial: Ventilador(es)',
-  'Natural e Artificial: Ventilador(es) de parede',
-  'Natural e Artificial: Ventilador(es) de teto', 'Outros'
-];
-
 const SectorsDepartmentsManager: React.FC = () => {
   const [sectors, setSectors] = useState<Sector[]>([]);
-  const [companyUnits, setCompanyUnits] = useState<CompanyUnit[]>([]);
+  const [companies, setCompanies] = useState<Company[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [newSector, setNewSector] = useState<{
     name: string;
     description: string;
-    company_unit_id: string;
     building_type: string;
-    cover_type: string;
-    ceiling_height: string;
-    area: string;
     floor_type: string;
+    cover_type: string;
     closure_type: string;
     lighting_type: string;
     ventilation_type: string;
+    ceiling_height: string;
+    area: string;
     is_active: boolean;
+    company_unit_id: string;
   }>({
     name: '',
     description: '',
-    company_unit_id: '',
     building_type: 'Não Informado',
-    cover_type: 'Não Informado',
-    ceiling_height: '',
-    area: '',
     floor_type: 'Não Informado',
+    cover_type: 'Não Informado',
     closure_type: 'Não Informado',
     lighting_type: 'Não Informado',
     ventilation_type: 'Não Informado',
+    ceiling_height: '',
+    area: '',
     is_active: true,
+    company_unit_id: '',
   });
   const [editingSector, setEditingSector] = useState<Sector | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
   const [sectorToDelete, setSectorToDelete] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<string>('basic');
   const { toast } = useToast();
-  const { isAdmin, isMaster, checkPermission } = usePermissions();
 
   useEffect(() => {
-    fetchCompanyUnits();
+    fetchCompanies();
     fetchSectors();
   }, []);
 
-  const fetchCompanyUnits = async () => {
+  const fetchCompanies = async () => {
     try {
       const { data, error } = await supabase
         .from('companies_units')
         .select('id, name')
         .eq('is_deleted', false)
+        .eq('is_active', true)
         .order('name');
 
       if (error) throw error;
 
-      setCompanyUnits(data || []);
+      setCompanies(data || []);
     } catch (error: any) {
+      console.error("Error fetching companies:", error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao carregar unidades',
+        title: 'Erro ao carregar empresas',
         description: error.message,
       });
     }
@@ -178,23 +125,34 @@ const SectorsDepartmentsManager: React.FC = () => {
         .from('sectors_departments')
         .select(`
           *,
-          companies_units(name)
+          companies_units(id, name)
         `)
         .eq('is_deleted', false)
         .order('name');
 
       if (error) throw error;
 
-      const formattedSectors = data?.map((sector) => ({
-        ...sector,
-        company_unit_name: sector.companies_units?.name || 'Sem unidade',
-      })) || [];
+      // Transform the data to include company name
+      const formattedSectors = data?.map(sector => {
+        let company_name = 'Sem empresa';
+        if (sector.companies_units && 
+            typeof sector.companies_units === 'object' && 
+            sector.companies_units !== null) {
+          company_name = (sector.companies_units as any).name || 'Sem empresa';
+        }
+        
+        return {
+          ...sector,
+          company_name,
+        };
+      }) || [];
 
       setSectors(formattedSectors);
     } catch (error: any) {
+      console.error("Error fetching sectors:", error);
       toast({
         variant: 'destructive',
-        title: 'Erro ao carregar setores/departamentos',
+        title: 'Erro ao carregar setores',
         description: error.message,
       });
     } finally {
@@ -213,11 +171,16 @@ const SectorsDepartmentsManager: React.FC = () => {
         return;
       }
 
+      if (!newSector.company_unit_id) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'É necessário selecionar uma empresa.',
+        });
+        return;
+      }
+
       setLoading(true);
-      
-      // Convert string values to numbers for numeric fields
-      const ceiling_height = newSector.ceiling_height ? parseFloat(newSector.ceiling_height) : null;
-      const area = newSector.area ? parseFloat(newSector.area) : null;
       
       const { data, error } = await supabase
         .from('sectors_departments')
@@ -225,35 +188,38 @@ const SectorsDepartmentsManager: React.FC = () => {
           {
             name: newSector.name,
             description: newSector.description || null,
-            company_unit_id: newSector.company_unit_id || null,
             building_type: newSector.building_type,
-            cover_type: newSector.cover_type,
-            ceiling_height,
-            area,
             floor_type: newSector.floor_type,
+            cover_type: newSector.cover_type,
             closure_type: newSector.closure_type,
             lighting_type: newSector.lighting_type,
             ventilation_type: newSector.ventilation_type,
+            ceiling_height: newSector.ceiling_height ? parseFloat(newSector.ceiling_height) : null,
+            area: newSector.area ? parseFloat(newSector.area) : null,
             is_active: newSector.is_active,
+            company_unit_id: newSector.company_unit_id
           },
         ])
         .select();
 
-      if (error) throw error;
+      if (error) {
+        console.error("Insert error:", error);
+        throw error;
+      }
 
       setNewSector({
         name: '',
         description: '',
-        company_unit_id: '',
         building_type: 'Não Informado',
-        cover_type: 'Não Informado',
-        ceiling_height: '',
-        area: '',
         floor_type: 'Não Informado',
+        cover_type: 'Não Informado',
         closure_type: 'Não Informado',
         lighting_type: 'Não Informado',
         ventilation_type: 'Não Informado',
+        ceiling_height: '',
+        area: '',
         is_active: true,
+        company_unit_id: '',
       });
       
       toast({
@@ -263,10 +229,11 @@ const SectorsDepartmentsManager: React.FC = () => {
       
       fetchSectors();
     } catch (error: any) {
+      console.error("Create sector error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao criar setor',
-        description: error.message,
+        description: error.message || 'Ocorreu um erro ao criar o setor',
       });
     } finally {
       setLoading(false);
@@ -284,42 +251,40 @@ const SectorsDepartmentsManager: React.FC = () => {
         return;
       }
 
+      if (!editingSector.company_unit_id) {
+        toast({
+          variant: 'destructive',
+          title: 'Erro',
+          description: 'É necessário selecionar uma empresa.',
+        });
+        return;
+      }
+
       setLoading(true);
-      
-      // Properly convert string values to numbers for numeric fields
-      // Using parseFloat instead of direct assignment for proper type conversion
-      const ceiling_height = editingSector.ceiling_height !== null && editingSector.ceiling_height !== undefined ? 
-        (typeof editingSector.ceiling_height === 'string' ? 
-          parseFloat(editingSector.ceiling_height) : 
-          editingSector.ceiling_height) : 
-        null;
-      
-      const area = editingSector.area !== null && editingSector.area !== undefined ? 
-        (typeof editingSector.area === 'string' ? 
-          parseFloat(editingSector.area) : 
-          editingSector.area) : 
-        null;
       
       const { error } = await supabase
         .from('sectors_departments')
         .update({
           name: editingSector.name,
           description: editingSector.description,
-          company_unit_id: editingSector.company_unit_id,
           building_type: editingSector.building_type,
-          cover_type: editingSector.cover_type,
-          ceiling_height,
-          area,
           floor_type: editingSector.floor_type,
+          cover_type: editingSector.cover_type,
           closure_type: editingSector.closure_type,
           lighting_type: editingSector.lighting_type,
           ventilation_type: editingSector.ventilation_type,
+          ceiling_height: editingSector.ceiling_height,
+          area: editingSector.area,
           is_active: editingSector.is_active,
+          company_unit_id: editingSector.company_unit_id,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingSector.id);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Update error:", error);
+        throw error;
+      }
 
       setIsEditing(false);
       setEditingSector(null);
@@ -330,10 +295,11 @@ const SectorsDepartmentsManager: React.FC = () => {
       
       fetchSectors();
     } catch (error: any) {
+      console.error("Update sector error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao atualizar setor',
-        description: error.message,
+        description: error.message || 'Ocorreu um erro ao atualizar o setor',
       });
     } finally {
       setLoading(false);
@@ -345,12 +311,16 @@ const SectorsDepartmentsManager: React.FC = () => {
       if (!sectorToDelete) return;
 
       setLoading(true);
+      
       const { error } = await supabase
         .from('sectors_departments')
         .update({ is_deleted: true })
         .eq('id', sectorToDelete);
 
-      if (error) throw error;
+      if (error) {
+        console.error("Delete error:", error);
+        throw error;
+      }
 
       setSectors(sectors.filter(sector => sector.id !== sectorToDelete));
       setSectorToDelete(null);
@@ -361,13 +331,15 @@ const SectorsDepartmentsManager: React.FC = () => {
         description: 'O setor foi excluído com sucesso.',
       });
     } catch (error: any) {
+      console.error("Delete sector error:", error);
       toast({
         variant: 'destructive',
         title: 'Erro ao excluir setor',
-        description: error.message,
+        description: error.message || 'Ocorreu um erro ao excluir o setor',
       });
     } finally {
       setLoading(false);
+      setIsDialogOpen(false);
     }
   };
 
@@ -386,263 +358,20 @@ const SectorsDepartmentsManager: React.FC = () => {
     setIsEditing(false);
   };
 
-  const canEdit = isAdmin || isMaster || checkPermission('can_edit_company');
-  const canDelete = isAdmin || isMaster || checkPermission('can_delete_company');
-
-  const renderFormTabs = (isSector: Sector | null = null) => {
-    const sector = isSector || newSector;
-    const isUpdate = isSector !== null;
-    
-    return (
-      <Tabs defaultValue="basic" value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid grid-cols-2 mb-4">
-          <TabsTrigger value="basic">Dados Básicos</TabsTrigger>
-          <TabsTrigger value="details">Características</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="basic" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Input
-                placeholder="Nome do setor/departamento *"
-                value={isUpdate ? editingSector?.name || '' : sector.name}
-                onChange={(e) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, name: e.target.value }) : 
-                  setNewSector({ ...newSector, name: e.target.value })}
-                disabled={loading}
-                className="mb-1"
-              />
-              <span className="text-xs text-muted-foreground">Nome do setor/departamento</span>
-            </div>
-            <div>
-              <Select
-                value={isUpdate ? editingSector?.company_unit_id || 'none' : sector.company_unit_id || 'none'}
-                onValueChange={(value) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, company_unit_id: value === 'none' ? null : value }) : 
-                  setNewSector({ ...newSector, company_unit_id: value === 'none' ? '' : value })}
-                disabled={loading}
-              >
-                <SelectTrigger className="mb-1">
-                  <SelectValue placeholder="Selecione uma unidade" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Nenhuma</SelectItem>
-                  {companyUnits.map((unit) => (
-                    <SelectItem key={unit.id} value={unit.id}>
-                      {unit.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">Unidade relacionada</span>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Switch 
-                id={`is-active-${isUpdate ? 'edit' : 'new'}`}
-                checked={isUpdate ? editingSector?.is_active || false : sector.is_active} 
-                onCheckedChange={(checked) => isUpdate ? 
-                  setEditingSector({...editingSector!, is_active: checked}) : 
-                  setNewSector({...newSector, is_active: checked})}
-                disabled={loading}
-              />
-              <Label htmlFor={`is-active-${isUpdate ? 'edit' : 'new'}`}>Ativo</Label>
-            </div>
-            <div className="md:col-span-3">
-              <Textarea
-                placeholder="Descrição (opcional)"
-                value={isUpdate ? 
-                  editingSector?.description || '' : 
-                  sector.description}
-                onChange={(e) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, description: e.target.value }) : 
-                  setNewSector({ ...newSector, description: e.target.value })}
-                disabled={loading}
-                className="mb-1"
-              />
-              <span className="text-xs text-muted-foreground">Informações adicionais sobre o setor</span>
-            </div>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="details" className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <Select
-                value={isUpdate ? editingSector?.building_type || 'Não Informado' : sector.building_type}
-                onValueChange={(value) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, building_type: value }) : 
-                  setNewSector({ ...newSector, building_type: value })}
-                disabled={loading}
-              >
-                <SelectTrigger className="mb-1">
-                  <SelectValue placeholder="Tipo da Edificação" />
-                </SelectTrigger>
-                <SelectContent>
-                  {buildingTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">Tipo da Edificação</span>
-            </div>
-            <div>
-              <Select
-                value={isUpdate ? editingSector?.cover_type || 'Não Informado' : sector.cover_type}
-                onValueChange={(value) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, cover_type: value }) : 
-                  setNewSector({ ...newSector, cover_type: value })}
-                disabled={loading}
-              >
-                <SelectTrigger className="mb-1">
-                  <SelectValue placeholder="Tipo da Cobertura" />
-                </SelectTrigger>
-                <SelectContent>
-                  {coverTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">Tipo da Cobertura</span>
-            </div>
-            <div>
-              <Select
-                value={isUpdate ? editingSector?.floor_type || 'Não Informado' : sector.floor_type}
-                onValueChange={(value) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, floor_type: value }) : 
-                  setNewSector({ ...newSector, floor_type: value })}
-                disabled={loading}
-              >
-                <SelectTrigger className="mb-1">
-                  <SelectValue placeholder="Tipo do Piso" />
-                </SelectTrigger>
-                <SelectContent>
-                  {floorTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">Tipo do Piso</span>
-            </div>
-            <div>
-              <Input
-                placeholder="Altura do Pé Direito (em metros)"
-                type="number"
-                step="0.01"
-                value={isUpdate ? 
-                  (editingSector?.ceiling_height === null ? '' : editingSector?.ceiling_height) : 
-                  sector.ceiling_height}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (isUpdate) {
-                    setEditingSector({ ...editingSector!, ceiling_height: value === '' ? null : parseFloat(value) });
-                  } else {
-                    setNewSector({ ...newSector, ceiling_height: value });
-                  }
-                }}
-                disabled={loading}
-                className="mb-1"
-              />
-              <span className="text-xs text-muted-foreground">Altura do pé direito em metros</span>
-            </div>
-            <div>
-              <Input
-                placeholder="Área (em m²)"
-                type="number"
-                step="0.01"
-                value={isUpdate ? 
-                  (editingSector?.area === null ? '' : editingSector?.area) : 
-                  sector.area}
-                onChange={(e) => {
-                  const value = e.target.value;
-                  if (isUpdate) {
-                    setEditingSector({ ...editingSector!, area: value === '' ? null : parseFloat(value) });
-                  } else {
-                    setNewSector({ ...newSector, area: value });
-                  }
-                }}
-                disabled={loading}
-                className="mb-1"
-              />
-              <span className="text-xs text-muted-foreground">Área em metros quadrados</span>
-            </div>
-            <div>
-              <Select
-                value={isUpdate ? editingSector?.closure_type || 'Não Informado' : sector.closure_type}
-                onValueChange={(value) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, closure_type: value }) : 
-                  setNewSector({ ...newSector, closure_type: value })}
-                disabled={loading}
-              >
-                <SelectTrigger className="mb-1">
-                  <SelectValue placeholder="Tipo do Fechamento" />
-                </SelectTrigger>
-                <SelectContent>
-                  {closureTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">Tipo do Fechamento</span>
-            </div>
-            <div>
-              <Select
-                value={isUpdate ? editingSector?.lighting_type || 'Não Informado' : sector.lighting_type}
-                onValueChange={(value) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, lighting_type: value }) : 
-                  setNewSector({ ...newSector, lighting_type: value })}
-                disabled={loading}
-              >
-                <SelectTrigger className="mb-1">
-                  <SelectValue placeholder="Tipo de Iluminação" />
-                </SelectTrigger>
-                <SelectContent>
-                  {lightingTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">Tipo de Iluminação</span>
-            </div>
-            <div>
-              <Select
-                value={isUpdate ? editingSector?.ventilation_type || 'Não Informado' : sector.ventilation_type}
-                onValueChange={(value) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, ventilation_type: value }) : 
-                  setNewSector({ ...newSector, ventilation_type: value })}
-                disabled={loading}
-              >
-                <SelectTrigger className="mb-1">
-                  <SelectValue placeholder="Tipo de Ventilação" />
-                </SelectTrigger>
-                <SelectContent>
-                  {ventilationTypes.map((type) => (
-                    <SelectItem key={type} value={type}>
-                      {type}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <span className="text-xs text-muted-foreground">Tipo de Ventilação</span>
-            </div>
-          </div>
-        </TabsContent>
-      </Tabs>
-    );
-  };
-
   return (
     <div className="container mx-auto py-6">
-      <MainHeader title="Gerenciar Setores/Departamentos" />
+      <MainHeader 
+        title="Gerenciar Setores/Departamentos" 
+        rightContent={
+          <Button 
+            onClick={() => setIsEditing(false)} 
+            className="flex items-center gap-2"
+          >
+            <Building className="h-4 w-4" />
+            Inserir Novo Setor
+          </Button>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Setores/Departamentos</CardTitle>
@@ -650,9 +379,198 @@ const SectorsDepartmentsManager: React.FC = () => {
         <CardContent>
           {!isEditing ? (
             <div className="space-y-4">
-              {renderFormTabs()}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Input
+                    placeholder="Nome do setor *"
+                    value={newSector.name}
+                    onChange={(e) => setNewSector({ ...newSector, name: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Nome do setor/departamento</span>
+                </div>
+                <div>
+                  <Select
+                    value={newSector.company_unit_id}
+                    onValueChange={(value) => setNewSector({ ...newSector, company_unit_id: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Selecione uma empresa *" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Empresa à qual o setor pertence</span>
+                </div>
+                <div>
+                  <Textarea
+                    placeholder="Descrição (opcional)"
+                    value={newSector.description}
+                    onChange={(e) => setNewSector({ ...newSector, description: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Breve descrição do setor/departamento</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="Área (m²)"
+                    type="number"
+                    value={newSector.area}
+                    onChange={(e) => setNewSector({ ...newSector, area: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Área em metros quadrados</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="Altura do Pé Direito (m)"
+                    type="number"
+                    value={newSector.ceiling_height}
+                    onChange={(e) => setNewSector({ ...newSector, ceiling_height: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Altura do pé direito em metros</span>
+                </div>
+                <div>
+                  <Select
+                    value={newSector.building_type}
+                    onValueChange={(value) => setNewSector({ ...newSector, building_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Construção" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Alvenaria">Alvenaria</SelectItem>
+                      <SelectItem value="Madeira">Madeira</SelectItem>
+                      <SelectItem value="Metálica">Metálica</SelectItem>
+                      <SelectItem value="Concreto">Concreto</SelectItem>
+                      <SelectItem value="Mista">Mista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de construção do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={newSector.floor_type}
+                    onValueChange={(value) => setNewSector({ ...newSector, floor_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Piso" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Cerâmica">Cerâmica</SelectItem>
+                      <SelectItem value="Concreto">Concreto</SelectItem>
+                      <SelectItem value="Madeira">Madeira</SelectItem>
+                      <SelectItem value="Vinílico">Vinílico</SelectItem>
+                      <SelectItem value="Porcelanato">Porcelanato</SelectItem>
+                      <SelectItem value="Cimento Queimado">Cimento Queimado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de piso do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={newSector.cover_type}
+                    onValueChange={(value) => setNewSector({ ...newSector, cover_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Cobertura" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Laje">Laje</SelectItem>
+                      <SelectItem value="Fibrocimento">Fibrocimento</SelectItem>
+                      <SelectItem value="Metálica">Metálica</SelectItem>
+                      <SelectItem value="Cerâmica">Cerâmica</SelectItem>
+                      <SelectItem value="PVC">PVC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de cobertura do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={newSector.closure_type}
+                    onValueChange={(value) => setNewSector({ ...newSector, closure_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Fechamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Alvenaria">Alvenaria</SelectItem>
+                      <SelectItem value="Divisória">Divisória</SelectItem>
+                      <SelectItem value="Vidro">Vidro</SelectItem>
+                      <SelectItem value="Drywall">Drywall</SelectItem>
+                      <SelectItem value="Metálico">Metálico</SelectItem>
+                      <SelectItem value="Sem fechamento">Sem fechamento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de fechamento do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={newSector.lighting_type}
+                    onValueChange={(value) => setNewSector({ ...newSector, lighting_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Iluminação" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Natural">Natural</SelectItem>
+                      <SelectItem value="Artificial">Artificial</SelectItem>
+                      <SelectItem value="Mista">Mista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de iluminação do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={newSector.ventilation_type}
+                    onValueChange={(value) => setNewSector({ ...newSector, ventilation_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Ventilação" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Natural">Natural</SelectItem>
+                      <SelectItem value="Artificial">Artificial</SelectItem>
+                      <SelectItem value="Mista">Mista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de ventilação do setor</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="is-active-new"
+                    checked={newSector.is_active} 
+                    onCheckedChange={(checked) => setNewSector({...newSector, is_active: checked})}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="is-active-new">Ativo</Label>
+                </div>
+              </div>
 
-              <Button onClick={handleCreateSector} disabled={loading || !canEdit}>
+              <Button onClick={handleCreateSector} disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Adicionar Setor/Departamento
               </Button>
@@ -664,8 +582,7 @@ const SectorsDepartmentsManager: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>Unidade</TableHead>
-                      <TableHead>Tipo de Edificação</TableHead>
+                      <TableHead>Empresa</TableHead>
                       <TableHead>Área (m²)</TableHead>
                       <TableHead>Status</TableHead>
                       <TableHead className="w-[150px]">Ações</TableHead>
@@ -675,9 +592,8 @@ const SectorsDepartmentsManager: React.FC = () => {
                     {sectors.map((sector) => (
                       <TableRow key={sector.id}>
                         <TableCell>{sector.name}</TableCell>
-                        <TableCell>{sector.company_unit_name}</TableCell>
-                        <TableCell>{sector.building_type}</TableCell>
-                        <TableCell>{sector.area !== null ? `${sector.area} m²` : '-'}</TableCell>
+                        <TableCell>{sector.company_name}</TableCell>
+                        <TableCell>{sector.area}</TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded text-xs ${sector.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
                             {sector.is_active ? 'Ativo' : 'Inativo'}
@@ -685,16 +601,12 @@ const SectorsDepartmentsManager: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            {canEdit && (
-                              <Button size="sm" variant="outline" onClick={() => startEditing(sector)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {canDelete && (
-                              <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(sector.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <Button size="sm" variant="outline" onClick={() => startEditing(sector)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(sector.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>
@@ -707,7 +619,196 @@ const SectorsDepartmentsManager: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-4">
-              {renderFormTabs(editingSector)}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <Input
+                    placeholder="Nome do setor *"
+                    value={editingSector?.name || ''}
+                    onChange={(e) => setEditingSector({ ...editingSector!, name: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Nome do setor/departamento</span>
+                </div>
+                <div>
+                  <Select
+                    value={editingSector?.company_unit_id || ''}
+                    onValueChange={(value) => setEditingSector({ ...editingSector!, company_unit_id: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Selecione uma empresa *" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {companies.map((company) => (
+                        <SelectItem key={company.id} value={company.id}>
+                          {company.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Empresa à qual o setor pertence</span>
+                </div>
+                <div>
+                  <Textarea
+                    placeholder="Descrição (opcional)"
+                    value={editingSector?.description || ''}
+                    onChange={(e) => setEditingSector({ ...editingSector!, description: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Breve descrição do setor/departamento</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="Área (m²)"
+                    type="number"
+                    value={editingSector?.area?.toString() || ''}
+                    onChange={(e) => setEditingSector({ ...editingSector!, area: parseFloat(e.target.value) || null })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Área em metros quadrados</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="Altura do Pé Direito (m)"
+                    type="number"
+                    value={editingSector?.ceiling_height?.toString() || ''}
+                    onChange={(e) => setEditingSector({ ...editingSector!, ceiling_height: parseFloat(e.target.value) || null })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Altura do pé direito em metros</span>
+                </div>
+                <div>
+                  <Select
+                    value={editingSector?.building_type || 'Não Informado'}
+                    onValueChange={(value) => setEditingSector({ ...editingSector!, building_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Construção" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Alvenaria">Alvenaria</SelectItem>
+                      <SelectItem value="Madeira">Madeira</SelectItem>
+                      <SelectItem value="Metálica">Metálica</SelectItem>
+                      <SelectItem value="Concreto">Concreto</SelectItem>
+                      <SelectItem value="Mista">Mista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de construção do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={editingSector?.floor_type || 'Não Informado'}
+                    onValueChange={(value) => setEditingSector({ ...editingSector!, floor_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Piso" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Cerâmica">Cerâmica</SelectItem>
+                      <SelectItem value="Concreto">Concreto</SelectItem>
+                      <SelectItem value="Madeira">Madeira</SelectItem>
+                      <SelectItem value="Vinílico">Vinílico</SelectItem>
+                      <SelectItem value="Porcelanato">Porcelanato</SelectItem>
+                      <SelectItem value="Cimento Queimado">Cimento Queimado</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de piso do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={editingSector?.cover_type || 'Não Informado'}
+                    onValueChange={(value) => setEditingSector({ ...editingSector!, cover_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Cobertura" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Laje">Laje</SelectItem>
+                      <SelectItem value="Fibrocimento">Fibrocimento</SelectItem>
+                      <SelectItem value="Metálica">Metálica</SelectItem>
+                      <SelectItem value="Cerâmica">Cerâmica</SelectItem>
+                      <SelectItem value="PVC">PVC</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de cobertura do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={editingSector?.closure_type || 'Não Informado'}
+                    onValueChange={(value) => setEditingSector({ ...editingSector!, closure_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Fechamento" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Alvenaria">Alvenaria</SelectItem>
+                      <SelectItem value="Divisória">Divisória</SelectItem>
+                      <SelectItem value="Vidro">Vidro</SelectItem>
+                      <SelectItem value="Drywall">Drywall</SelectItem>
+                      <SelectItem value="Metálico">Metálico</SelectItem>
+                      <SelectItem value="Sem fechamento">Sem fechamento</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de fechamento do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={editingSector?.lighting_type || 'Não Informado'}
+                    onValueChange={(value) => setEditingSector({ ...editingSector!, lighting_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Iluminação" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Natural">Natural</SelectItem>
+                      <SelectItem value="Artificial">Artificial</SelectItem>
+                      <SelectItem value="Mista">Mista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de iluminação do setor</span>
+                </div>
+                <div>
+                  <Select
+                    value={editingSector?.ventilation_type || 'Não Informado'}
+                    onValueChange={(value) => setEditingSector({ ...editingSector!, ventilation_type: value })}
+                    disabled={loading}
+                  >
+                    <SelectTrigger className="mb-1">
+                      <SelectValue placeholder="Tipo de Ventilação" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Não Informado">Não Informado</SelectItem>
+                      <SelectItem value="Natural">Natural</SelectItem>
+                      <SelectItem value="Artificial">Artificial</SelectItem>
+                      <SelectItem value="Mista">Mista</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <span className="text-xs text-muted-foreground">Tipo de ventilação do setor</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="is-active-edit"
+                    checked={editingSector?.is_active || false} 
+                    onCheckedChange={(checked) => setEditingSector({...editingSector!, is_active: checked})}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="is-active-edit">Ativo</Label>
+                </div>
+              </div>
 
               <div className="flex space-x-2">
                 <Button onClick={handleUpdateSector} disabled={loading}>
@@ -728,7 +829,7 @@ const SectorsDepartmentsManager: React.FC = () => {
           <AlertDialogHeader>
             <AlertDialogTitle>Confirmar exclusão</AlertDialogTitle>
             <AlertDialogDescription>
-              Tem certeza de que deseja excluir este setor/departamento? Esta ação não pode ser desfeita.
+              Tem certeza de que deseja excluir este setor? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
