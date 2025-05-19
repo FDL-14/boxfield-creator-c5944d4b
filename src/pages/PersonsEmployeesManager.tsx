@@ -152,9 +152,9 @@ const PersonsEmployeesManager: React.FC = () => {
         let user_email = null;
         if (person.profiles && 
             typeof person.profiles === 'object' && 
-            person.profiles !== null && 
-            'email' in person.profiles) {
-          user_email = person.profiles.email;
+            person.profiles !== null) {
+          // Use optional chaining to safely access the email property
+          user_email = person.profiles?.email || null;
         }
         
         return {
