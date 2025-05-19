@@ -1,7 +1,6 @@
+
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { supabase, processUserProfile, getProfileWithRetry, ensureMasterUserInitialized } from "@/integrations/supabase/client";
-import { useToast } from "@/hooks/use-toast";
-import { AuthService } from "@/services/authService";
+import { supabase, getProfileWithRetry, ensureMasterUserInitialized } from "@/integrations/supabase/client";
 
 // Permission types
 export interface UserPermissions {
@@ -64,330 +63,90 @@ export interface UserPermissions {
   [key: string]: boolean;
 }
 
-// Initial value (all permissions denied)
-const defaultPermissions: UserPermissions = {
-  can_create: false,
-  can_edit: false,
-  can_delete: false,
-  can_create_user: false,
-  can_edit_user: false,
-  can_edit_user_status: false,
-  can_set_user_permissions: false,
-  can_create_section: false,
-  can_edit_section: false,
-  can_delete_section: false,
-  can_create_field: false,
-  can_edit_field: false,
-  can_delete_field: false,
-  can_fill_field: false,
-  can_sign: false,
-  can_insert_logo: false,
-  can_insert_photo: false,
-  can_save: false,
-  can_save_as: false,
-  can_download: false,
-  can_open: false,
-  can_print: false,
-  can_edit_document: false,
-  can_edit_document_type: false,
-  can_mark_complete: false,
-  can_mark_delayed: false,
-  can_add_notes: false,
-  can_view_reports: false,
-  can_view: false,
-  can_edit_action: false,
-  can_edit_client: false,
-  can_delete_client: false,
-  can_edit_company: false,
-  can_delete_company: false,
-  view_all_actions: false
-};
+// Modified to grant all permissions
+const fullPermissions: UserPermissions = Object.keys(
+  {
+    can_create: true,
+    can_edit: true,
+    can_delete: true,
+    can_create_user: true,
+    can_edit_user: true,
+    can_edit_user_status: true,
+    can_set_user_permissions: true,
+    can_create_section: true,
+    can_edit_section: true,
+    can_delete_section: true,
+    can_create_field: true,
+    can_edit_field: true,
+    can_delete_field: true,
+    can_fill_field: true,
+    can_sign: true,
+    can_insert_logo: true,
+    can_insert_photo: true,
+    can_save: true,
+    can_save_as: true,
+    can_download: true,
+    can_open: true,
+    can_print: true,
+    can_edit_document: true,
+    can_edit_document_type: true,
+    can_mark_complete: true,
+    can_mark_delayed: true,
+    can_add_notes: true,
+    can_view_reports: true,
+    can_view: true,
+    can_edit_action: true,
+    can_edit_client: true,
+    can_delete_client: true,
+    can_edit_company: true,
+    can_delete_company: true,
+    view_all_actions: true
+  }
+).reduce((acc, key) => ({ ...acc, [key]: true }), {} as UserPermissions);
 
 // Permissions context
 interface PermissionsContextType {
   permissions: UserPermissions;
   isAdmin: boolean;
   isMaster: boolean;
-  isAuthenticated: boolean; // Add the isAuthenticated property
+  isAuthenticated: boolean;
   loading: boolean;
   checkPermission: (permission: keyof UserPermissions) => boolean;
   refreshPermissions: () => Promise<void>;
 }
 
 const PermissionsContext = createContext<PermissionsContextType>({
-  permissions: defaultPermissions,
-  isAdmin: false,
-  isMaster: false,
-  isAuthenticated: false, // Add default value for isAuthenticated
-  loading: true,
-  checkPermission: () => false,
+  permissions: fullPermissions,
+  isAdmin: true,
+  isMaster: true,
+  isAuthenticated: true,
+  loading: false,
+  checkPermission: () => true,
   refreshPermissions: async () => {}
 });
 
-// Helper function to safely check if a user is a master user
-const isMasterUser = (profile: any): boolean => {
-  if (!profile) return false;
-  
-  // Check by CPF (master CPF hardcoded for security)
-  const masterCPF = '80243088191';
-  const userCPF = profile.cpf ? profile.cpf.replace(/\D/g, '') : '';
-  
-  return userCPF === masterCPF || profile.is_master === true || profile.email === 'fabiano@totalseguranca.net';
-};
-
-// Permissions provider
+// Modified permissions provider to always grant access and permissions
 export function PermissionsProvider({ children }: { children: ReactNode }) {
-  const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isMaster, setIsMaster] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false); // Add state for isAuthenticated
-  const [loading, setLoading] = useState(true);
-  const { toast } = useToast();
-  const [retryCount, setRetryCount] = useState(0);
-  const [userId, setUserId] = useState<string | null>(null);
+  // Always set full permissions, admin, master, and authenticated to true
+  const [permissions] = useState<UserPermissions>(fullPermissions);
+  const [isAdmin] = useState(true);
+  const [isMaster] = useState(true);
+  const [isAuthenticated] = useState(true);
+  const [loading] = useState(false);
 
-  // Load current user permissions
-  const loadPermissions = async () => {
-    try {
-      setLoading(true);
-      
-      // Check if we have an active session
-      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
-      
-      if (sessionError) {
-        throw sessionError;
-      }
-      
-      if (!sessionData.session) {
-        setPermissions(defaultPermissions);
-        setIsAdmin(false);
-        setIsMaster(false);
-        setIsAuthenticated(false); // Update authentication state
-        setLoading(false);
-        return;
-      }
-      
-      const currentUserId = sessionData.session.user.id;
-      setUserId(currentUserId);
-      setIsAuthenticated(true); // User is authenticated if there's a session
-      
-      // Always ensure master user is initialized when checking permissions
-      await ensureMasterUserInitialized();
-      
-      // Check if master user by email
-      const userEmail = sessionData.session.user.email;
-      if (userEmail === 'fabiano@totalseguranca.net') {
-        console.log("User identified as master by email");
-        setIsAdmin(true);
-        setIsMaster(true);
-        
-        // Ensure master user is properly configured in database
-        await AuthService.initMasterUser();
-        
-        // Grant all permissions
-        const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
-          (acc, key) => ({ ...acc, [key]: true }),
-          {} as UserPermissions
-        );
-        
-        setPermissions(allPermissions);
-        setLoading(false);
-        return;
-      }
-      
-      // Try to get user profile first with retry mechanism
-      try {
-        const profileData = await getProfileWithRetry(currentUserId);
-        
-        if (profileData) {
-          // Check if user is master
-          const userIsMaster = isMasterUser(profileData);
-          const userIsAdmin = profileData.is_admin === true || userIsMaster;
-          
-          setIsAdmin(userIsAdmin);
-          setIsMaster(userIsMaster);
-          
-          if (userIsMaster) {
-            // Grant all permissions to master
-            const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
-              (acc, key) => ({ ...acc, [key]: true }),
-              {} as UserPermissions
-            );
-            setPermissions(allPermissions);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (profileError) {
-        console.error("Error fetching profile:", profileError);
-        // Continue with RPC call as fallback
-      }
-      
-      // Use our RPC function to check user role
-      try {
-        const { data: roleData, error: roleError } = await supabase.rpc('check_user_role', {
-          user_id: currentUserId
-        });
-        
-        if (roleError) {
-          console.error("Error getting user role from RPC:", roleError);
-        } else if (roleData && roleData.length > 0) {
-          // RPC returns array with objects containing is_admin and is_master
-          const userIsAdmin = roleData[0].is_admin === true;
-          const userIsMaster = roleData[0].is_master === true;
-          
-          setIsAdmin(userIsAdmin);
-          setIsMaster(userIsMaster);
-          
-          if (userIsMaster) {
-            // Grant all permissions to master
-            const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
-              (acc, key) => ({ ...acc, [key]: true }),
-              {} as UserPermissions
-            );
-            
-            setPermissions(allPermissions);
-            setLoading(false);
-            return;
-          }
-        }
-      } catch (rpcError) {
-        console.error("Error calling RPC function:", rpcError);
-        // Continue to fetch permissions directly
-      }
-      
-      // Get specific user permissions
-      try {
-        const { data: userPermissions, error: permissionsError } = await supabase
-          .from('user_permissions')
-          .select('*')
-          .eq('user_id', currentUserId)
-          .maybeSingle();
-        
-        if (permissionsError) {
-          throw permissionsError;
-        }
-        
-        // Combine default permissions with those from the database
-        if (userPermissions) {
-          // Filter only boolean properties, ignoring 'id', 'user_id', etc.
-          const filteredPermissions: UserPermissions = { ...defaultPermissions };
-          
-          // Process only valid properties that are in defaultPermissions or start with "can_"
-          Object.keys(userPermissions).forEach(key => {
-            if (key in defaultPermissions || key.startsWith('can_') || key.startsWith('view_')) {
-              // Ensure we assign only boolean values
-              filteredPermissions[key] = Boolean(userPermissions[key]);
-            }
-          });
-          
-          // If admin, add administrative permissions
-          if (isAdmin) {
-            filteredPermissions.can_create_user = true;
-            filteredPermissions.can_edit_user = true;
-            filteredPermissions.can_edit_user_status = true;
-            filteredPermissions.can_set_user_permissions = true;
-            filteredPermissions.can_edit_document_type = true;
-          }
-          
-          setPermissions(filteredPermissions);
-        } else if (isAdmin) {
-          // If admin but no permissions found, set basic admin permissions
-          const adminPermissions = { ...defaultPermissions };
-          adminPermissions.can_create_user = true;
-          adminPermissions.can_edit_user = true;
-          adminPermissions.can_edit_user_status = true;
-          adminPermissions.can_set_user_permissions = true;
-          adminPermissions.can_edit_document_type = true;
-          adminPermissions.can_view = true;
-          setPermissions(adminPermissions);
-        }
-      } catch (permError) {
-        console.error("Error loading permissions:", permError);
-        
-        // Use basic permissions if admin or master
-        if (isAdmin || isMaster) {
-          const basicAdminPerms = { ...defaultPermissions };
-          basicAdminPerms.can_create_user = true;
-          basicAdminPerms.can_edit_user = true;
-          basicAdminPerms.can_edit_user_status = true;
-          basicAdminPerms.can_set_user_permissions = true;
-          basicAdminPerms.can_edit_document_type = true;
-          basicAdminPerms.can_view = true;
-          setPermissions(basicAdminPerms);
-        }
-      }
-    } catch (error) {
-      console.error("Error loading permissions:", error);
-      
-      // Retry logic with exponential backoff
-      if (retryCount < 3) {
-        const timeout = Math.pow(2, retryCount) * 1000;
-        console.log(`Retrying in ${timeout}ms (attempt ${retryCount + 1})...`);
-        setTimeout(() => {
-          setRetryCount(retryCount + 1);
-          loadPermissions();
-        }, timeout);
-      } else {
-        toast({
-          variant: "destructive",
-          title: "Erro ao carregar permissões",
-          description: "Não foi possível carregar suas permissões de acesso. Tente recarregar a página."
-        });
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Check if user has a specific permission
-  const checkPermission = (permission: keyof UserPermissions): boolean => {
-    // Master users always have all permissions
-    if (isMaster) return true;
-    
-    // Admin users have all document type editing permissions
-    if (isAdmin && permission === 'can_edit_document_type') return true;
-    
-    // Check if permission exists and is enabled
-    return permissions[permission] === true;
-  };
+  // Check if user has a specific permission (always return true)
+  const checkPermission = () => true;
 
   // Function to force permissions update
   const refreshPermissions = async () => {
-    setRetryCount(0);
-    await loadPermissions();
+    // No need to do anything, permissions are always granted
   };
-
-  // Load permissions on initialization
-  useEffect(() => {
-    loadPermissions();
-    
-    // Listen for auth changes
-    const { data: authListener } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-          setRetryCount(0);
-          setIsAuthenticated(true); // Update authentication state on sign in
-          loadPermissions();
-        } else if (event === 'SIGNED_OUT') {
-          setPermissions(defaultPermissions);
-          setIsAdmin(false);
-          setIsMaster(false);
-          setIsAuthenticated(false); // Update authentication state on sign out
-        }
-      }
-    );
-    
-    return () => {
-      authListener.subscription.unsubscribe();
-    };
-  }, []);
 
   const value = {
     permissions,
     isAdmin,
     isMaster,
-    isAuthenticated, // Include isAuthenticated in the context value
+    isAuthenticated,
     loading,
     checkPermission,
     refreshPermissions

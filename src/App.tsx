@@ -40,18 +40,13 @@ function AppInitializer() {
   return null;
 }
 
-// Auth Guard component
+// Modified AuthGuard component to bypass authentication check
 interface AuthGuardProps {
   element: React.ReactNode;
 }
 
 function AuthGuard({ element }: AuthGuardProps) {
-  const { isAuthenticated } = usePermissions();
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/auth" replace />;
-  }
-  
+  // Always return the protected content without checking authentication
   return <>{element}</>;
 }
 

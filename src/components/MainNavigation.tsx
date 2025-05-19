@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
@@ -7,7 +6,6 @@ import {
   NavigationMenuItem,
   NavigationMenuList,
   NavigationMenuTrigger,
-  NavigationMenuLink,
   navigationMenuTriggerStyle,
 } from "@/components/ui/navigation-menu";
 import {
@@ -19,28 +17,9 @@ import {
   Save,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { usePermissions } from "@/hooks/usePermissions";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 
 const MainNavigation: React.FC = () => {
-  const { isAdmin, isMaster, isAuthenticated } = usePermissions();
-  const { toast } = useToast();
   const navigate = useNavigate();
-
-  const handleAuthRequiredClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
-    if (!isAuthenticated) {
-      e.preventDefault();
-      toast({
-        title: "Acesso restrito",
-        description: "Você precisa estar logado para acessar esta página",
-        variant: "destructive",
-      });
-      navigate("/auth");
-      return false;
-    }
-    return true;
-  };
 
   return (
     <NavigationMenu className="max-w-full w-full justify-start mb-8">
@@ -57,7 +36,6 @@ const MainNavigation: React.FC = () => {
                 <Link
                   to="/form-builder"
                   className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
-                  onClick={(e) => handleAuthRequiredClick(e, "/form-builder")}
                 >
                   <FileEdit className="h-6 w-6 text-primary" />
                   <div className="mb-2 mt-4 text-lg font-medium">
@@ -83,7 +61,6 @@ const MainNavigation: React.FC = () => {
                       <Link
                         to="/analise-risco"
                         className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        onClick={(e) => handleAuthRequiredClick(e, "/analise-risco")}
                       >
                         <div className="text-sm font-medium leading-none flex items-center">
                           <ClipboardCheck className="mr-2 h-4 w-4" />
@@ -99,7 +76,6 @@ const MainNavigation: React.FC = () => {
                       <Link
                         to="/permissao-trabalho"
                         className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho")}
                       >
                         <div className="text-sm font-medium leading-none flex items-center">
                           <ClipboardCheck className="mr-2 h-4 w-4" />
@@ -115,7 +91,6 @@ const MainNavigation: React.FC = () => {
                       <Link
                         to="/permissao-trabalho/quente"
                         className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho/quente")}
                       >
                         <div className="text-sm font-medium leading-none flex items-center">
                           <Flame className="mr-2 h-4 w-4 text-orange-500" />
@@ -131,7 +106,6 @@ const MainNavigation: React.FC = () => {
                       <Link
                         to="/permissao-trabalho/frio"
                         className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho/frio")}
                       >
                         <div className="text-sm font-medium leading-none flex items-center">
                           <Snowflake className="mr-2 h-4 w-4 text-blue-500" />
@@ -147,7 +121,6 @@ const MainNavigation: React.FC = () => {
                       <Link
                         to="/document-creator/test"
                         className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        onClick={(e) => handleAuthRequiredClick(e, "/document-creator/test")}
                       >
                         <div className="text-sm font-medium leading-none flex items-center">
                           <Save className="mr-2 h-4 w-4" />
@@ -165,28 +138,11 @@ const MainNavigation: React.FC = () => {
           </NavigationMenuContent>
         </NavigationMenuItem>
 
-        {/* Login/Logout */}
+        {/* Login/Logout (keeping this but not enforcing authentication) */}
         <NavigationMenuItem className="ml-auto">
-          {isAuthenticated ? (
-            <Link 
-              to="/" 
-              className={cn(navigationMenuTriggerStyle())}
-              onClick={async () => {
-                await supabase.auth.signOut();
-                toast({
-                  title: "Logout realizado com sucesso",
-                  description: "Você foi desconectado"
-                });
-                navigate("/");
-              }}
-            >
-              Sair
-            </Link>
-          ) : (
-            <Link to="/auth" className={cn(navigationMenuTriggerStyle())}>
-              Entrar
-            </Link>
-          )}
+          <Link to="/auth" className={cn(navigationMenuTriggerStyle())}>
+            Entrar/Sair
+          </Link>
         </NavigationMenuItem>
       </NavigationMenuList>
     </NavigationMenu>
