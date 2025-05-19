@@ -1,3 +1,4 @@
+
 // Supabase Edge Function to initialize the master user
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -137,13 +138,14 @@ serve(async (req) => {
             email: masterEmail,
             is_admin: true,
             is_master: true,
-            company_ids: [],
-            client_ids: []
+            company_ids: existingProfileById.company_ids || [],
+            client_ids: existingProfileById.client_ids || []
           })
           .eq("id", masterUserId);
           
         if (updateError) {
           console.error("Error updating profile:", updateError);
+          throw updateError;
         }
       }
     } else {
@@ -163,6 +165,7 @@ serve(async (req) => {
           
         if (deleteError) {
           console.error("Error deleting old profile:", deleteError);
+          throw deleteError;
         }
         
         // Profile has been deleted, set profileExists to false so we create a new one
@@ -185,6 +188,7 @@ serve(async (req) => {
           
         if (updateError) {
           console.error("Error updating profile:", updateError);
+          throw updateError;
         }
       }
     }
@@ -344,5 +348,6 @@ async function setMasterPermissions(supabaseAdmin: any, userId: string) {
     console.log("Master user permissions set successfully");
   } catch (error) {
     console.error("Error setting permissions:", error);
+    throw error; // Re-throw so we can catch it in the main function
   }
 }

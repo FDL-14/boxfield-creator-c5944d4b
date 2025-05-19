@@ -15,11 +15,11 @@ export function processUserProfile(profile: any): any {
     ...profile,
     // Ensure boolean values are properly set
     is_admin: profile.is_admin === true,
-    is_master: profile.is_master === true,
+    is_master: profile.is_master === true || isMasterUser(profile),
     is_face_registered: profile.is_face_registered === true,
     // Ensure arrays are initialized
-    company_ids: profile.company_ids || [],
-    client_ids: profile.client_ids || [],
+    company_ids: Array.isArray(profile.company_ids) ? profile.company_ids : [],
+    client_ids: Array.isArray(profile.client_ids) ? profile.client_ids : [],
     // Process nested permissions if present
     permissions: profile.permissions || []
   };
