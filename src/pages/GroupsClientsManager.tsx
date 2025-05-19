@@ -27,11 +27,18 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
 import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 
 interface Group {
   id: string;
   name: string;
   description: string | null;
+  phone: string | null;
+  email: string | null;
+  contact_name: string | null;
+  notes: string | null;
+  is_active: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -39,9 +46,22 @@ interface Group {
 const GroupsClientsManager: React.FC = () => {
   const [groups, setGroups] = useState<Group[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
-  const [newGroup, setNewGroup] = useState<{ name: string; description: string }>({
+  const [newGroup, setNewGroup] = useState<{
+    name: string;
+    description: string;
+    phone: string;
+    email: string;
+    contact_name: string;
+    notes: string;
+    is_active: boolean;
+  }>({
     name: '',
     description: '',
+    phone: '',
+    email: '',
+    contact_name: '',
+    notes: '',
+    is_active: true,
   });
   const [editingGroup, setEditingGroup] = useState<Group | null>(null);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -95,6 +115,11 @@ const GroupsClientsManager: React.FC = () => {
           {
             name: newGroup.name,
             description: newGroup.description || null,
+            phone: newGroup.phone || null,
+            email: newGroup.email || null,
+            contact_name: newGroup.contact_name || null,
+            notes: newGroup.notes || null,
+            is_active: newGroup.is_active,
           },
         ])
         .select();
@@ -102,7 +127,15 @@ const GroupsClientsManager: React.FC = () => {
       if (error) throw error;
 
       setGroups([...(data || []), ...groups]);
-      setNewGroup({ name: '', description: '' });
+      setNewGroup({ 
+        name: '', 
+        description: '', 
+        phone: '', 
+        email: '', 
+        contact_name: '', 
+        notes: '', 
+        is_active: true 
+      });
       toast({
         title: 'Grupo criado',
         description: 'O grupo foi criado com sucesso.',
@@ -137,6 +170,11 @@ const GroupsClientsManager: React.FC = () => {
         .update({
           name: editingGroup.name,
           description: editingGroup.description,
+          phone: editingGroup.phone,
+          email: editingGroup.email,
+          contact_name: editingGroup.contact_name,
+          notes: editingGroup.notes,
+          is_active: editingGroup.is_active,
           updated_at: new Date().toISOString(),
         })
         .eq('id', editingGroup.id);
@@ -224,11 +262,43 @@ const GroupsClientsManager: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Input
-                    placeholder="Nome do grupo"
+                    placeholder="Nome do grupo *"
                     value={newGroup.name}
                     onChange={(e) => setNewGroup({ ...newGroup, name: e.target.value })}
                     disabled={loading}
+                    className="mb-1"
                   />
+                  <span className="text-xs text-muted-foreground">Nome do grupo/cliente</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="Telefone"
+                    value={newGroup.phone}
+                    onChange={(e) => setNewGroup({ ...newGroup, phone: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Telefone de contato</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="E-mail"
+                    value={newGroup.email}
+                    onChange={(e) => setNewGroup({ ...newGroup, email: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">E-mail de contato</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="Nome do responsável/contato"
+                    value={newGroup.contact_name}
+                    onChange={(e) => setNewGroup({ ...newGroup, contact_name: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Nome do responsável</span>
                 </div>
                 <div className="md:col-span-2">
                   <Textarea
@@ -236,13 +306,34 @@ const GroupsClientsManager: React.FC = () => {
                     value={newGroup.description}
                     onChange={(e) => setNewGroup({ ...newGroup, description: e.target.value })}
                     disabled={loading}
+                    className="mb-1"
                   />
+                  <span className="text-xs text-muted-foreground">Breve descrição do grupo/cliente</span>
+                </div>
+                <div className="md:col-span-2">
+                  <Textarea
+                    placeholder="Observações (opcional)"
+                    value={newGroup.notes}
+                    onChange={(e) => setNewGroup({ ...newGroup, notes: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Outras informações relevantes</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="is-active-new"
+                    checked={newGroup.is_active} 
+                    onCheckedChange={(checked) => setNewGroup({...newGroup, is_active: checked})}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="is-active-new">Ativo</Label>
                 </div>
               </div>
 
               <Button onClick={handleCreateGroup} disabled={loading || !canEdit}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-                Adicionar Grupo
+                Adicionar Grupo/Cliente
               </Button>
 
               {loading && <div className="py-4">Carregando...</div>}
@@ -252,7 +343,10 @@ const GroupsClientsManager: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>Descrição</TableHead>
+                      <TableHead>Contato</TableHead>
+                      <TableHead>E-mail</TableHead>
+                      <TableHead>Telefone</TableHead>
+                      <TableHead>Status</TableHead>
                       <TableHead className="w-[150px]">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -260,7 +354,14 @@ const GroupsClientsManager: React.FC = () => {
                     {groups.map((group) => (
                       <TableRow key={group.id}>
                         <TableCell>{group.name}</TableCell>
-                        <TableCell>{group.description}</TableCell>
+                        <TableCell>{group.contact_name}</TableCell>
+                        <TableCell>{group.email}</TableCell>
+                        <TableCell>{group.phone}</TableCell>
+                        <TableCell>
+                          <span className={`px-2 py-1 rounded text-xs ${group.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                            {group.is_active ? 'Ativo' : 'Inativo'}
+                          </span>
+                        </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
                             {canEdit && (
@@ -280,7 +381,7 @@ const GroupsClientsManager: React.FC = () => {
                   </TableBody>
                 </Table>
               ) : (
-                <div className="text-center py-4">Nenhum grupo encontrado.</div>
+                <div className="text-center py-4">Nenhum grupo/cliente encontrado.</div>
               )}
             </div>
           ) : (
@@ -288,11 +389,43 @@ const GroupsClientsManager: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Input
-                    placeholder="Nome do grupo"
+                    placeholder="Nome do grupo *"
                     value={editingGroup?.name || ''}
                     onChange={(e) => setEditingGroup({ ...editingGroup!, name: e.target.value })}
                     disabled={loading}
+                    className="mb-1"
                   />
+                  <span className="text-xs text-muted-foreground">Nome do grupo/cliente</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="Telefone"
+                    value={editingGroup?.phone || ''}
+                    onChange={(e) => setEditingGroup({ ...editingGroup!, phone: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Telefone de contato</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="E-mail"
+                    value={editingGroup?.email || ''}
+                    onChange={(e) => setEditingGroup({ ...editingGroup!, email: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">E-mail de contato</span>
+                </div>
+                <div>
+                  <Input
+                    placeholder="Nome do responsável/contato"
+                    value={editingGroup?.contact_name || ''}
+                    onChange={(e) => setEditingGroup({ ...editingGroup!, contact_name: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Nome do responsável</span>
                 </div>
                 <div className="md:col-span-2">
                   <Textarea
@@ -300,7 +433,28 @@ const GroupsClientsManager: React.FC = () => {
                     value={editingGroup?.description || ''}
                     onChange={(e) => setEditingGroup({ ...editingGroup!, description: e.target.value })}
                     disabled={loading}
+                    className="mb-1"
                   />
+                  <span className="text-xs text-muted-foreground">Breve descrição do grupo/cliente</span>
+                </div>
+                <div className="md:col-span-2">
+                  <Textarea
+                    placeholder="Observações (opcional)"
+                    value={editingGroup?.notes || ''}
+                    onChange={(e) => setEditingGroup({ ...editingGroup!, notes: e.target.value })}
+                    disabled={loading}
+                    className="mb-1"
+                  />
+                  <span className="text-xs text-muted-foreground">Outras informações relevantes</span>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <Switch 
+                    id="is-active-edit"
+                    checked={editingGroup?.is_active || false} 
+                    onCheckedChange={(checked) => setEditingGroup({...editingGroup!, is_active: checked})}
+                    disabled={loading}
+                  />
+                  <Label htmlFor="is-active-edit">Ativo</Label>
                 </div>
               </div>
 

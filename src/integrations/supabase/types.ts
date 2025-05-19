@@ -244,42 +244,87 @@ export type Database = {
       companies_units: {
         Row: {
           address: string | null
+          city: string | null
+          cnae_description: string | null
+          cnae_main: string | null
           cnpj: string | null
+          complement: string | null
+          contact_email: string | null
+          contact_name: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
+          district: string | null
+          fantasy_name: string | null
           group_client_id: string | null
           id: string
+          inscription_type: string | null
+          is_active: boolean | null
           is_deleted: boolean | null
           name: string
+          number: string | null
           phone: string | null
+          social_name: string | null
+          state: string | null
+          street: string | null
           updated_at: string | null
+          zip_code: string | null
         }
         Insert: {
           address?: string | null
+          city?: string | null
+          cnae_description?: string | null
+          cnae_main?: string | null
           cnpj?: string | null
+          complement?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          district?: string | null
+          fantasy_name?: string | null
           group_client_id?: string | null
           id?: string
+          inscription_type?: string | null
+          is_active?: boolean | null
           is_deleted?: boolean | null
           name: string
+          number?: string | null
           phone?: string | null
+          social_name?: string | null
+          state?: string | null
+          street?: string | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Update: {
           address?: string | null
+          city?: string | null
+          cnae_description?: string | null
+          cnae_main?: string | null
           cnpj?: string | null
+          complement?: string | null
+          contact_email?: string | null
+          contact_name?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          district?: string | null
+          fantasy_name?: string | null
           group_client_id?: string | null
           id?: string
+          inscription_type?: string | null
+          is_active?: boolean | null
           is_deleted?: boolean | null
           name?: string
+          number?: string | null
           phone?: string | null
+          social_name?: string | null
+          state?: string | null
+          street?: string | null
           updated_at?: string | null
+          zip_code?: string | null
         }
         Relationships: [
           {
@@ -411,30 +456,45 @@ export type Database = {
       }
       groups_clients: {
         Row: {
+          contact_name: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
+          email: string | null
           id: string
+          is_active: boolean | null
           is_deleted: boolean | null
           name: string
+          notes: string | null
+          phone: string | null
           updated_at: string | null
         }
         Insert: {
+          contact_name?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          email?: string | null
           id?: string
+          is_active?: boolean | null
           is_deleted?: boolean | null
           name: string
+          notes?: string | null
+          phone?: string | null
           updated_at?: string | null
         }
         Update: {
+          contact_name?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          email?: string | null
           id?: string
+          is_active?: boolean | null
           is_deleted?: boolean | null
           name?: string
+          notes?: string | null
+          phone?: string | null
           updated_at?: string | null
         }
         Relationships: []
@@ -481,52 +541,105 @@ export type Database = {
       persons_employees: {
         Row: {
           address: string | null
+          admission_date: string | null
+          birth_date: string | null
+          cbo: string | null
           cpf: string | null
           created_at: string | null
           created_by: string | null
+          dismissal_date: string | null
           email: string | null
+          esocial_registration: string | null
+          gender: string | null
           id: string
+          internal_registration: string | null
+          is_active: boolean | null
           is_deleted: boolean | null
           name: string
+          nis: string | null
           phone: string | null
+          position_id: string | null
           position_role_id: string | null
+          rg: string | null
+          rg_state: string | null
+          sector_department_id: string | null
           updated_at: string | null
           user_id: string | null
         }
         Insert: {
           address?: string | null
+          admission_date?: string | null
+          birth_date?: string | null
+          cbo?: string | null
           cpf?: string | null
           created_at?: string | null
           created_by?: string | null
+          dismissal_date?: string | null
           email?: string | null
+          esocial_registration?: string | null
+          gender?: string | null
           id?: string
+          internal_registration?: string | null
+          is_active?: boolean | null
           is_deleted?: boolean | null
           name: string
+          nis?: string | null
           phone?: string | null
+          position_id?: string | null
           position_role_id?: string | null
+          rg?: string | null
+          rg_state?: string | null
+          sector_department_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Update: {
           address?: string | null
+          admission_date?: string | null
+          birth_date?: string | null
+          cbo?: string | null
           cpf?: string | null
           created_at?: string | null
           created_by?: string | null
+          dismissal_date?: string | null
           email?: string | null
+          esocial_registration?: string | null
+          gender?: string | null
           id?: string
+          internal_registration?: string | null
+          is_active?: boolean | null
           is_deleted?: boolean | null
           name?: string
+          nis?: string | null
           phone?: string | null
+          position_id?: string | null
           position_role_id?: string | null
+          rg?: string | null
+          rg_state?: string | null
+          sector_department_id?: string | null
           updated_at?: string | null
           user_id?: string | null
         }
         Relationships: [
           {
+            foreignKeyName: "persons_employees_position_id_fkey"
+            columns: ["position_id"]
+            isOneToOne: false
+            referencedRelation: "positions_roles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "persons_employees_position_role_id_fkey"
             columns: ["position_role_id"]
             isOneToOne: false
             referencedRelation: "positions_roles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "persons_employees_sector_department_id_fkey"
+            columns: ["sector_department_id"]
+            isOneToOne: false
+            referencedRelation: "sectors_departments"
             referencedColumns: ["id"]
           },
         ]
@@ -660,34 +773,61 @@ export type Database = {
       }
       sectors_departments: {
         Row: {
+          area: number | null
+          building_type: string | null
+          ceiling_height: number | null
+          closure_type: string | null
           company_unit_id: string | null
+          cover_type: string | null
           created_at: string | null
           created_by: string | null
           description: string | null
+          floor_type: string | null
           id: string
+          is_active: boolean | null
           is_deleted: boolean | null
+          lighting_type: string | null
           name: string
           updated_at: string | null
+          ventilation_type: string | null
         }
         Insert: {
+          area?: number | null
+          building_type?: string | null
+          ceiling_height?: number | null
+          closure_type?: string | null
           company_unit_id?: string | null
+          cover_type?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          floor_type?: string | null
           id?: string
+          is_active?: boolean | null
           is_deleted?: boolean | null
+          lighting_type?: string | null
           name: string
           updated_at?: string | null
+          ventilation_type?: string | null
         }
         Update: {
+          area?: number | null
+          building_type?: string | null
+          ceiling_height?: number | null
+          closure_type?: string | null
           company_unit_id?: string | null
+          cover_type?: string | null
           created_at?: string | null
           created_by?: string | null
           description?: string | null
+          floor_type?: string | null
           id?: string
+          is_active?: boolean | null
           is_deleted?: boolean | null
+          lighting_type?: string | null
           name?: string
           updated_at?: string | null
+          ventilation_type?: string | null
         }
         Relationships: [
           {
