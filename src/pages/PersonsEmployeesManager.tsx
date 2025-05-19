@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -147,9 +148,12 @@ const PersonsEmployeesManager: React.FC = () => {
         // Handle the potential error case by providing default values
         const position_name = person.positions_roles?.name || 'Sem cargo';
         
-        // Safely access the email property
+        // Safely access the email property with proper null checks
         let user_email = null;
-        if (person.profiles && typeof person.profiles === 'object' && 'email' in person.profiles) {
+        if (person.profiles && 
+            typeof person.profiles === 'object' && 
+            person.profiles !== null && 
+            'email' in person.profiles) {
           user_email = person.profiles.email;
         }
         
