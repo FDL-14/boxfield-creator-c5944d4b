@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,7 +23,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, Pencil, Trash2, BuildingOffice2 } from 'lucide-react';
+import { Loader2, Pencil, Trash2, Building } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -336,7 +335,7 @@ const CompaniesManager: React.FC = () => {
             onClick={() => setIsEditing(false)} 
             className="flex items-center gap-2"
           >
-            <BuildingOffice2 className="h-4 w-4" />
+            <Building className="h-4 w-4" />
             Inserir Nova Empresa
           </Button>
         }
