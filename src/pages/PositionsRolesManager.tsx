@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -131,6 +132,7 @@ const PositionsRolesManager: React.FC = () => {
       }
 
       setLoading(true);
+      
       const { data, error } = await supabase
         .from('positions_roles')
         .insert([
@@ -144,7 +146,12 @@ const PositionsRolesManager: React.FC = () => {
 
       if (error) throw error;
 
-      setNewPosition({ name: '', description: '', sector_department_id: '' });
+      setNewPosition({
+        name: '',
+        description: '',
+        sector_department_id: '',
+      });
+      
       toast({
         title: 'Cargo criado',
         description: 'O cargo foi criado com sucesso.',
@@ -267,22 +274,25 @@ const PositionsRolesManager: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Input
-                    placeholder="Nome do cargo/função"
+                    placeholder="Nome do cargo/função *"
                     value={newPosition.name}
                     onChange={(e) => setNewPosition({ ...newPosition, name: e.target.value })}
                     disabled={loading}
+                    className="mb-1"
                   />
+                  <span className="text-xs text-muted-foreground">Nome do cargo/função</span>
                 </div>
                 <div>
                   <Select
-                    value={newPosition.sector_department_id}
-                    onValueChange={(value) => setNewPosition({ ...newPosition, sector_department_id: value })}
+                    value={newPosition.sector_department_id || 'none'}
+                    onValueChange={(value) => setNewPosition({ ...newPosition, sector_department_id: value === 'none' ? '' : value })}
                     disabled={loading}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="mb-1">
                       <SelectValue placeholder="Selecione um setor" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {sectors.map((sector) => (
                         <SelectItem key={sector.id} value={sector.id}>
                           {sector.name}
@@ -290,14 +300,17 @@ const PositionsRolesManager: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  <span className="text-xs text-muted-foreground">Setor relacionado</span>
                 </div>
-                <div>
+                <div className="md:col-span-3">
                   <Textarea
                     placeholder="Descrição (opcional)"
                     value={newPosition.description}
                     onChange={(e) => setNewPosition({ ...newPosition, description: e.target.value })}
                     disabled={loading}
+                    className="mb-1"
                   />
+                  <span className="text-xs text-muted-foreground">Informações adicionais sobre o cargo</span>
                 </div>
               </div>
 
@@ -313,7 +326,7 @@ const PositionsRolesManager: React.FC = () => {
                   <TableHeader>
                     <TableRow>
                       <TableHead>Nome</TableHead>
-                      <TableHead>Setor</TableHead>
+                      <TableHead>Setor/Departamento</TableHead>
                       <TableHead>Descrição</TableHead>
                       <TableHead className="w-[150px]">Ações</TableHead>
                     </TableRow>
@@ -351,22 +364,25 @@ const PositionsRolesManager: React.FC = () => {
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <Input
-                    placeholder="Nome do cargo/função"
+                    placeholder="Nome do cargo/função *"
                     value={editingPosition?.name || ''}
                     onChange={(e) => setEditingPosition({ ...editingPosition!, name: e.target.value })}
                     disabled={loading}
+                    className="mb-1"
                   />
+                  <span className="text-xs text-muted-foreground">Nome do cargo/função</span>
                 </div>
                 <div>
                   <Select
-                    value={editingPosition?.sector_department_id || ''}
-                    onValueChange={(value) => setEditingPosition({ ...editingPosition!, sector_department_id: value })}
+                    value={editingPosition?.sector_department_id || 'none'}
+                    onValueChange={(value) => setEditingPosition({ ...editingPosition!, sector_department_id: value === 'none' ? null : value })}
                     disabled={loading}
                   >
-                    <SelectTrigger>
+                    <SelectTrigger className="mb-1">
                       <SelectValue placeholder="Selecione um setor" />
                     </SelectTrigger>
                     <SelectContent>
+                      <SelectItem value="none">Nenhum</SelectItem>
                       {sectors.map((sector) => (
                         <SelectItem key={sector.id} value={sector.id}>
                           {sector.name}
@@ -374,14 +390,17 @@ const PositionsRolesManager: React.FC = () => {
                       ))}
                     </SelectContent>
                   </Select>
+                  <span className="text-xs text-muted-foreground">Setor relacionado</span>
                 </div>
-                <div>
+                <div className="md:col-span-3">
                   <Textarea
                     placeholder="Descrição (opcional)"
                     value={editingPosition?.description || ''}
                     onChange={(e) => setEditingPosition({ ...editingPosition!, description: e.target.value })}
                     disabled={loading}
+                    className="mb-1"
                   />
+                  <span className="text-xs text-muted-foreground">Informações adicionais sobre o cargo</span>
                 </div>
               </div>
 

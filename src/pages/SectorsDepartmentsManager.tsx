@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -415,16 +416,17 @@ const SectorsDepartmentsManager: React.FC = () => {
             </div>
             <div>
               <Select
-                value={isUpdate ? editingSector?.company_unit_id || '' : sector.company_unit_id}
+                value={isUpdate ? editingSector?.company_unit_id || 'none' : sector.company_unit_id || 'none'}
                 onValueChange={(value) => isUpdate ? 
-                  setEditingSector({ ...editingSector!, company_unit_id: value }) : 
-                  setNewSector({ ...newSector, company_unit_id: value })}
+                  setEditingSector({ ...editingSector!, company_unit_id: value === 'none' ? null : value }) : 
+                  setNewSector({ ...newSector, company_unit_id: value === 'none' ? '' : value })}
                 disabled={loading}
               >
                 <SelectTrigger className="mb-1">
                   <SelectValue placeholder="Selecione uma unidade" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">Nenhuma</SelectItem>
                   {companyUnits.map((unit) => (
                     <SelectItem key={unit.id} value={unit.id}>
                       {unit.name}
