@@ -10,6 +10,7 @@ import { FileText, Plus, Pencil, Trash2, Save, FilePlus, FolderTree } from "luci
 import { supabase, processUserProfile } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DocumentService } from "@/services/documentService";
+import { AuthService } from "@/services/authService"; // Added import for AuthService
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SavedDocumentsDialog from "@/components/SavedDocumentsDialog";
 import MainHeader from "@/components/MainHeader";
