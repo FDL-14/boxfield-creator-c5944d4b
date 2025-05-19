@@ -142,11 +142,23 @@ const PersonsEmployeesManager: React.FC = () => {
 
       if (error) throw error;
 
-      const formattedPersons = data?.map((person) => ({
-        ...person,
-        position_name: person.positions_roles?.name || 'Sem cargo',
-        user_email: person.profiles?.email || null,
-      })) || [];
+      // Transform the data to handle the SelectQueryError
+      const formattedPersons = data?.map((person) => {
+        // Handle the potential error case by providing default values
+        const position_name = person.positions_roles?.name || 'Sem cargo';
+        
+        // Safely access the email property
+        let user_email = null;
+        if (person.profiles && typeof person.profiles === 'object' && 'email' in person.profiles) {
+          user_email = person.profiles.email;
+        }
+        
+        return {
+          ...person,
+          position_name,
+          user_email,
+        };
+      }) || [];
 
       setPersons(formattedPersons);
     } catch (error: any) {
