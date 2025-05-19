@@ -171,7 +171,9 @@ export default function UsersManager() {
           email: user.email,
           cpf: user.user_metadata?.cpf,
           is_admin: false,
-          is_master: false
+          is_master: false,
+          company_ids: [],  // Inicializar como arrays vazios
+          client_ids: []    // Inicializar como arrays vazios
         };
         
         // Create basic profile
@@ -215,13 +217,14 @@ export default function UsersManager() {
       }
       
       // Verifica se é o usuário master por CPF
-      const isSpecialMaster = isMasterUser(currentUserProfile);
+      const isSpecialMaster = currentUserProfile ? isMasterUser(currentUserProfile) : false;
       
       // Check if user has permission to access this page
       if (!isSpecialMaster && 
-          !currentUserProfile?.is_admin && 
-          !currentUserProfile?.is_master && 
-          (!currentUserProfile?.permissions || !currentUserProfile?.permissions[0]?.can_create_user)) {
+          currentUserProfile && !currentUserProfile.is_admin && 
+          !currentUserProfile.is_master && 
+          (!currentUserProfile.permissions || 
+           !currentUserProfile.permissions[0]?.can_create_user)) {
         toast({
           title: "Acesso negado",
           description: "Você não tem permissão para gerenciar usuários.",
@@ -680,7 +683,7 @@ export default function UsersManager() {
     if (!currentUserProfile) return false;
     
     // Check if user is master by CPF
-    if (isMasterUser(currentUserProfile)) {
+    if (currentUserProfile && isMasterUser(currentUserProfile)) {
       return true;
     }
     
