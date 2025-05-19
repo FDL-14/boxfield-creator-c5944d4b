@@ -1,14 +1,16 @@
+
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import MainHeader from "@/components/MainHeader";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase, processUserProfile, cleanCPF, isMasterUser } from "@/integrations/supabase/client";
-import { AuthService } from "@/services/authService"; // Ensure this import is present
+import { AuthService } from "@/services/authService"; 
 import { User, PlusCircle, Pencil, Trash2, Shield, Mail, Key, Loader2, Check, X, RotateCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
