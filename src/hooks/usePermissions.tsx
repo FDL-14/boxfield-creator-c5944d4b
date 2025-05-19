@@ -1,4 +1,3 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -198,14 +197,14 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
             .from('profiles')
             .select('is_admin, is_master, cpf')
             .eq('id', currentUserId)
-            .single();
+            .maybeSingle();
           
           if (userError) throw userError;
           
           // Check if user is master
-          const userIsMaster = isMasterUser(userData);
+          const userIsMaster = userData?.is_master === true || userData?.cpf === '80243088191';
           
-          setIsAdmin(userData.is_admin || userIsMaster);
+          setIsAdmin(userData?.is_admin === true || userIsMaster);
           setIsMaster(userIsMaster);
           
           if (userIsMaster) {
@@ -262,7 +261,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
           
           // Process only valid properties that are in defaultPermissions or start with "can_"
           Object.keys(userPermissions).forEach(key => {
-            if (key in defaultPermissions || key.startsWith('can_')) {
+            if (key in defaultPermissions || key.startsWith('can_') || key.startsWith('view_')) {
               // Ensure we assign only boolean values
               filteredPermissions[key] = Boolean(userPermissions[key]);
             }

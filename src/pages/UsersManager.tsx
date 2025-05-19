@@ -181,21 +181,29 @@ export default function UsersManager() {
       // Profile doesn't exist, try to initialize master user
       console.log("Profile not found, attempting to initialize master user...");
       
-      // Initialize the master user
-      const initResult = await AuthService.initMasterUser();
+      // Initialize the master user with multiple retries
+      let initResult = null;
+      const maxRetries = 3;
       
-      if (!initResult.success) {
-        console.error("Error initializing master user:", initResult.error);
-        toast({
-          title: "Erro de inicialização",
-          description: `Não foi possível inicializar o perfil: ${initResult.error}`,
-          variant: "destructive"
-        });
-        navigate('/');
-        return;
+      for (let i = 0; i < maxRetries; i++) {
+        console.log(`Attempt ${i+1} to initialize master user...`);
+        initResult = await AuthService.initMasterUser();
+        
+        if (initResult.success && initResult.profile) {
+          console.log(`Master user initialization successful on attempt ${i+1}:`, initResult);
+          break;
+        } else {
+          console.error(`Master user initialization failed on attempt ${i+1}:`, initResult.error);
+          // Wait a bit before retrying
+          if (i < maxRetries - 1) {
+            await new Promise(resolve => setTimeout(resolve, 1500 * (i + 1)));
+          }
+        }
       }
       
-      console.log("Master user initialization successful:", initResult);
+      if (!initResult?.success) {
+        throw new Error(`Failed to initialize master user after ${maxRetries} attempts: ${initResult?.error || "Unknown error"}`);
+      }
       
       // If we have a profile from initialization, use it directly
       if (initResult.profile) {

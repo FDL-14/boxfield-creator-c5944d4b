@@ -4,7 +4,13 @@ import type { Database } from "./types";
 
 export const supabase = createClient<Database>(
   "https://tsjdsbxgottssqqlzfxl.supabase.co",
-  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzamRzYnhnb3R0c3NxcWx6ZnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ1ODM3NDgsImV4cCI6MjA2MDE1OTc0OH0.3WVd3cIBxyUlJGBjCzwLs5YY14xC6ZNtMbb5zuxF0EY"
+  "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRzamRzYnhnb3R0c3NxcWx6ZnhsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDQ1ODM3NDgsImV4cCI6MjA2MDE1OTc0OH0.3WVd3cIBxyUlJGBjCzwLs5YY14xC6ZNtMbb5zuxF0EY",
+  {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true
+    }
+  }
 );
 
 // Helper to process user profile
@@ -21,8 +27,10 @@ export function processUserProfile(profile: any): any {
     // Initialize arrays if they don't exist or aren't arrays
     company_ids: Array.isArray(profile.company_ids) ? profile.company_ids : [],
     client_ids: Array.isArray(profile.client_ids) ? profile.client_ids : [],
-    // Ensure permissions is an array, even if empty
-    permissions: Array.isArray(profile.permissions) ? profile.permissions : []
+    // Process permissions correctly - ensure it's always an array
+    permissions: profile.permissions ? 
+      (Array.isArray(profile.permissions) ? profile.permissions : [profile.permissions]) : 
+      []
   };
 
   return processedProfile;

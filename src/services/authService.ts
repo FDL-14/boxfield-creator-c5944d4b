@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -217,6 +218,26 @@ export const AuthService = {
   initMasterUser: async () => {
     try {
       console.log("Initializing master user...");
+      
+      // First check if we already have a session and profile
+      const { data: sessionData } = await supabase.auth.getSession();
+      
+      if (sessionData?.session) {
+        const userId = sessionData.session.user.id;
+        
+        // Check if profile already exists before creating
+        const { data: existingProfile, error: profileCheckError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userId)
+          .maybeSingle();
+          
+        if (!profileCheckError && existingProfile) {
+          console.log("Master user profile already exists:", existingProfile);
+          return { success: true, userId, profile: existingProfile };
+        }
+      }
+      
       const response = await fetch(
         "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/init-master-user",
         { 
@@ -233,24 +254,41 @@ export const AuthService = {
       const result = await response.json();
       console.log("Master user initialization result:", result);
       
+      if (!result.success || !result.userId) {
+        throw new Error("Master user initialization did not return success or user ID");
+      }
+      
       // Add a delay to ensure database changes propagate
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Verify the profile was created correctly by fetching it directly
-      const { data: profileCheck, error: profileError } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', result.userId || '')
-        .maybeSingle();
+      const maxRetries = 3;
+      let profileCheck = null;
+      let profileError = null;
+      
+      // Try multiple times with increasing delays to account for database propagation
+      for (let i = 0; i < maxRetries; i++) {
+        console.log(`Attempt ${i+1} to verify profile creation...`);
         
-      if (profileError) {
-        console.error("Error verifying profile creation:", profileError);
-        throw new Error(`Error verifying profile creation: ${profileError.message}`);
+        const { data: fetchedProfile, error: fetchError } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', result.userId)
+          .maybeSingle();
+        
+        if (!fetchError && fetchedProfile) {
+          profileCheck = fetchedProfile;
+          break;
+        } else {
+          profileError = fetchError;
+          // Wait a bit longer before retrying
+          await new Promise(resolve => setTimeout(resolve, 1500 * (i + 1)));
+        }
       }
       
       if (!profileCheck) {
-        console.error("Profile verification failed: Profile not found after initialization");
-        throw new Error("Profile verification failed: Profile not found after initialization");
+        console.error("Profile verification failed after multiple attempts:", profileError);
+        throw new Error("Profile verification failed: Profile not found after initialization after multiple attempts");
       }
       
       console.log("Profile verification successful:", profileCheck);
