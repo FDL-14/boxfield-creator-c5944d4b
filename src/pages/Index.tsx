@@ -6,9 +6,27 @@ import { FileText, Users, Building2, BarChart3, ClipboardCheck, FileEdit, Layout
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
 import MainNavigation from "@/components/MainNavigation";
+import { useNavigate } from "react-router-dom";
+import { useToast } from "@/hooks/use-toast";
 
 const Index = () => {
   const { isAdmin, isMaster, isAuthenticated } = usePermissions();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const handleAuthRequiredClick = (e: React.MouseEvent<HTMLAnchorElement>, path: string) => {
+    if (!isAuthenticated) {
+      e.preventDefault();
+      toast({
+        title: "Acesso restrito",
+        description: "Você precisa estar logado para acessar esta página",
+        variant: "destructive",
+      });
+      navigate("/auth");
+      return false;
+    }
+    return true;
+  };
   
   return (
     <div className="container mx-auto py-6">
@@ -43,7 +61,12 @@ const Index = () => {
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full" disabled={!isAuthenticated}>
-              <Link to="/form-builder">Acessar</Link>
+              <Link 
+                to="/form-builder"
+                onClick={(e) => handleAuthRequiredClick(e, "/form-builder")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -65,7 +88,12 @@ const Index = () => {
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full" disabled={!isAuthenticated}>
-              <Link to="/analise-risco">Acessar</Link>
+              <Link 
+                to="/analise-risco"
+                onClick={(e) => handleAuthRequiredClick(e, "/analise-risco")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -87,7 +115,12 @@ const Index = () => {
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full" disabled={!isAuthenticated}>
-              <Link to="/permissao-trabalho">Acessar</Link>
+              <Link 
+                to="/permissao-trabalho"
+                onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -109,7 +142,12 @@ const Index = () => {
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full" disabled={!isAuthenticated}>
-              <Link to="/relatorios/analise-risco">Acessar</Link>
+              <Link 
+                to="/relatorios/analise-risco"
+                onClick={(e) => handleAuthRequiredClick(e, "/relatorios/analise-risco")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -131,7 +169,12 @@ const Index = () => {
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full" disabled={!isAuthenticated}>
-              <Link to="/document-types">Acessar</Link>
+              <Link 
+                to="/document-types"
+                onClick={(e) => handleAuthRequiredClick(e, "/document-types")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -153,11 +196,17 @@ const Index = () => {
           </CardContent>
           <CardFooter>
             <Button asChild className="w-full" disabled={!isAdmin && !isMaster || !isAuthenticated}>
-              <Link to="/users">Acessar</Link>
+              <Link 
+                to="/users"
+                onClick={(e) => handleAuthRequiredClick(e, "/users")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
 
+        {/* Additional cards below follow the same pattern - adding onClick handlers */}
         <Card className="flex flex-col">
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -174,8 +223,13 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
-              <Link to="/groups">Acessar</Link>
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
+              <Link 
+                to="/groups"
+                onClick={(e) => handleAuthRequiredClick(e, "/groups")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -196,8 +250,13 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
-              <Link to="/companies">Acessar</Link>
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
+              <Link 
+                to="/companies"
+                onClick={(e) => handleAuthRequiredClick(e, "/companies")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -218,8 +277,13 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
-              <Link to="/sectors">Acessar</Link>
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
+              <Link 
+                to="/sectors"
+                onClick={(e) => handleAuthRequiredClick(e, "/sectors")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -240,8 +304,13 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
-              <Link to="/positions">Acessar</Link>
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
+              <Link 
+                to="/positions"
+                onClick={(e) => handleAuthRequiredClick(e, "/positions")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>
@@ -262,8 +331,13 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
-              <Link to="/persons">Acessar</Link>
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
+              <Link 
+                to="/persons"
+                onClick={(e) => handleAuthRequiredClick(e, "/persons")}
+              >
+                Acessar
+              </Link>
             </Button>
           </CardFooter>
         </Card>

@@ -24,6 +24,7 @@ import GroupsClientsManager from "./pages/GroupsClientsManager";
 import SectorsDepartmentsManager from "./pages/SectorsDepartmentsManager";
 import PositionsRolesManager from "./pages/PositionsRolesManager";
 import PersonsEmployeesManager from "./pages/PersonsEmployeesManager";
+import { usePermissions } from "@/hooks/usePermissions";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +45,16 @@ interface AuthGuardProps {
   element: React.ReactNode;
 }
 
+function AuthGuard({ element }: AuthGuardProps) {
+  const { isAuthenticated } = usePermissions();
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/auth" replace />;
+  }
+  
+  return <>{element}</>;
+}
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>
@@ -53,24 +64,24 @@ const App = () => {
             <AppInitializer />
             <Routes>
               <Route path="/" element={<Index />} />
-              <Route path="/form-builder" element={<FormBuilder />} />
-              <Route path="/analise-risco" element={<AnaliseRisco />} />
-              <Route path="/permissao-trabalho" element={<PermissaoTrabalho />} />
-              <Route path="/permissao-trabalho/quente" element={<PermissaoTrabalho />} />
-              <Route path="/permissao-trabalho/frio" element={<PermissaoTrabalho />} />
-              <Route path="/relatorios/analise-risco" element={<RelatoriosAnaliseRisco />} />
-              <Route path="/document-types" element={<DocumentTypes />} />
-              <Route path="/document-creator" element={<DocumentCreator />} />
-              <Route path="/document-creator/:docType" element={<DocumentCreator />} />
-              <Route path="/biometrics" element={<BiometricsManager />} />
+              <Route path="/form-builder" element={<AuthGuard element={<FormBuilder />} />} />
+              <Route path="/analise-risco" element={<AuthGuard element={<AnaliseRisco />} />} />
+              <Route path="/permissao-trabalho" element={<AuthGuard element={<PermissaoTrabalho />} />} />
+              <Route path="/permissao-trabalho/quente" element={<AuthGuard element={<PermissaoTrabalho />} />} />
+              <Route path="/permissao-trabalho/frio" element={<AuthGuard element={<PermissaoTrabalho />} />} />
+              <Route path="/relatorios/analise-risco" element={<AuthGuard element={<RelatoriosAnaliseRisco />} />} />
+              <Route path="/document-types" element={<AuthGuard element={<DocumentTypes />} />} />
+              <Route path="/document-creator" element={<AuthGuard element={<DocumentCreator />} />} />
+              <Route path="/document-creator/:docType" element={<AuthGuard element={<DocumentCreator />} />} />
+              <Route path="/biometrics" element={<AuthGuard element={<BiometricsManager />} />} />
               <Route path="/auth" element={<Auth />} />
-              <Route path="/companies" element={<CompaniesManager />} />
-              <Route path="/clients" element={<ClientsManager />} />
-              <Route path="/users" element={<UsersManager />} />
-              <Route path="/groups" element={<GroupsClientsManager />} />
-              <Route path="/sectors" element={<SectorsDepartmentsManager />} />
-              <Route path="/positions" element={<PositionsRolesManager />} />
-              <Route path="/persons" element={<PersonsEmployeesManager />} />
+              <Route path="/companies" element={<AuthGuard element={<CompaniesManager />} />} />
+              <Route path="/clients" element={<AuthGuard element={<ClientsManager />} />} />
+              <Route path="/users" element={<AuthGuard element={<UsersManager />} />} />
+              <Route path="/groups" element={<AuthGuard element={<GroupsClientsManager />} />} />
+              <Route path="/sectors" element={<AuthGuard element={<SectorsDepartmentsManager />} />} />
+              <Route path="/positions" element={<AuthGuard element={<PositionsRolesManager />} />} />
+              <Route path="/persons" element={<AuthGuard element={<PersonsEmployeesManager />} />} />
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />
             </Routes>
