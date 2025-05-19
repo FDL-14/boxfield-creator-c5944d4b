@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -234,6 +233,24 @@ export const AuthService = {
           
         if (!profileCheckError && existingProfile) {
           console.log("Master user profile already exists:", existingProfile);
+          
+          // Ensure profile has master and admin status
+          if (!existingProfile.is_master || !existingProfile.is_admin) {
+            await supabase
+              .from('profiles')
+              .update({ 
+                is_master: true, 
+                is_admin: true,
+                cpf: '80243088191'  // Ensure the master CPF is set
+              })
+              .eq('id', userId);
+              
+            console.log("Updated existing profile with master status");
+          }
+          
+          // Ensure master permissions
+          await AuthService.ensureMasterPermissions(userId);
+          
           return { success: true, userId, profile: existingProfile };
         }
       }
@@ -262,7 +279,7 @@ export const AuthService = {
       await new Promise(resolve => setTimeout(resolve, 3000));
       
       // Verify the profile was created correctly by fetching it directly
-      const maxRetries = 3;
+      const maxRetries = 5; // Increased from 3 to 5 for more attempts
       let profileCheck = null;
       let profileError = null;
       
@@ -278,11 +295,17 @@ export const AuthService = {
         
         if (!fetchError && fetchedProfile) {
           profileCheck = fetchedProfile;
+          
+          // Ensure master permissions for the profile
+          await AuthService.ensureMasterPermissions(result.userId);
+          
+          console.log("Profile verification successful:", profileCheck);
           break;
         } else {
           profileError = fetchError;
-          // Wait a bit longer before retrying
-          await new Promise(resolve => setTimeout(resolve, 1500 * (i + 1)));
+          console.log(`Profile verification attempt ${i+1} failed, retrying...`);
+          // Wait a bit longer before retrying with exponential backoff
+          await new Promise(resolve => setTimeout(resolve, 1500 * Math.pow(2, i)));
         }
       }
       
@@ -291,12 +314,80 @@ export const AuthService = {
         throw new Error("Profile verification failed: Profile not found after initialization after multiple attempts");
       }
       
-      console.log("Profile verification successful:", profileCheck);
-      
       return { success: true, result, profile: profileCheck };
     } catch (error: any) {
       console.error("Error initializing master user:", error);
       return { success: false, error: error.message };
+    }
+  },
+  
+  /**
+   * Ensure master user has all required permissions
+   */
+  ensureMasterPermissions: async (userId: string) => {
+    try {
+      console.log("Ensuring master permissions for user:", userId);
+      
+      // Check if user permissions exist
+      const { data: existingPermissions, error: permError } = await supabase
+        .from('user_permissions')
+        .select('id')
+        .eq('user_id', userId)
+        .maybeSingle();
+        
+      // Full permissions object with all permissions set to true
+      const fullPermissions: Record<string, any> = {
+        user_id: userId,
+        can_create: true,
+        can_edit: true,
+        can_delete: true,
+        can_edit_user: true,
+        can_edit_action: true,
+        can_edit_client: true,
+        can_edit_company: true,
+        can_delete_client: true,
+        can_delete_company: true,
+        can_mark_complete: true,
+        can_mark_delayed: true,
+        can_add_notes: true,
+        can_view_reports: true,
+        view_all_actions: true,
+        can_edit_document_type: true,
+        updated_at: new Date().toISOString()
+      };
+      
+      if (existingPermissions) {
+        // Update existing permissions
+        console.log("Updating existing master permissions");
+        
+        const { error: updateError } = await supabase
+          .from('user_permissions')
+          .update(fullPermissions)
+          .eq('id', existingPermissions.id);
+        
+        if (updateError) {
+          console.error("Error updating master permissions:", updateError);
+          return false;
+        }
+      } else {
+        // Insert new permissions
+        console.log("Creating new master permissions");
+        
+        const { error: insertError } = await supabase
+          .from('user_permissions')
+          .insert(fullPermissions);
+        
+        if (insertError) {
+          console.error("Error inserting master permissions:", insertError);
+          return false;
+        }
+      }
+      
+      console.log("Master permissions set successfully");
+      return true;
+    } catch (error) {
+      console.error("Error ensuring master permissions:", error);
+      return false;
     }
   },
   

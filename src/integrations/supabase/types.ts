@@ -241,6 +241,56 @@ export type Database = {
         }
         Relationships: []
       }
+      companies_units: {
+        Row: {
+          address: string | null
+          cnpj: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          group_client_id: string | null
+          id: string
+          is_deleted: boolean | null
+          name: string
+          phone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          cnpj?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          group_client_id?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          cnpj?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          group_client_id?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name?: string
+          phone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "companies_units_group_client_id_fkey"
+            columns: ["group_client_id"]
+            isOneToOne: false
+            referencedRelation: "groups_clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       document_section_locks: {
         Row: {
           created_at: string | null
@@ -282,6 +332,7 @@ export type Database = {
           created_by: string | null
           data: Json
           description: string | null
+          document_type_id: string | null
           id: string
           is_deleted: boolean | null
           is_template: boolean | null
@@ -294,6 +345,7 @@ export type Database = {
           created_by?: string | null
           data: Json
           description?: string | null
+          document_type_id?: string | null
           id?: string
           is_deleted?: boolean | null
           is_template?: boolean | null
@@ -306,11 +358,83 @@ export type Database = {
           created_by?: string | null
           data?: Json
           description?: string | null
+          document_type_id?: string | null
           id?: string
           is_deleted?: boolean | null
           is_template?: boolean | null
           title?: string
           type?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      document_types: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_deleted: boolean | null
+          name: string
+          parent_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name: string
+          parent_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name?: string
+          parent_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "document_types_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "document_types"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      groups_clients: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_deleted: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name?: string
           updated_at?: string | null
         }
         Relationships: []
@@ -353,6 +477,100 @@ export type Database = {
           titulo?: string
         }
         Relationships: []
+      }
+      persons_employees: {
+        Row: {
+          address: string | null
+          cpf: string | null
+          created_at: string | null
+          created_by: string | null
+          email: string | null
+          id: string
+          is_deleted: boolean | null
+          name: string
+          phone: string | null
+          position_role_id: string | null
+          updated_at: string | null
+          user_id: string | null
+        }
+        Insert: {
+          address?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name: string
+          phone?: string | null
+          position_role_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          address?: string | null
+          cpf?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          email?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name?: string
+          phone?: string | null
+          position_role_id?: string | null
+          updated_at?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "persons_employees_position_role_id_fkey"
+            columns: ["position_role_id"]
+            isOneToOne: false
+            referencedRelation: "positions_roles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      positions_roles: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_deleted: boolean | null
+          name: string
+          sector_department_id: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name: string
+          sector_department_id?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name?: string
+          sector_department_id?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "positions_roles_sector_department_id_fkey"
+            columns: ["sector_department_id"]
+            isOneToOne: false
+            referencedRelation: "sectors_departments"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       profiles: {
         Row: {
@@ -436,6 +654,47 @@ export type Database = {
             columns: ["company_id"]
             isOneToOne: false
             referencedRelation: "companies"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sectors_departments: {
+        Row: {
+          company_unit_id: string | null
+          created_at: string | null
+          created_by: string | null
+          description: string | null
+          id: string
+          is_deleted: boolean | null
+          name: string
+          updated_at: string | null
+        }
+        Insert: {
+          company_unit_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name: string
+          updated_at?: string | null
+        }
+        Update: {
+          company_unit_id?: string | null
+          created_at?: string | null
+          created_by?: string | null
+          description?: string | null
+          id?: string
+          is_deleted?: boolean | null
+          name?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sectors_departments_company_unit_id_fkey"
+            columns: ["company_unit_id"]
+            isOneToOne: false
+            referencedRelation: "companies_units"
             referencedColumns: ["id"]
           },
         ]

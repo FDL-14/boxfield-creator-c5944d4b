@@ -1,6 +1,8 @@
+
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { AuthService } from "@/services/authService";
 
 // Permission types
 export interface UserPermissions {
@@ -129,7 +131,7 @@ const isMasterUser = (profile: any): boolean => {
   const masterCPF = '80243088191';
   const userCPF = profile.cpf ? profile.cpf.replace(/\D/g, '') : '';
   
-  return userCPF === masterCPF || profile.is_master === true;
+  return userCPF === masterCPF || profile.is_master === true || profile.email === 'fabiano@totalseguranca.net';
 };
 
 // Permissions provider
@@ -172,6 +174,9 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         setIsAdmin(true);
         setIsMaster(true);
         
+        // Ensure master user is properly configured in database
+        await AuthService.initMasterUser();
+        
         // Grant all permissions
         const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
           (acc, key) => ({ ...acc, [key]: true }),
@@ -183,28 +188,23 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Use nossa função RPC atualizada para verificar o papel do usuário
-      const { data: roleData, error: roleError } = await supabase.rpc('check_user_role', {
-        user_id: currentUserId
-      });
-      
-      if (roleError) {
-        console.error("Error getting user role:", roleError);
-        
-        // Fallback in case RPC fails - direct SQL query
-        try {
-          const { data: userData, error: userError } = await supabase
-            .from('profiles')
-            .select('is_admin, is_master, cpf')
-            .eq('id', currentUserId)
-            .maybeSingle();
+      // Try to get user profile first
+      try {
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('is_admin, is_master, cpf, email')
+          .eq('id', currentUserId)
+          .maybeSingle();
           
-          if (userError) throw userError;
-          
+        if (profileError) {
+          console.error("Error fetching profile:", profileError);
+          // Fallback to RPC call
+        } else if (profileData) {
           // Check if user is master
-          const userIsMaster = userData?.is_master === true || userData?.cpf === '80243088191';
+          const userIsMaster = isMasterUser(profileData);
+          const userIsAdmin = profileData.is_admin === true || userIsMaster;
           
-          setIsAdmin(userData?.is_admin === true || userIsMaster);
+          setIsAdmin(userIsAdmin);
           setIsMaster(userIsMaster);
           
           if (userIsMaster) {
@@ -217,29 +217,43 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
             setLoading(false);
             return;
           }
-        } catch (fallbackError) {
-          console.error("Fallback error:", fallbackError);
-          // Continue to attempt loading permissions
         }
-      } else if (roleData && roleData.length > 0) {
-        // Corrigido: roleData agora é um array com objetos contendo is_admin e is_master
-        const userIsAdmin = roleData[0].is_admin === true;
-        const userIsMaster = roleData[0].is_master === true;
+      } catch (profileError) {
+        console.error("Error fetching profile:", profileError);
+        // Continue with RPC call as fallback
+      }
+      
+      // Use our RPC function to check user role
+      try {
+        const { data: roleData, error: roleError } = await supabase.rpc('check_user_role', {
+          user_id: currentUserId
+        });
         
-        setIsAdmin(userIsAdmin);
-        setIsMaster(userIsMaster);
-        
-        if (userIsMaster) {
-          // Grant all permissions to master
-          const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
-            (acc, key) => ({ ...acc, [key]: true }),
-            {} as UserPermissions
-          );
+        if (roleError) {
+          console.error("Error getting user role from RPC:", roleError);
+        } else if (roleData && roleData.length > 0) {
+          // RPC returns array with objects containing is_admin and is_master
+          const userIsAdmin = roleData[0].is_admin === true;
+          const userIsMaster = roleData[0].is_master === true;
           
-          setPermissions(allPermissions);
-          setLoading(false);
-          return;
+          setIsAdmin(userIsAdmin);
+          setIsMaster(userIsMaster);
+          
+          if (userIsMaster) {
+            // Grant all permissions to master
+            const allPermissions: UserPermissions = Object.keys(defaultPermissions).reduce(
+              (acc, key) => ({ ...acc, [key]: true }),
+              {} as UserPermissions
+            );
+            
+            setPermissions(allPermissions);
+            setLoading(false);
+            return;
+          }
         }
+      } catch (rpcError) {
+        console.error("Error calling RPC function:", rpcError);
+        // Continue to fetch permissions directly
       }
       
       // Get specific user permissions
@@ -328,8 +342,13 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
 
   // Check if user has a specific permission
   const checkPermission = (permission: keyof UserPermissions): boolean => {
+    // Master users always have all permissions
+    if (isMaster) return true;
+    
+    // Admin users have all document type editing permissions
+    if (isAdmin && permission === 'can_edit_document_type') return true;
+    
     // Check if permission exists and is enabled
-    if (isMaster) return true; // Master user has all permissions
     return permissions[permission] === true;
   };
 
