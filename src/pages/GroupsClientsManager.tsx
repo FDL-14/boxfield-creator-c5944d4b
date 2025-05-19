@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -26,7 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Textarea } from '@/components/ui/textarea';
-import { Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Loader2, Pencil, Trash2, UserPlus } from 'lucide-react';
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -71,32 +70,8 @@ const GroupsClientsManager: React.FC = () => {
   const { isAdmin, isMaster, checkPermission } = usePermissions();
 
   useEffect(() => {
-    checkAuthAndLoadGroups();
+    fetchGroups();
   }, []);
-
-  const checkAuthAndLoadGroups = async () => {
-    try {
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        console.log("No active session found");
-        toast({
-          variant: 'destructive',
-          title: 'Não autenticado',
-          description: 'Você precisa estar logado para acessar esta página.',
-        });
-        return;
-      }
-      
-      fetchGroups();
-    } catch (error: any) {
-      console.error("Auth check error:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Erro de autenticação',
-        description: error.message || 'Ocorreu um erro ao verificar autenticação',
-      });
-    }
-  };
 
   const fetchGroups = async () => {
     try {
@@ -135,19 +110,6 @@ const GroupsClientsManager: React.FC = () => {
 
       setLoading(true);
       
-      // Get session to verify authentication before insertion
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        toast({
-          variant: 'destructive',
-          title: 'Sessão expirada',
-          description: 'Sua sessão expirou. Por favor, faça login novamente.',
-        });
-        return;
-      }
-      
-      const currentUser = sessionData.session.user;
-      
       const { data, error } = await supabase
         .from('groups_clients')
         .insert([
@@ -158,8 +120,7 @@ const GroupsClientsManager: React.FC = () => {
             email: newGroup.email || null,
             contact_name: newGroup.contact_name || null,
             notes: newGroup.notes || null,
-            is_active: newGroup.is_active,
-            created_by: currentUser.id
+            is_active: newGroup.is_active
           },
         ])
         .select();
@@ -211,17 +172,6 @@ const GroupsClientsManager: React.FC = () => {
 
       setLoading(true);
       
-      // Get session to verify authentication before update
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        toast({
-          variant: 'destructive',
-          title: 'Sessão expirada',
-          description: 'Sua sessão expirou. Por favor, faça login novamente.',
-        });
-        return;
-      }
-      
       const { error } = await supabase
         .from('groups_clients')
         .update({
@@ -266,18 +216,6 @@ const GroupsClientsManager: React.FC = () => {
       if (!groupToDelete) return;
 
       setLoading(true);
-      
-      // Get session to verify authentication before deletion
-      const { data: sessionData } = await supabase.auth.getSession();
-      if (!sessionData.session) {
-        toast({
-          variant: 'destructive',
-          title: 'Sessão expirada',
-          description: 'Sua sessão expirou. Por favor, faça login novamente.',
-        });
-        setIsDialogOpen(false);
-        return;
-      }
       
       const { error } = await supabase
         .from('groups_clients')
@@ -325,12 +263,20 @@ const GroupsClientsManager: React.FC = () => {
     setIsEditing(false);
   };
 
-  const canEdit = isAdmin || isMaster || checkPermission('can_edit_client');
-  const canDelete = isAdmin || isMaster || checkPermission('can_delete_client');
-
   return (
     <div className="container mx-auto py-6">
-      <MainHeader title="Gerenciar Grupos/Clientes" />
+      <MainHeader 
+        title="Gerenciar Grupos/Clientes" 
+        rightContent={
+          <Button 
+            onClick={() => setIsEditing(false)} 
+            className="flex items-center gap-2"
+          >
+            <UserPlus className="h-4 w-4" />
+            Inserir Novo Grupo
+          </Button>
+        }
+      />
       <Card>
         <CardHeader>
           <CardTitle>Gerenciar Grupos/Clientes</CardTitle>
@@ -410,7 +356,7 @@ const GroupsClientsManager: React.FC = () => {
                 </div>
               </div>
 
-              <Button onClick={handleCreateGroup} disabled={loading || !canEdit}>
+              <Button onClick={handleCreateGroup} disabled={loading}>
                 {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                 Adicionar Grupo/Cliente
               </Button>
@@ -443,16 +389,12 @@ const GroupsClientsManager: React.FC = () => {
                         </TableCell>
                         <TableCell>
                           <div className="flex space-x-2">
-                            {canEdit && (
-                              <Button size="sm" variant="outline" onClick={() => startEditing(group)}>
-                                <Pencil className="h-4 w-4" />
-                              </Button>
-                            )}
-                            {canDelete && (
-                              <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(group.id)}>
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
+                            <Button size="sm" variant="outline" onClick={() => startEditing(group)}>
+                              <Pencil className="h-4 w-4" />
+                            </Button>
+                            <Button size="sm" variant="destructive" onClick={() => openDeleteDialog(group.id)}>
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
                           </div>
                         </TableCell>
                       </TableRow>

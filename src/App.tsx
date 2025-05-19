@@ -39,12 +39,6 @@ function AppInitializer() {
   return null;
 }
 
-// Simplified AuthGuard component that doesn't check authentication at all
-function AuthGuard({ element }: { element: React.ReactNode }) {
-  // No authentication check - always render the element
-  return <>{element}</>;
-}
-
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>

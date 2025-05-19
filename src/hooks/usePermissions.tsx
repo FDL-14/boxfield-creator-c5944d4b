@@ -1,6 +1,5 @@
 
-import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { supabase, getProfileWithRetry, ensureMasterUserInitialized } from "@/integrations/supabase/client";
+import { useState, createContext, useContext, ReactNode } from 'react';
 
 // Permission types
 export interface UserPermissions {

@@ -16,6 +16,12 @@ import {
   Flame,
   Snowflake,
   Save,
+  Users,
+  User,
+  Building,
+  Briefcase,
+  FolderTree,
+  LayoutGrid,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +65,20 @@ const MainNavigation: React.FC = () => {
                   <NavigationMenuContent>
                     <ul className="grid w-[400px] gap-3 p-4">
                       {/* Third Level Items */}
+                      <li>
+                        <Link
+                          to="/document-types"
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                          <div className="text-sm font-medium leading-none flex items-center">
+                            <FileText className="mr-2 h-4 w-4" />
+                            Gerenciar Tipos de Documentos
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            Configure e gerencie os tipos de documentos
+                          </p>
+                        </Link>
+                      </li>
                       <li>
                         <Link
                           to="/analise-risco"
@@ -136,6 +156,102 @@ const MainNavigation: React.FC = () => {
                     </ul>
                   </NavigationMenuContent>
                 </NavigationMenuItem>
+              </li>
+            </ul>
+          </NavigationMenuContent>
+        </NavigationMenuItem>
+
+        {/* Administration/Management Menu */}
+        <NavigationMenuItem>
+          <NavigationMenuTrigger>
+            <LayoutGrid className="mr-2 h-4 w-4" />
+            Administração
+          </NavigationMenuTrigger>
+          <NavigationMenuContent>
+            <ul className="grid gap-3 p-4 w-[400px] md:w-[500px] md:grid-cols-2">
+              <li>
+                <Link
+                  to="/users"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    Gerenciar Usuários
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Adicione e gerencie os usuários do sistema
+                  </p>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/groups"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <Users className="mr-2 h-4 w-4" />
+                    Gerenciar Grupos/Clientes
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Adicione e gerencie grupos e clientes
+                  </p>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/companies"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <Building className="mr-2 h-4 w-4" />
+                    Gerenciar Empresas
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Adicione e gerencie empresas
+                  </p>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/sectors"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <FolderTree className="mr-2 h-4 w-4" />
+                    Gerenciar Setores/Departamentos
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Adicione e gerencie setores e departamentos
+                  </p>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/positions"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <Briefcase className="mr-2 h-4 w-4" />
+                    Gerenciar Cargos/Funções
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Adicione e gerencie cargos e funções
+                  </p>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/persons"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    Gerenciar Pessoas/Funcionários
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Adicione e gerencie pessoas e funcionários
+                  </p>
+                </Link>
               </li>
             </ul>
           </NavigationMenuContent>
