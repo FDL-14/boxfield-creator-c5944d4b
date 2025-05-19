@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -217,16 +216,17 @@ const PersonsEmployeesManager: React.FC = () => {
         let position_name = 'Sem cargo';
         if (person.positions_roles && 
             typeof person.positions_roles === 'object' && 
-            'name' in person.positions_roles) {
-          position_name = person.positions_roles.name;
+            person.positions_roles !== null) {
+          // Safely access name property from positions_roles
+          position_name = (person.positions_roles as any).name || 'Sem cargo';
         }
         
         // Handle sectors_departments relationship
         let sector_name = 'Sem setor';
         if (person.sectors_departments && 
             typeof person.sectors_departments === 'object' && 
-            'name' in person.sectors_departments) {
-          sector_name = person.sectors_departments.name;
+            person.sectors_departments !== null) {
+          sector_name = (person.sectors_departments as any).name || 'Sem setor';
         }
         
         // Safely access the email property with proper null checks
