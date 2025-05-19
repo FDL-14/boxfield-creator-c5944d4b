@@ -15,3 +15,4 @@ check_user_role = { schema = "public" }
 get_user_role = { schema = "public", replace = true }
 is_admin_user = { schema = "public", replace = true }
 is_master_user = { schema = "public", replace = true }
+ensure_user_permissions = { schema = "public", replace = true }

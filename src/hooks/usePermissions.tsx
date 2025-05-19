@@ -1,6 +1,5 @@
-
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
-import { supabase } from "@/integrations/supabase/client";
+import { supabase, processUserProfile, getProfileWithRetry, ensureMasterUserInitialized } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { AuthService } from "@/services/authService";
 
@@ -167,6 +166,9 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       const currentUserId = sessionData.session.user.id;
       setUserId(currentUserId);
       
+      // Always ensure master user is initialized when checking permissions
+      await ensureMasterUserInitialized();
+      
       // Check if master user by email
       const userEmail = sessionData.session.user.email;
       if (userEmail === 'fabiano@totalseguranca.net') {
@@ -188,18 +190,11 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         return;
       }
       
-      // Try to get user profile first
+      // Try to get user profile first with retry mechanism
       try {
-        const { data: profileData, error: profileError } = await supabase
-          .from('profiles')
-          .select('is_admin, is_master, cpf, email')
-          .eq('id', currentUserId)
-          .maybeSingle();
-          
-        if (profileError) {
-          console.error("Error fetching profile:", profileError);
-          // Fallback to RPC call
-        } else if (profileData) {
+        const profileData = await getProfileWithRetry(currentUserId);
+        
+        if (profileData) {
           // Check if user is master
           const userIsMaster = isMasterUser(profileData);
           const userIsAdmin = profileData.is_admin === true || userIsMaster;

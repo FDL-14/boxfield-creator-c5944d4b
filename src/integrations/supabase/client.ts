@@ -8,7 +8,9 @@ export const supabase = createClient<Database>(
   {
     auth: {
       persistSession: true,
-      autoRefreshToken: true
+      autoRefreshToken: true,
+      storageKey: 'supabase_auth_token',
+      storage: localStorage
     }
   }
 );
@@ -53,4 +55,101 @@ export function isMasterUser(profile: any): boolean {
   const isMasterByFlag = profile.is_master === true;
   
   return userCPF === masterCPF || isMasterByFlag || isMasterByEmail;
+}
+
+// Helper function to initialize master user through edge function
+export async function ensureMasterUserInitialized() {
+  try {
+    const { data: session } = await supabase.auth.getSession();
+    if (session?.session?.user) {
+      // Verify if user exists first to avoid extra calls
+      const { data: userData } = await supabase
+        .from('profiles')
+        .select('id, email, cpf, is_master')
+        .eq('id', session.session.user.id)
+        .maybeSingle();
+
+      if (userData?.email === 'fabiano@totalseguranca.net' || 
+          cleanCPF(userData?.cpf) === '80243088191' || 
+          userData?.is_master === true) {
+        console.log("Initializing master user...");
+        const { error } = await supabase.functions.invoke('init-master-user', {});
+        if (error) {
+          console.error("Error initializing master user:", error);
+        } else {
+          console.log("Master user initialized successfully");
+        }
+      }
+    }
+  } catch (error) {
+    console.error("Error in ensureMasterUserInitialized:", error);
+  }
+}
+
+// Function to retry getting profile with exponential backoff
+export async function getProfileWithRetry(userId: string, maxRetries = 3): Promise<any> {
+  let retries = 0;
+  let lastError = null;
+
+  while (retries < maxRetries) {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .single();
+
+      if (error) throw error;
+      if (data) return processUserProfile(data);
+      
+      // If no data but no error, wait and retry
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retries) * 1000));
+      retries++;
+    } catch (error) {
+      console.error(`Error getting profile (attempt ${retries + 1}):`, error);
+      lastError = error;
+      await new Promise(resolve => setTimeout(resolve, Math.pow(2, retries) * 1000));
+      retries++;
+    }
+  }
+
+  // If we still don't have profile, try to create it
+  try {
+    const { data: userData } = await supabase.auth.getUser();
+    if (userData?.user) {
+      // Try to check if user already exists (avoiding duplicates)
+      const { data: existingProfile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userData.user.id)
+        .maybeSingle();
+
+      if (!existingProfile) {
+        // User doesn't exist in profiles, try to create one
+        const { data: createdProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert([
+            { 
+              id: userData.user.id, 
+              email: userData.user.email,
+              name: userData.user.user_metadata?.name || 'Novo Usuário',
+              role: 'user',
+              is_admin: false,
+              is_master: false,
+              company_ids: [],
+              client_ids: []
+            }
+          ])
+          .select('*')
+          .single();
+
+        if (createError) throw createError;
+        if (createdProfile) return processUserProfile(createdProfile);
+      }
+    }
+  } catch (error) {
+    console.error("Error creating profile:", error);
+  }
+
+  throw new Error(`Failed to get profile after ${maxRetries} attempts. Last error: ${lastError}`);
 }
