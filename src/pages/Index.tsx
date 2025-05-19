@@ -5,13 +5,17 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { FileText, Users, Building2, BarChart3, ClipboardCheck, FileEdit, LayoutGrid, Briefcase, Building, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { usePermissions } from "@/hooks/usePermissions";
+import MainNavigation from "@/components/MainNavigation";
 
 const Index = () => {
-  const { isAdmin, isMaster } = usePermissions();
+  const { isAdmin, isMaster, isAuthenticated } = usePermissions();
   
   return (
     <div className="container mx-auto py-6">
       <MainHeader title="Menu Principal" />
+      
+      <MainNavigation />
+      
       <div className="my-8 text-center">
         <h1 className="text-3xl font-bold">Formulário Inteligente</h1>
         <p className="text-muted-foreground mt-2">
@@ -37,7 +41,7 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
               <Link to="/form-builder">Acessar</Link>
             </Button>
           </CardFooter>
@@ -59,7 +63,7 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
               <Link to="/analise-risco">Acessar</Link>
             </Button>
           </CardFooter>
@@ -81,7 +85,7 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
               <Link to="/permissao-trabalho">Acessar</Link>
             </Button>
           </CardFooter>
@@ -103,7 +107,7 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
               <Link to="/relatorios/analise-risco">Acessar</Link>
             </Button>
           </CardFooter>
@@ -125,7 +129,7 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full">
+            <Button asChild className="w-full" disabled={!isAuthenticated}>
               <Link to="/document-types">Acessar</Link>
             </Button>
           </CardFooter>
@@ -147,7 +151,7 @@ const Index = () => {
             </p>
           </CardContent>
           <CardFooter>
-            <Button asChild className="w-full" disabled={!isAdmin && !isMaster}>
+            <Button asChild className="w-full" disabled={!isAdmin && !isMaster || !isAuthenticated}>
               <Link to="/users">Acessar</Link>
             </Button>
           </CardFooter>

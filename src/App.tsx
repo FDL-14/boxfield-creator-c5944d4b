@@ -51,6 +51,8 @@ const App = () => {
               <Route path="/form-builder" element={<FormBuilder />} />
               <Route path="/analise-risco" element={<AnaliseRisco />} />
               <Route path="/permissao-trabalho" element={<PermissaoTrabalho />} />
+              <Route path="/permissao-trabalho/quente" element={<PermissaoTrabalho />} />
+              <Route path="/permissao-trabalho/frio" element={<PermissaoTrabalho />} />
               <Route path="/relatorios/analise-risco" element={<RelatoriosAnaliseRisco />} />
               <Route path="/document-types" element={<DocumentTypes />} />
               <Route path="/document-creator" element={<DocumentCreator />} />
