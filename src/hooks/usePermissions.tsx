@@ -108,6 +108,7 @@ interface PermissionsContextType {
   permissions: UserPermissions;
   isAdmin: boolean;
   isMaster: boolean;
+  isAuthenticated: boolean; // Add the isAuthenticated property
   loading: boolean;
   checkPermission: (permission: keyof UserPermissions) => boolean;
   refreshPermissions: () => Promise<void>;
@@ -117,6 +118,7 @@ const PermissionsContext = createContext<PermissionsContextType>({
   permissions: defaultPermissions,
   isAdmin: false,
   isMaster: false,
+  isAuthenticated: false, // Add default value for isAuthenticated
   loading: true,
   checkPermission: () => false,
   refreshPermissions: async () => {}
@@ -138,6 +140,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
   const [permissions, setPermissions] = useState<UserPermissions>(defaultPermissions);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isMaster, setIsMaster] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false); // Add state for isAuthenticated
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
   const [retryCount, setRetryCount] = useState(0);
@@ -159,12 +162,14 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
         setPermissions(defaultPermissions);
         setIsAdmin(false);
         setIsMaster(false);
+        setIsAuthenticated(false); // Update authentication state
         setLoading(false);
         return;
       }
       
       const currentUserId = sessionData.session.user.id;
       setUserId(currentUserId);
+      setIsAuthenticated(true); // User is authenticated if there's a session
       
       // Always ensure master user is initialized when checking permissions
       await ensureMasterUserInitialized();
@@ -362,11 +367,13 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
           setRetryCount(0);
+          setIsAuthenticated(true); // Update authentication state on sign in
           loadPermissions();
         } else if (event === 'SIGNED_OUT') {
           setPermissions(defaultPermissions);
           setIsAdmin(false);
           setIsMaster(false);
+          setIsAuthenticated(false); // Update authentication state on sign out
         }
       }
     );
@@ -380,6 +387,7 @@ export function PermissionsProvider({ children }: { children: ReactNode }) {
     permissions,
     isAdmin,
     isMaster,
+    isAuthenticated, // Include isAuthenticated in the context value
     loading,
     checkPermission,
     refreshPermissions
