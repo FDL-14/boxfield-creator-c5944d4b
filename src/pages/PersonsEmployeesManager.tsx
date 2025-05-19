@@ -202,9 +202,9 @@ const PersonsEmployeesManager: React.FC = () => {
         .from('persons_employees')
         .select(`
           *,
-          positions_roles(name),
-          sectors_departments(name),
-          profiles:user_id(email)
+          positions_roles(id, name),
+          sectors_departments(id, name),
+          profiles:user_id(id, email)
         `)
         .eq('is_deleted', false)
         .order('name');
@@ -213,16 +213,28 @@ const PersonsEmployeesManager: React.FC = () => {
 
       // Transform the data to handle the SelectQueryError
       const formattedPersons = data?.map((person) => {
-        // Handle the potential error case by providing default values
-        const position_name = person.positions_roles?.name || 'Sem cargo';
-        const sector_name = person.sectors_departments?.name || 'Sem setor';
+        // Handle positions_roles relationship - specifically fix the name property access
+        let position_name = 'Sem cargo';
+        if (person.positions_roles && 
+            typeof person.positions_roles === 'object' && 
+            'name' in person.positions_roles) {
+          position_name = person.positions_roles.name;
+        }
+        
+        // Handle sectors_departments relationship
+        let sector_name = 'Sem setor';
+        if (person.sectors_departments && 
+            typeof person.sectors_departments === 'object' && 
+            'name' in person.sectors_departments) {
+          sector_name = person.sectors_departments.name;
+        }
         
         // Safely access the email property with proper null checks
         let user_email = null;
         if (person.profiles && 
-            typeof person.profiles === 'object') {
-          // Use optional chaining to safely access the email property
-          user_email = person.profiles?.email || null;
+            typeof person.profiles === 'object' &&
+            person.profiles !== null) {
+          user_email = (person.profiles as { email?: string })?.email || null;
         }
         
         return {

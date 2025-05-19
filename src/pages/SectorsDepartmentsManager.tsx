@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
@@ -86,7 +85,7 @@ const closureTypes = [
 
 const lightingTypes = [
   'Não informado', 'Artificial', 'Artificial e Natural',
-  'Artificial, através de luminárias embutidas no forro ou fixadas na laje, providas de lâmpadas fluorescentes.',
+  'Artificial: Lâmpadas embutidas no forro ou fixadas na laje, providas de lâmpadas fluorescentes.',
   'Artificial: Lâmpadas de leds', 'Artificial: Lâmpadas de mercúrio',
   'Artificial: Lâmpadas fluorescentes', 'Artificial: Lâmpadas incandescentes',
   'Natural', 'Natural com claraboias/ domus',
@@ -286,14 +285,15 @@ const SectorsDepartmentsManager: React.FC = () => {
 
       setLoading(true);
       
-      // Convert values to proper types for DB storage
-      const ceiling_height = editingSector.ceiling_height ? 
+      // Properly convert string values to numbers for numeric fields
+      // Using parseFloat instead of direct assignment for proper type conversion
+      const ceiling_height = editingSector.ceiling_height !== null && editingSector.ceiling_height !== undefined ? 
         (typeof editingSector.ceiling_height === 'string' ? 
           parseFloat(editingSector.ceiling_height) : 
           editingSector.ceiling_height) : 
         null;
       
-      const area = editingSector.area ? 
+      const area = editingSector.area !== null && editingSector.area !== undefined ? 
         (typeof editingSector.area === 'string' ? 
           parseFloat(editingSector.area) : 
           editingSector.area) : 
@@ -448,7 +448,9 @@ const SectorsDepartmentsManager: React.FC = () => {
             <div className="md:col-span-3">
               <Textarea
                 placeholder="Descrição (opcional)"
-                value={isUpdate ? editingSector?.description || '' : sector.description}
+                value={isUpdate ? 
+                  editingSector?.description || '' : 
+                  sector.description}
                 onChange={(e) => isUpdate ? 
                   setEditingSector({ ...editingSector!, description: e.target.value }) : 
                   setNewSector({ ...newSector, description: e.target.value })}
@@ -536,7 +538,7 @@ const SectorsDepartmentsManager: React.FC = () => {
                 onChange={(e) => {
                   const value = e.target.value;
                   if (isUpdate) {
-                    setEditingSector({ ...editingSector!, ceiling_height: value === '' ? null : value });
+                    setEditingSector({ ...editingSector!, ceiling_height: value === '' ? null : parseFloat(value) });
                   } else {
                     setNewSector({ ...newSector, ceiling_height: value });
                   }
@@ -557,7 +559,7 @@ const SectorsDepartmentsManager: React.FC = () => {
                 onChange={(e) => {
                   const value = e.target.value;
                   if (isUpdate) {
-                    setEditingSector({ ...editingSector!, area: value === '' ? null : value });
+                    setEditingSector({ ...editingSector!, area: value === '' ? null : parseFloat(value) });
                   } else {
                     setNewSector({ ...newSector, area: value });
                   }
