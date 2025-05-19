@@ -11,18 +11,18 @@ export const supabase = createClient<Database>(
 export function processUserProfile(profile: any): any {
   if (!profile) return null;
   
-  // Convert the profile to a reliable format
+  // Create a deep copy to avoid modifying the original object
   const processedProfile = {
     ...profile,
     // Ensure boolean values are properly set
     is_admin: profile.is_admin === true,
     is_master: profile.is_master === true || isMasterUser(profile),
     is_face_registered: profile.is_face_registered === true,
-    // Ensure arrays are initialized
+    // Initialize arrays if they don't exist or aren't arrays
     company_ids: Array.isArray(profile.company_ids) ? profile.company_ids : [],
     client_ids: Array.isArray(profile.client_ids) ? profile.client_ids : [],
-    // Process nested permissions if present
-    permissions: profile.permissions || []
+    // Ensure permissions is an array, even if empty
+    permissions: Array.isArray(profile.permissions) ? profile.permissions : []
   };
 
   return processedProfile;
@@ -38,10 +38,11 @@ export function cleanCPF(cpf: string | null | undefined): string {
 export function isMasterUser(profile: any): boolean {
   if (!profile) return false;
   
-  // Check if user is master by CPF or flag
+  // Check if user is master by CPF, email or flag
   const masterCPF = '80243088191';
   const userCPF = cleanCPF(profile.cpf);
   const isMasterByEmail = profile.email === 'fabiano@totalseguranca.net';
+  const isMasterByFlag = profile.is_master === true;
   
-  return userCPF === masterCPF || profile.is_master === true || isMasterByEmail;
+  return userCPF === masterCPF || isMasterByFlag || isMasterByEmail;
 }

@@ -233,10 +233,29 @@ export const AuthService = {
       const result = await response.json();
       console.log("Master user initialization result:", result);
       
-      // Add a slight delay to ensure database changes propagate
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Add a delay to ensure database changes propagate
+      await new Promise(resolve => setTimeout(resolve, 2000));
       
-      return { success: response.ok, result };
+      // Verify the profile was created correctly by fetching it directly
+      const { data: profileCheck, error: profileError } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', result.userId || '')
+        .maybeSingle();
+        
+      if (profileError) {
+        console.error("Error verifying profile creation:", profileError);
+        throw new Error(`Error verifying profile creation: ${profileError.message}`);
+      }
+      
+      if (!profileCheck) {
+        console.error("Profile verification failed: Profile not found after initialization");
+        throw new Error("Profile verification failed: Profile not found after initialization");
+      }
+      
+      console.log("Profile verification successful:", profileCheck);
+      
+      return { success: true, result, profile: profileCheck };
     } catch (error: any) {
       console.error("Error initializing master user:", error);
       return { success: false, error: error.message };

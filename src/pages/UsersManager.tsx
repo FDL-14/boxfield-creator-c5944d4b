@@ -153,8 +153,9 @@ export default function UsersManager() {
       const userId = data.session.user.id;
       setCurrentUserId(userId);
       
-      // Fetch the user profile
-      let { data: profileData, error: profileError } = await supabase
+      // First, try to directly fetch the profile
+      console.log("Attempting to fetch user profile for ID:", userId);
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*, permissions:user_permissions(*)')
         .eq('id', userId)
@@ -165,64 +166,63 @@ export default function UsersManager() {
         throw profileError;
       }
       
-      // If profile doesn't exist yet - try to initialize master user
-      if (!profileData) {
-        console.log("Profile not found, attempting to initialize master user...");
-        
-        try {
-          // Try to use init-master-user to create a profile
-          const initResponse = await fetch(
-            "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/init-master-user",
-            { 
-              method: "POST", 
-              headers: { "Content-Type": "application/json" }
-            }
-          );
-          
-          const initResult = await initResponse.json();
-          console.log("Master user initialization result:", initResult);
-          
-          if (initResult.success) {
-            // Wait a moment to allow database operations to complete
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
-            // Fetch the newly created profile
-            const { data: newProfile, error: newProfileError } = await supabase
-              .from('profiles')
-              .select('*, permissions:user_permissions(*)')
-              .eq('id', userId)
-              .maybeSingle();
-              
-            if (newProfileError) {
-              throw newProfileError;
-            }
-            
-            if (newProfile) {
-              const processedNewProfile = processUserProfile(newProfile);
-              setCurrentUserProfile(processedNewProfile);
-              setAuthCheckComplete(true);
-            } else {
-              throw new Error("Profile still not found after initialization");
-            }
-          } else {
-            throw new Error(initResult.message || "Failed to initialize master user");
-          }
-        } catch (initError: any) {
-          console.error("Error initializing master user:", initError);
-          toast({
-            title: "Erro de inicialização",
-            description: `Não foi possível inicializar o perfil: ${initError.message}`,
-            variant: "destructive"
-          });
-          navigate('/');
-          return;
-        }
-      } else {
-        // Profile exists, process it and continue
+      // If profile exists, process it and continue
+      if (profileData) {
+        console.log("Profile found:", profileData);
         const processedProfile = processUserProfile(profileData);
         setCurrentUserProfile(processedProfile);
         setAuthCheckComplete(true);
+        return;
       }
+      
+      // Profile doesn't exist, try to initialize master user
+      console.log("Profile not found, attempting to initialize master user...");
+      
+      // Initialize the master user
+      const initResult = await AuthService.initMasterUser();
+      
+      if (!initResult.success) {
+        console.error("Error initializing master user:", initResult.error);
+        toast({
+          title: "Erro de inicialização",
+          description: `Não foi possível inicializar o perfil: ${initResult.error}`,
+          variant: "destructive"
+        });
+        navigate('/');
+        return;
+      }
+      
+      console.log("Master user initialization successful:", initResult);
+      
+      // If we have a profile from initialization, use it directly
+      if (initResult.profile) {
+        const processedProfile = processUserProfile(initResult.profile);
+        setCurrentUserProfile(processedProfile);
+        setAuthCheckComplete(true);
+        return;
+      }
+      
+      // Extra check - try to fetch the profile again after initialization
+      const { data: newProfile, error: newProfileError } = await supabase
+        .from('profiles')
+        .select('*, permissions:user_permissions(*)')
+        .eq('id', userId)
+        .maybeSingle();
+        
+      if (newProfileError) {
+        console.error("Error fetching profile after initialization:", newProfileError);
+        throw new Error(`Failed to fetch profile after initialization: ${newProfileError.message}`);
+      }
+      
+      if (!newProfile) {
+        console.error("Profile still not found after initialization and verification");
+        throw new Error("Profile still not found after initialization");
+      }
+      
+      const processedNewProfile = processUserProfile(newProfile);
+      setCurrentUserProfile(processedNewProfile);
+      setAuthCheckComplete(true);
+      
     } catch (error: any) {
       console.error("Error checking auth:", error);
       toast({
