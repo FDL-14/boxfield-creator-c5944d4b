@@ -45,7 +45,7 @@ const MainNavigation: React.FC = () => {
   return (
     <NavigationMenu className="max-w-full w-full justify-start mb-8">
       <NavigationMenuList className="space-x-2">
-        {/* Item 1: Construtor de Formulário */}
+        {/* Item 1: Construtor de Formulário - First Level */}
         <NavigationMenuItem>
           <NavigationMenuTrigger>
             <FileEdit className="mr-2 h-4 w-4" />
@@ -70,122 +70,130 @@ const MainNavigation: React.FC = () => {
                   </Link>
                 </NavigationMenuLink>
               </li>
+              
+              {/* Tipos de Documentos - Second Level */}
               <li>
-                <NavigationMenuLink asChild>
-                  <Link
-                    to="/document-types"
-                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    onClick={(e) => handleAuthRequiredClick(e, "/document-types")}
-                  >
+                <NavigationMenuItem>
+                  <NavigationMenuTrigger className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground w-full justify-start h-auto">
                     <div className="text-sm font-medium leading-none flex items-center">
                       <FileText className="mr-2 h-4 w-4" />
                       Tipos de Documentos
                     </div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground mt-1">
                       Crie e gerencie tipos de documentos personalizados
                     </p>
-                  </Link>
-                </NavigationMenuLink>
+                  </NavigationMenuTrigger>
+                  
+                  <NavigationMenuContent>
+                    <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
+                      {/* Third Level Items */}
+                      <li>
+                        <NavigationMenuLink asChild>
+                          <Link
+                            to="/analise-risco"
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            onClick={(e) => handleAuthRequiredClick(e, "/analise-risco")}
+                          >
+                            <div className="text-sm font-medium leading-none flex items-center">
+                              <ClipboardCheck className="mr-2 h-4 w-4" />
+                              Análise de Risco
+                            </div>
+                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                              Documentos para análise de riscos em atividades
+                            </p>
+                          </Link>
+                        </NavigationMenuLink>
+                      </li>
+                      
+                      <li>
+                        <NavigationMenuLink asChild>
+                          <Link
+                            to="/permissao-trabalho"
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho")}
+                          >
+                            <div className="text-sm font-medium leading-none flex items-center">
+                              <ClipboardCheck className="mr-2 h-4 w-4" />
+                              Permissão de Trabalho
+                            </div>
+                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                              Documentos de permissão para atividades específicas
+                            </p>
+                          </Link>
+                        </NavigationMenuLink>
+                      </li>
+                      
+                      <li>
+                        <NavigationMenuLink asChild>
+                          <Link
+                            to="/permissao-trabalho/quente"
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho/quente")}
+                          >
+                            <div className="text-sm font-medium leading-none flex items-center">
+                              <Flame className="mr-2 h-4 w-4 text-orange-500" />
+                              Serviço a Quente
+                            </div>
+                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                              Permissão para trabalhos com geração de calor ou faíscas
+                            </p>
+                          </Link>
+                        </NavigationMenuLink>
+                      </li>
+                      
+                      <li>
+                        <NavigationMenuLink asChild>
+                          <Link
+                            to="/permissao-trabalho/frio"
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho/frio")}
+                          >
+                            <div className="text-sm font-medium leading-none flex items-center">
+                              <Snowflake className="mr-2 h-4 w-4 text-blue-500" />
+                              Serviço a Frio
+                            </div>
+                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                              Permissão para trabalhos sem geração de calor ou faíscas
+                            </p>
+                          </Link>
+                        </NavigationMenuLink>
+                      </li>
+                      
+                      <li>
+                        <NavigationMenuLink asChild>
+                          <Link
+                            to="/document-creator/test"
+                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                            onClick={(e) => handleAuthRequiredClick(e, "/document-creator/test")}
+                          >
+                            <div className="text-sm font-medium leading-none flex items-center">
+                              <Save className="mr-2 h-4 w-4" />
+                              Teste de Salvar
+                            </div>
+                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                              Teste de funcionalidade de salvar documentos
+                            </p>
+                          </Link>
+                        </NavigationMenuLink>
+                      </li>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
               </li>
             </ul>
           </NavigationMenuContent>
         </NavigationMenuItem>
 
-        {/* Item 2: Tipos de Documentos */}
+        {/* Direct access to document types page */}
         <NavigationMenuItem>
-          <NavigationMenuTrigger>
+          <Link 
+            to="/document-types" 
+            className={cn(navigationMenuTriggerStyle())}
+            onClick={(e) => handleAuthRequiredClick(e, "/document-types")}
+          >
             <FileText className="mr-2 h-4 w-4" />
             Tipos de Documentos
-          </NavigationMenuTrigger>
-          <NavigationMenuContent>
-            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-              <li>
-                <NavigationMenuLink asChild>
-                  <Link
-                    to="/analise-risco"
-                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    onClick={(e) => handleAuthRequiredClick(e, "/analise-risco")}
-                  >
-                    <div className="text-sm font-medium leading-none flex items-center">
-                      <ClipboardCheck className="mr-2 h-4 w-4" />
-                      Análise de Risco
-                    </div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                      Documentos para análise de riscos em atividades
-                    </p>
-                  </Link>
-                </NavigationMenuLink>
-              </li>
-              <li>
-                <NavigationMenuLink asChild>
-                  <Link
-                    to="/permissao-trabalho"
-                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho")}
-                  >
-                    <div className="text-sm font-medium leading-none flex items-center">
-                      <ClipboardCheck className="mr-2 h-4 w-4" />
-                      Permissão de Trabalho
-                    </div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                      Documentos de permissão para atividades específicas
-                    </p>
-                  </Link>
-                </NavigationMenuLink>
-              </li>
-              <li>
-                <NavigationMenuLink asChild>
-                  <Link
-                    to="/permissao-trabalho/quente"
-                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho/quente")}
-                  >
-                    <div className="text-sm font-medium leading-none flex items-center">
-                      <Flame className="mr-2 h-4 w-4 text-orange-500" />
-                      Serviço a Quente
-                    </div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                      Permissão para trabalhos com geração de calor ou faíscas
-                    </p>
-                  </Link>
-                </NavigationMenuLink>
-              </li>
-              <li>
-                <NavigationMenuLink asChild>
-                  <Link
-                    to="/permissao-trabalho/frio"
-                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    onClick={(e) => handleAuthRequiredClick(e, "/permissao-trabalho/frio")}
-                  >
-                    <div className="text-sm font-medium leading-none flex items-center">
-                      <Snowflake className="mr-2 h-4 w-4 text-blue-500" />
-                      Serviço a Frio
-                    </div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                      Permissão para trabalhos sem geração de calor ou faíscas
-                    </p>
-                  </Link>
-                </NavigationMenuLink>
-              </li>
-              <li>
-                <NavigationMenuLink asChild>
-                  <Link
-                    to="/document-creator/test"
-                    className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                    onClick={(e) => handleAuthRequiredClick(e, "/document-creator/test")}
-                  >
-                    <div className="text-sm font-medium leading-none flex items-center">
-                      <Save className="mr-2 h-4 w-4" />
-                      Teste de Salvar
-                    </div>
-                    <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                      Teste de funcionalidade de salvar documentos
-                    </p>
-                  </Link>
-                </NavigationMenuLink>
-              </li>
-            </ul>
-          </NavigationMenuContent>
+          </Link>
         </NavigationMenuItem>
 
         {/* Login/Logout */}

@@ -3,7 +3,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { PermissionsProvider } from "@/hooks/usePermissions";
 import { useEffect } from "react";
 import { ensureMasterUserInitialized } from "@/integrations/supabase/client";
@@ -37,6 +37,11 @@ function AppInitializer() {
   }, []);
   
   return null;
+}
+
+// Auth Guard component
+interface AuthGuardProps {
+  element: React.ReactNode;
 }
 
 const App = () => {
