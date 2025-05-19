@@ -1,4 +1,3 @@
-
 // Supabase Edge Function to initialize the master user
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
@@ -101,9 +100,6 @@ serve(async (req) => {
       // Update existing auth user
       try {
         await supabaseAdmin.auth.admin.updateUserById(masterUserId, {
-          email: masterEmail,
-          password: masterPassword,
-          email_confirm: true,
           user_metadata: {
             name: masterName,
             cpf: masterCPF,
@@ -117,10 +113,85 @@ serve(async (req) => {
       }
     }
     
-    // Handle profile creation or update
+    // Handle profile creation or update based on CPF uniqueness
+    let profileExists = false;
+    
     if (!existingProfiles || existingProfiles.length === 0) {
-      // Create new profile
-      console.log("Creating master user profile");
+      // Check if a profile exists with the user ID but not matching CPF
+      const { data: existingProfileById } = await supabaseAdmin
+        .from("profiles")
+        .select("id, cpf")
+        .eq("id", masterUserId)
+        .maybeSingle();
+        
+      if (existingProfileById) {
+        console.log("Profile exists for user ID but with different CPF, updating it");
+        profileExists = true;
+        
+        // Update existing profile
+        const { error: updateError } = await supabaseAdmin
+          .from("profiles")
+          .update({
+            cpf: masterCPF,
+            name: masterName,
+            email: masterEmail,
+            is_admin: true,
+            is_master: true,
+            company_ids: [],
+            client_ids: []
+          })
+          .eq("id", masterUserId);
+          
+        if (updateError) {
+          console.error("Error updating profile:", updateError);
+        }
+      }
+    } else {
+      // Profile exists with this CPF, make sure it's attached to the correct user ID
+      profileExists = true;
+      const existingProfileId = existingProfiles[0].id;
+      
+      // If the profile exists but with a different ID
+      if (existingProfileId !== masterUserId) {
+        console.log("Updating profile with master CPF to have correct user ID");
+        
+        // First delete the old profile to avoid CPF uniqueness conflict
+        const { error: deleteError } = await supabaseAdmin
+          .from("profiles")
+          .delete()
+          .eq("cpf", masterCPF);
+          
+        if (deleteError) {
+          console.error("Error deleting old profile:", deleteError);
+        }
+        
+        // Profile has been deleted, set profileExists to false so we create a new one
+        profileExists = false;
+      } else {
+        // Update existing profile that already has correct user ID
+        console.log("Updating existing profile with correct user ID");
+        
+        const { error: updateError } = await supabaseAdmin
+          .from("profiles")
+          .update({
+            name: masterName,
+            email: masterEmail,
+            is_admin: true,
+            is_master: true,
+            company_ids: existingProfiles[0].company_ids || [],
+            client_ids: existingProfiles[0].client_ids || []
+          })
+          .eq("id", masterUserId);
+          
+        if (updateError) {
+          console.error("Error updating profile:", updateError);
+        }
+      }
+    }
+    
+    // Create new profile if needed
+    if (!profileExists) {
+      console.log("Creating new master user profile");
       
       const { error: insertProfileError } = await supabaseAdmin
         .from("profiles")
@@ -131,70 +202,13 @@ serve(async (req) => {
           email: masterEmail,
           is_admin: true,
           is_master: true,
-          // Add empty arrays for company_ids and client_ids to avoid null issues
           company_ids: [],
           client_ids: []
         });
         
       if (insertProfileError) {
         console.error("Error creating profile:", insertProfileError);
-      }
-    } else {
-      const existingProfileId = existingProfiles[0].id;
-      
-      // If the profile exists but with a different ID than the auth user,
-      // update the auth profile linkage
-      if (existingProfileId !== masterUserId) {
-        console.log("Profile exists with different ID, updating linkage");
-        
-        // First delete the old profile
-        const { error: deleteError } = await supabaseAdmin
-          .from("profiles")
-          .delete()
-          .eq("id", existingProfileId);
-          
-        if (deleteError) {
-          console.error("Error deleting old profile:", deleteError);
-        }
-        
-        // Then create a new one with the correct ID
-        const { error: insertNewProfileError } = await supabaseAdmin
-          .from("profiles")
-          .insert({
-            id: masterUserId,
-            cpf: masterCPF,
-            name: masterName,
-            email: masterEmail,
-            is_admin: true,
-            is_master: true,
-            // Add empty arrays for company_ids and client_ids to avoid null issues
-            company_ids: [],
-            client_ids: []
-          });
-          
-        if (insertNewProfileError) {
-          console.error("Error creating new profile with correct ID:", insertNewProfileError);
-        }
-      } else {
-        // Update existing profile
-        console.log("Updating existing profile");
-        
-        const { error: updateProfileError } = await supabaseAdmin
-          .from("profiles")
-          .update({
-            name: masterName,
-            email: masterEmail,
-            is_admin: true,
-            is_master: true,
-            // Add empty arrays for company_ids and client_ids if they're null
-            company_ids: existingProfiles[0].company_ids || [],
-            client_ids: existingProfiles[0].client_ids || []
-          })
-          .eq("id", masterUserId);
-          
-        if (updateProfileError) {
-          console.error("Error updating profile:", updateProfileError);
-        }
+        throw insertProfileError;
       }
     }
     
