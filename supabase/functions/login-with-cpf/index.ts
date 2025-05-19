@@ -63,7 +63,7 @@ serve(async (req) => {
             .from("profiles")
             .select("*")
             .eq("id", masterSignInData.user.id)
-            .maybeSingle(); // Changed from single() to maybeSingle()
+            .maybeSingle();
             
           if (!profileError && profileData) {
             // Update profile to ensure it's marked as master and admin
@@ -208,33 +208,25 @@ async function ensureMasterPermissions(supabase: any, userId: string) {
       .from("user_permissions")
       .select("*")
       .eq("user_id", userId)
-      .maybeSingle(); // Changed from maybeSingle() to maybeSingle()
+      .maybeSingle();
       
-    // Create all permissions with full access
+    // Create all permissions with full access - Use only fields that exist in the database schema
     const fullPermissions = {
       user_id: userId,
-      can_create_user: true,
+      can_create: true,
+      can_edit: true,
+      can_delete: true,
       can_edit_user: true,
-      can_edit_user_status: true,
-      can_set_user_permissions: true,
-      can_create_section: true,
-      can_edit_section: true,
-      can_delete_section: true,
-      can_create_field: true,
-      can_edit_field: true,
-      can_delete_field: true,
-      can_fill_field: true,
-      can_sign: true,
-      can_insert_logo: true,
-      can_insert_photo: true,
-      can_save: true,
-      can_save_as: true,
-      can_download: true,
-      can_open: true,
-      can_print: true,
-      can_edit_document: true,
-      can_cancel_document: true,
-      can_view: true,
+      can_edit_action: true,
+      can_edit_client: true,
+      can_edit_company: true,
+      can_delete_client: true,
+      can_delete_company: true,
+      can_mark_complete: true,
+      can_mark_delayed: true,
+      can_add_notes: true,
+      can_view_reports: true,
+      view_all_actions: true,
       can_edit_document_type: true
     };
     

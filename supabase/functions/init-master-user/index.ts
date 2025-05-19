@@ -336,43 +336,24 @@ async function setMasterPermissions(supabaseAdmin: any, userId: string) {
       throw checkError;
     }
     
-    // Full permissions object
+    // Full permissions object - Use only fields that exist in the database schema
+    // IMPORTANT: Removed the problematic 'can_cancel_document' field and others that don't exist
     const fullPermissions = {
+      user_id: userId,
       can_create: true,
       can_edit: true,
       can_delete: true,
-      can_create_user: true,
       can_edit_user: true,
-      can_edit_user_status: true,
-      can_set_user_permissions: true,
-      can_create_section: true,
-      can_edit_section: true,
-      can_delete_section: true,
-      can_create_field: true,
-      can_edit_field: true,
-      can_delete_field: true,
-      can_fill_field: true,
-      can_sign: true,
-      can_insert_logo: true,
-      can_insert_photo: true,
-      can_save: true,
-      can_save_as: true,
-      can_download: true,
-      can_open: true,
-      can_print: true,
-      can_edit_document: true,
-      can_cancel_document: true,
-      can_view: true,
-      view_all_actions: true,
-      can_view_reports: true,
-      can_mark_complete: true,
-      can_mark_delayed: true,
-      can_add_notes: true,
       can_edit_action: true,
       can_edit_client: true,
       can_edit_company: true,
       can_delete_client: true,
       can_delete_company: true,
+      can_mark_complete: true,
+      can_mark_delayed: true,
+      can_add_notes: true,
+      can_view_reports: true,
+      view_all_actions: true,
       can_edit_document_type: true
     };
     
@@ -382,10 +363,7 @@ async function setMasterPermissions(supabaseAdmin: any, userId: string) {
       
       const { error: updateError } = await supabaseAdmin
         .from("user_permissions")
-        .update({
-          ...fullPermissions,
-          user_id: userId
-        })
+        .update(fullPermissions)
         .eq("id", existingPermissions.id);
         
       if (updateError) {
@@ -398,10 +376,7 @@ async function setMasterPermissions(supabaseAdmin: any, userId: string) {
       
       const { error: createError } = await supabaseAdmin
         .from("user_permissions")
-        .insert([{
-          user_id: userId,
-          ...fullPermissions
-        }]);
+        .insert([fullPermissions]);
         
       if (createError) {
         console.error("Error creating permissions:", createError);

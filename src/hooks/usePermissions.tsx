@@ -5,34 +5,70 @@ import { useToast } from "@/hooks/use-toast";
 
 // Permission types
 export interface UserPermissions {
+  // Core permissions
+  can_create: boolean;
+  can_edit: boolean;
+  can_delete: boolean;
+  
+  // User permissions
   can_create_user: boolean;
   can_edit_user: boolean;
   can_edit_user_status: boolean;
   can_set_user_permissions: boolean;
+  
+  // Document permissions
+  can_edit_document: boolean;
+  can_edit_document_type: boolean;
+  
+  // Section permissions
   can_create_section: boolean;
   can_edit_section: boolean;
   can_delete_section: boolean;
+  
+  // Field permissions
   can_create_field: boolean;
   can_edit_field: boolean;
   can_delete_field: boolean;
   can_fill_field: boolean;
+  
+  // Content permissions
   can_sign: boolean;
   can_insert_logo: boolean;
   can_insert_photo: boolean;
+  
+  // Document operations
   can_save: boolean;
   can_save_as: boolean;
   can_download: boolean;
   can_open: boolean;
   can_print: boolean;
-  can_edit_document: boolean;
-  can_cancel_document: boolean;
+  
+  // Action permissions
+  can_edit_action: boolean;
+  can_mark_complete: boolean;
+  can_mark_delayed: boolean;
+  can_add_notes: boolean;
+  
+  // Client/Company permissions
+  can_edit_client: boolean;
+  can_delete_client: boolean;
+  can_edit_company: boolean;
+  can_delete_company: boolean;
+  
+  // View permissions
   can_view: boolean;
-  can_edit_document_type: boolean;
+  can_view_reports: boolean;
+  view_all_actions: boolean;
+  
+  // Any additional custom permissions (for future-proofing)
   [key: string]: boolean;
 }
 
 // Initial value (all permissions denied)
 const defaultPermissions: UserPermissions = {
+  can_create: false,
+  can_edit: false,
+  can_delete: false,
   can_create_user: false,
   can_edit_user: false,
   can_edit_user_status: false,
@@ -53,9 +89,18 @@ const defaultPermissions: UserPermissions = {
   can_open: false,
   can_print: false,
   can_edit_document: false,
-  can_cancel_document: false,
+  can_edit_document_type: false,
+  can_mark_complete: false,
+  can_mark_delayed: false,
+  can_add_notes: false,
+  can_view_reports: false,
   can_view: false,
-  can_edit_document_type: false
+  can_edit_action: false,
+  can_edit_client: false,
+  can_delete_client: false,
+  can_edit_company: false,
+  can_delete_company: false,
+  view_all_actions: false
 };
 
 // Permissions context

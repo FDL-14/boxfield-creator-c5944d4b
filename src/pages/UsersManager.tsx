@@ -1,15 +1,14 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
+import MainHeader from "@/components/MainHeader";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase, processUserProfile, cleanCPF, isMasterUser } from "@/integrations/supabase/client";
-import { AuthService } from "@/services/authService"; // Added import for AuthService
+import { AuthService } from "@/services/authService"; // Ensure this import is present
 import { User, PlusCircle, Pencil, Trash2, Shield, Mail, Key, Loader2, Check, X, RotateCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -710,7 +709,7 @@ export default function UsersManager() {
   
   return (
     <div className="container mx-auto py-8">
-      <Header 
+      <MainHeader 
         title="Gerenciamento de Usuários" 
         subtitle="Cadastre e gerencie todos os usuários do sistema" 
       />
