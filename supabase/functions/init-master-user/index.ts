@@ -101,6 +101,7 @@ serve(async (req) => {
       // Update existing auth user
       try {
         await supabaseAdmin.auth.admin.updateUserById(masterUserId, {
+          email: masterEmail,
           user_metadata: {
             name: masterName,
             cpf: masterCPF,
@@ -114,11 +115,148 @@ serve(async (req) => {
       }
     }
     
-    // Handle profile creation or update based on CPF uniqueness
-    let profileExists = false;
+    // Handle profile creation or update in a more reliable way
+    console.log("Handling profile for user ID:", masterUserId);
     
-    if (!existingProfiles || existingProfiles.length === 0) {
-      // Check if a profile exists with the user ID but not matching CPF
+    let profileExists = false;
+    const emptyArray: string[] = [];
+    
+    if (existingProfiles && existingProfiles.length > 0) {
+      // Profile exists with master CPF
+      profileExists = true;
+      const existingProfile = existingProfiles[0];
+      
+      console.log("Found existing profile with master CPF:", existingProfile);
+      
+      // If the profile exists but with a different ID than our current auth user
+      if (existingProfile.id !== masterUserId) {
+        console.log("Existing profile has different ID. Current auth ID:", masterUserId, "Profile ID:", existingProfile.id);
+        
+        // First check if we already have a profile with the auth user ID
+        const { data: authUserProfile } = await supabaseAdmin
+          .from("profiles")
+          .select("id, cpf")
+          .eq("id", masterUserId)
+          .maybeSingle();
+        
+        if (authUserProfile) {
+          console.log("Profile already exists for current auth ID, updating it");
+          
+          // Update the profile that matches our auth ID
+          const { error: updateError } = await supabaseAdmin
+            .from("profiles")
+            .update({
+              cpf: masterCPF,
+              name: masterName,
+              email: masterEmail,
+              is_admin: true,
+              is_master: true,
+              company_ids: emptyArray,
+              client_ids: emptyArray,
+              updated_at: new Date().toISOString()
+            })
+            .eq("id", masterUserId);
+            
+          if (updateError) {
+            console.error("Error updating profile with auth ID:", updateError);
+            throw updateError;
+          }
+          
+          // Now delete the profile with the master CPF but different ID to resolve conflicts
+          // Only if it's not the same as our auth user ID
+          if (existingProfile.id !== masterUserId) {
+            console.log("Removing conflicting profile with ID:", existingProfile.id);
+            const { error: deleteError } = await supabaseAdmin
+              .from("profiles")
+              .delete()
+              .eq("id", existingProfile.id);
+              
+            if (deleteError) {
+              console.error("Error removing conflicting profile:", deleteError);
+            }
+          }
+        } else {
+          // We don't have a profile with auth ID, but have one with master CPF
+          // Move the existing profile to have the correct ID
+          console.log("Moving master profile to use correct auth ID");
+          
+          // Create a new profile with the right ID
+          const { error: insertNewError } = await supabaseAdmin
+            .from("profiles")
+            .insert({
+              id: masterUserId,
+              cpf: masterCPF,
+              name: masterName,
+              email: masterEmail,
+              is_admin: true,
+              is_master: true,
+              company_ids: emptyArray,
+              client_ids: emptyArray,
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString()
+            });
+            
+          if (insertNewError) {
+            console.error("Error creating new profile:", insertNewError);
+            // If we can't create the new profile, try updating the existing one
+            if (insertNewError.code === '23505') { // Unique violation
+              console.log("Unique violation, trying to update existing profile instead");
+              const { error: updateError } = await supabaseAdmin
+                .from("profiles")
+                .update({
+                  cpf: masterCPF,
+                  name: masterName,
+                  email: masterEmail,
+                  is_admin: true,
+                  is_master: true,
+                  company_ids: emptyArray,
+                  client_ids: emptyArray,
+                  updated_at: new Date().toISOString()
+                })
+                .eq("id", masterUserId);
+                
+              if (updateError) {
+                console.error("Error updating profile as fallback:", updateError);
+                throw updateError;
+              }
+            } else {
+              throw insertNewError;
+            }
+          }
+          
+          // Remove old profile if successful
+          await supabaseAdmin
+            .from("profiles")
+            .delete()
+            .eq("id", existingProfile.id)
+            .throwOnError();
+            
+          console.log("Removed old profile with incorrect ID");
+        }
+      } else {
+        // Profile exists with correct ID, just update it
+        console.log("Updating existing profile with correct user ID");
+        
+        const { error: updateError } = await supabaseAdmin
+          .from("profiles")
+          .update({
+            name: masterName,
+            email: masterEmail,
+            is_admin: true,
+            is_master: true,
+            company_ids: existingProfile.company_ids || emptyArray,
+            client_ids: existingProfile.client_ids || emptyArray,
+            updated_at: new Date().toISOString()
+          })
+          .eq("id", masterUserId);
+          
+        if (updateError) {
+          console.error("Error updating profile:", updateError);
+          throw updateError;
+        }
+      }
+    } else {
+      // No profile with master CPF exists, check if we have one with the auth ID
       const { data: existingProfileById } = await supabaseAdmin
         .from("profiles")
         .select("id, cpf")
@@ -138,51 +276,9 @@ serve(async (req) => {
             email: masterEmail,
             is_admin: true,
             is_master: true,
-            company_ids: existingProfileById.company_ids || [],
-            client_ids: existingProfileById.client_ids || []
-          })
-          .eq("id", masterUserId);
-          
-        if (updateError) {
-          console.error("Error updating profile:", updateError);
-          throw updateError;
-        }
-      }
-    } else {
-      // Profile exists with this CPF, make sure it's attached to the correct user ID
-      profileExists = true;
-      const existingProfileId = existingProfiles[0].id;
-      
-      // If the profile exists but with a different ID
-      if (existingProfileId !== masterUserId) {
-        console.log("Updating profile with master CPF to have correct user ID");
-        
-        // First delete the old profile to avoid CPF uniqueness conflict
-        const { error: deleteError } = await supabaseAdmin
-          .from("profiles")
-          .delete()
-          .eq("cpf", masterCPF);
-          
-        if (deleteError) {
-          console.error("Error deleting old profile:", deleteError);
-          throw deleteError;
-        }
-        
-        // Profile has been deleted, set profileExists to false so we create a new one
-        profileExists = false;
-      } else {
-        // Update existing profile that already has correct user ID
-        console.log("Updating existing profile with correct user ID");
-        
-        const { error: updateError } = await supabaseAdmin
-          .from("profiles")
-          .update({
-            name: masterName,
-            email: masterEmail,
-            is_admin: true,
-            is_master: true,
-            company_ids: existingProfiles[0].company_ids || [],
-            client_ids: existingProfiles[0].client_ids || []
+            company_ids: existingProfileById.company_ids || emptyArray,
+            client_ids: existingProfileById.client_ids || emptyArray,
+            updated_at: new Date().toISOString()
           })
           .eq("id", masterUserId);
           
@@ -193,7 +289,7 @@ serve(async (req) => {
       }
     }
     
-    // Create new profile if needed
+    // Create new profile if no profile exists
     if (!profileExists) {
       console.log("Creating new master user profile");
       
@@ -206,8 +302,10 @@ serve(async (req) => {
           email: masterEmail,
           is_admin: true,
           is_master: true,
-          company_ids: [],
-          client_ids: []
+          company_ids: emptyArray,
+          client_ids: emptyArray,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
         });
         
       if (insertProfileError) {
@@ -220,6 +318,19 @@ serve(async (req) => {
     
     // Set all permissions for the master user
     await setMasterPermissions(supabaseAdmin, masterUserId);
+    
+    // Fetch the profile one last time to verify it was created correctly
+    const { data: finalProfile, error: finalProfileError } = await supabaseAdmin
+      .from("profiles")
+      .select("*")
+      .eq("id", masterUserId)
+      .single();
+      
+    if (finalProfileError) {
+      console.error("Error fetching final profile:", finalProfileError);
+    } else {
+      console.log("Final profile verification:", finalProfile);
+    }
     
     return new Response(
       JSON.stringify({ 
@@ -344,6 +455,15 @@ async function setMasterPermissions(supabaseAdmin: any, userId: string) {
           can_edit_document_type: true
         }]);
     }
+    
+    // Verify permissions were set
+    const { data: verifyPermissions } = await supabaseAdmin
+      .from("user_permissions")
+      .select("*")
+      .eq("user_id", userId)
+      .single();
+      
+    console.log("Verified permissions:", verifyPermissions ? "Set successfully" : "Failed to set");
     
     console.log("Master user permissions set successfully");
   } catch (error) {

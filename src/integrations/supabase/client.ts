@@ -11,7 +11,8 @@ export const supabase = createClient<Database>(
 export function processUserProfile(profile: any): any {
   if (!profile) return null;
   
-  return {
+  // Convert the profile to a reliable format
+  const processedProfile = {
     ...profile,
     // Ensure boolean values are properly set
     is_admin: profile.is_admin === true,
@@ -23,6 +24,8 @@ export function processUserProfile(profile: any): any {
     // Process nested permissions if present
     permissions: profile.permissions || []
   };
+
+  return processedProfile;
 }
 
 // Helper to clean CPF
@@ -38,6 +41,7 @@ export function isMasterUser(profile: any): boolean {
   // Check if user is master by CPF or flag
   const masterCPF = '80243088191';
   const userCPF = cleanCPF(profile.cpf);
+  const isMasterByEmail = profile.email === 'fabiano@totalseguranca.net';
   
-  return userCPF === masterCPF || profile.is_master === true;
+  return userCPF === masterCPF || profile.is_master === true || isMasterByEmail;
 }

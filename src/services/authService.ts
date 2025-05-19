@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 
 /**
@@ -220,11 +219,23 @@ export const AuthService = {
       console.log("Initializing master user...");
       const response = await fetch(
         "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/init-master-user",
-        { method: "POST", headers: { "Content-Type": "application/json" } }
+        { 
+          method: "POST", 
+          headers: { "Content-Type": "application/json" } 
+        }
       );
+      
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(`Master user initialization failed: ${errorData.message || response.statusText}`);
+      }
       
       const result = await response.json();
       console.log("Master user initialization result:", result);
+      
+      // Add a slight delay to ensure database changes propagate
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
       return { success: response.ok, result };
     } catch (error: any) {
       console.error("Error initializing master user:", error);

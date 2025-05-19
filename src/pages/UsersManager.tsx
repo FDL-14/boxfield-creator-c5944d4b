@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
@@ -155,7 +154,7 @@ export default function UsersManager() {
       setCurrentUserId(userId);
       
       // Fetch the user profile
-      const { data: profileData, error: profileError } = await supabase
+      let { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('*, permissions:user_permissions(*)')
         .eq('id', userId)
@@ -166,13 +165,8 @@ export default function UsersManager() {
         throw profileError;
       }
       
-      // If profile exists, process it and continue
-      if (profileData) {
-        const processedProfile = processUserProfile(profileData);
-        setCurrentUserProfile(processedProfile);
-        setAuthCheckComplete(true);
-      } else {
-        // Profile doesn't exist yet - try to initialize it
+      // If profile doesn't exist yet - try to initialize master user
+      if (!profileData) {
         console.log("Profile not found, attempting to initialize master user...");
         
         try {
@@ -185,15 +179,13 @@ export default function UsersManager() {
             }
           );
           
-          if (!initResponse.ok) {
-            const errorData = await initResponse.json();
-            throw new Error(`Failed to initialize master user: ${errorData.message || initResponse.statusText}`);
-          }
-          
           const initResult = await initResponse.json();
           console.log("Master user initialization result:", initResult);
           
           if (initResult.success) {
+            // Wait a moment to allow database operations to complete
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            
             // Fetch the newly created profile
             const { data: newProfile, error: newProfileError } = await supabase
               .from('profiles')
@@ -225,6 +217,11 @@ export default function UsersManager() {
           navigate('/');
           return;
         }
+      } else {
+        // Profile exists, process it and continue
+        const processedProfile = processUserProfile(profileData);
+        setCurrentUserProfile(processedProfile);
+        setAuthCheckComplete(true);
       }
     } catch (error: any) {
       console.error("Error checking auth:", error);
