@@ -737,7 +737,7 @@ const PersonsEmployeesManager: React.FC = () => {
                   <SelectValue placeholder="Vincular a usuário (opcional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Nenhum</SelectItem>
+                  <SelectItem value="none">Nenhum</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id}>
                       {user.name || user.email}
