@@ -24,7 +24,6 @@ import GroupsClientsManager from "./pages/GroupsClientsManager";
 import SectorsDepartmentsManager from "./pages/SectorsDepartmentsManager";
 import PositionsRolesManager from "./pages/PositionsRolesManager";
 import PersonsEmployeesManager from "./pages/PersonsEmployeesManager";
-import { usePermissions } from "@/hooks/usePermissions";
 
 const queryClient = new QueryClient();
 
