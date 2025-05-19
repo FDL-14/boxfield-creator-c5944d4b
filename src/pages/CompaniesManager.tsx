@@ -1,7 +1,5 @@
-
 import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -9,12 +7,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Building, PlusCircle, Pencil, Trash2, Image, Phone, Mail, MapPin, BarChart4, Loader2 } from "lucide-react";
+import { Building, PlusCircle, Pencil, Trash2, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
+import MainHeader from "@/components/MainHeader";
 
 export default function CompaniesManager() {
   const { toast } = useToast();
-  const navigate = useNavigate();
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -30,16 +28,8 @@ export default function CompaniesManager() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
-    checkAuth();
     loadCompanies();
   }, []);
-  
-  const checkAuth = async () => {
-    const { data } = await supabase.auth.getSession();
-    if (!data.session) {
-      navigate('/auth');
-    }
-  };
   
   const loadCompanies = async () => {
     try {
@@ -216,16 +206,16 @@ export default function CompaniesManager() {
   
   return (
     <div className="container mx-auto py-8">
-      <div className="flex justify-between items-center mb-6">
-        <div>
-          <h1 className="text-2xl font-bold">Gerenciamento de Empresas</h1>
-          <p className="text-gray-500">Cadastre e gerencie todas as empresas</p>
-        </div>
-        <Button onClick={() => handleOpenDialog()} className="flex items-center">
-          <PlusCircle className="mr-2 h-4 w-4" />
-          Nova Empresa
-        </Button>
-      </div>
+      <MainHeader 
+        title="Gerenciamento de Empresas" 
+        subtitle="Cadastre e gerencie todas as empresas" 
+        rightContent={
+          <Button onClick={() => handleOpenDialog()} className="flex items-center">
+            <PlusCircle className="mr-2 h-4 w-4" />
+            Nova Empresa
+          </Button>
+        }
+      />
       
       {loading ? (
         <div className="flex justify-center my-12">

@@ -50,94 +50,92 @@ const MainNavigation: React.FC = () => {
               
               {/* Document Types - Second Level */}
               <li className="col-span-1">
-                <div>
-                  <NavigationMenuItem>
-                    <NavigationMenuTrigger className="w-full justify-start">
-                      <FileText className="mr-2 h-4 w-4" />
-                      Tipos de Documentos
-                    </NavigationMenuTrigger>
-                    
-                    <NavigationMenuContent>
-                      <ul className="grid w-[400px] gap-3 p-4">
-                        {/* Third Level Items */}
-                        <li>
-                          <Link
-                            to="/analise-risco"
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                          >
-                            <div className="text-sm font-medium leading-none flex items-center">
-                              <ClipboardCheck className="mr-2 h-4 w-4" />
-                              Análise de Risco
-                            </div>
-                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                              Documentos para análise de riscos em atividades
-                            </p>
-                          </Link>
-                        </li>
-                        
-                        <li>
-                          <Link
-                            to="/permissao-trabalho"
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                          >
-                            <div className="text-sm font-medium leading-none flex items-center">
-                              <ClipboardCheck className="mr-2 h-4 w-4" />
-                              Permissão de Trabalho
-                            </div>
-                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                              Documentos de permissão para atividades específicas
-                            </p>
-                          </Link>
-                        </li>
-                        
-                        <li>
-                          <Link
-                            to="/permissao-trabalho/quente"
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                          >
-                            <div className="text-sm font-medium leading-none flex items-center">
-                              <Flame className="mr-2 h-4 w-4 text-orange-500" />
-                              Serviço a Quente
-                            </div>
-                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                              Permissão para trabalhos com geração de calor ou faíscas
-                            </p>
-                          </Link>
-                        </li>
-                        
-                        <li>
-                          <Link
-                            to="/permissao-trabalho/frio"
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                          >
-                            <div className="text-sm font-medium leading-none flex items-center">
-                              <Snowflake className="mr-2 h-4 w-4 text-blue-500" />
-                              Serviço a Frio
-                            </div>
-                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                              Permissão para trabalhos sem geração de calor ou faíscas
-                            </p>
-                          </Link>
-                        </li>
-                        
-                        <li>
-                          <Link
-                            to="/document-creator/test"
-                            className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                          >
-                            <div className="text-sm font-medium leading-none flex items-center">
-                              <Save className="mr-2 h-4 w-4" />
-                              Teste de Salvar
-                            </div>
-                            <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                              Teste de funcionalidade de salvar documentos
-                            </p>
-                          </Link>
-                        </li>
-                      </ul>
-                    </NavigationMenuContent>
-                  </NavigationMenuItem>
-                </div>
+                <NavigationMenuItem className="w-full">
+                  <NavigationMenuTrigger className="w-full justify-start">
+                    <FileText className="mr-2 h-4 w-4" />
+                    Tipos de Documentos
+                  </NavigationMenuTrigger>
+                  
+                  <NavigationMenuContent>
+                    <ul className="grid w-[400px] gap-3 p-4">
+                      {/* Third Level Items */}
+                      <li>
+                        <Link
+                          to="/analise-risco"
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                          <div className="text-sm font-medium leading-none flex items-center">
+                            <ClipboardCheck className="mr-2 h-4 w-4" />
+                            Análise de Risco
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            Documentos para análise de riscos em atividades
+                          </p>
+                        </Link>
+                      </li>
+                      
+                      <li>
+                        <Link
+                          to="/permissao-trabalho"
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                          <div className="text-sm font-medium leading-none flex items-center">
+                            <ClipboardCheck className="mr-2 h-4 w-4" />
+                            Permissão de Trabalho
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            Documentos de permissão para atividades específicas
+                          </p>
+                        </Link>
+                      </li>
+                      
+                      <li>
+                        <Link
+                          to="/permissao-trabalho/quente"
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                          <div className="text-sm font-medium leading-none flex items-center">
+                            <Flame className="mr-2 h-4 w-4 text-orange-500" />
+                            Serviço a Quente
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            Permissão para trabalhos com geração de calor ou faíscas
+                          </p>
+                        </Link>
+                      </li>
+                      
+                      <li>
+                        <Link
+                          to="/permissao-trabalho/frio"
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                          <div className="text-sm font-medium leading-none flex items-center">
+                            <Snowflake className="mr-2 h-4 w-4 text-blue-500" />
+                            Serviço a Frio
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            Permissão para trabalhos sem geração de calor ou faíscas
+                          </p>
+                        </Link>
+                      </li>
+                      
+                      <li>
+                        <Link
+                          to="/document-creator/test"
+                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                        >
+                          <div className="text-sm font-medium leading-none flex items-center">
+                            <Save className="mr-2 h-4 w-4" />
+                            Teste de Salvar
+                          </div>
+                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                            Teste de funcionalidade de salvar documentos
+                          </p>
+                        </Link>
+                      </li>
+                    </ul>
+                  </NavigationMenuContent>
+                </NavigationMenuItem>
               </li>
             </ul>
           </NavigationMenuContent>
