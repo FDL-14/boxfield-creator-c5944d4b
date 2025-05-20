@@ -39,6 +39,14 @@ function AppInitializer() {
   return null;
 }
 
+// Lista de rotas que não exigem autenticação
+const publicRoutes = [
+  "/",
+  "/auth",
+  "/document-types",
+  "/form-builder"
+];
+
 const App = () => {
   return (
     <QueryClientProvider client={queryClient}>

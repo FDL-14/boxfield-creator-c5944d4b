@@ -14,8 +14,16 @@ serve(async (req) => {
   }
 
   try {
+    // Obtenha as variáveis de ambiente do Supabase
     const supabaseUrl = Deno.env.get('SUPABASE_URL') as string
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') as string
+    
+    // Verificação simplificada - apenas avisa se as variáveis não estão disponíveis
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.warn('Environment variables missing: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY')
+    }
+    
+    // Cria o cliente Supabase com as credenciais de serviço
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey)
 
     // Get the request body

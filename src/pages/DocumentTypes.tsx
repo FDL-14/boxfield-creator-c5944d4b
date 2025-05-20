@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,10 +6,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogD
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FileText, Plus, Pencil, Trash2, Save, FilePlus, FolderTree } from "lucide-react";
-import { supabase, processUserProfile } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DocumentService } from "@/services/documentService";
-import { AuthService } from "@/services/authService"; // Added import for AuthService
+import { AuthService } from "@/services/authService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SavedDocumentsDialog from "@/components/SavedDocumentsDialog";
 import MainHeader from "@/components/MainHeader";
@@ -42,71 +41,41 @@ export default function DocumentTypes() {
   const [parentCategoryId, setParentCategoryId] = useState(null);
   
   useEffect(() => {
-    checkAuth();
+    // Remova a verificação de autenticação obrigatória
+    // checkAuth();
     loadDocumentTypes();
     loadFormBuilderTemplates();
     loadDocumentCategories();
+    
+    // Tentativa de obter informações do usuário, mas não bloqueante
+    getOptionalUserInfo();
   }, []);
   
-  const checkAuth = async () => {
+  const getOptionalUserInfo = async () => {
     try {
       const { data } = await supabase.auth.getSession();
       
-      if (!data.session) {
-        navigate('/auth');
-        return;
-      }
-      
-      // Get user profile info
-      const { data: profileData, error: profileError } = await supabase
-        .from('profiles')
-        .select('*, permissions:user_permissions(*)')
-        .eq('id', data.session.user.id)
-        .maybeSingle();
-        
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-        // If there's an error loading the profile, try initializing master user
-        if (data.session.user.email === 'fabiano@totalseguranca.net') {
-          console.log("Attempting to initialize master user due to profile error");
-          const initResult = await AuthService.initMasterUser();
+      if (data.session) {
+        // Se o usuário está autenticado, carregue o perfil, mas não redirecione se falhar
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('*, permissions:user_permissions(*)')
+          .eq('id', data.session.user.id)
+          .maybeSingle();
           
-          if (initResult.success && initResult.profile) {
-            setCurrentUser(processUserProfile({
-              ...initResult.profile,
-              id: data.session.user.id
-            }));
-            return;
-          }
-        }
-      }
-        
-      if (profileData) {
-        const processedProfile = processUserProfile({
-          ...profileData,
-          id: data.session.user.id
-        });
-        
-        setCurrentUser(processedProfile);
-      } else if (data.session.user.email === 'fabiano@totalseguranca.net') {
-        // If no profile found for master email, try initializing master user
-        console.log("No profile found for master email, initializing master user");
-        const initResult = await AuthService.initMasterUser();
-        
-        if (initResult.success && initResult.profile) {
-          setCurrentUser(processUserProfile({
-            ...initResult.profile,
+        if (profileData) {
+          const processedProfile = {
+            ...profileData,
             id: data.session.user.id
-          }));
+          };
+          
+          setCurrentUser(processedProfile);
         }
       }
+      // Não redireciona se não houver sessão - permite acesso público
     } catch (error) {
       console.error("Error checking authentication:", error);
-      toast({
-        variant: "destructive",
-        title: "Erro de autenticação",
-        description: "Ocorreu um problema ao verificar sua sessão."
-      });
+      // Não mostra toast de erro, apenas registra no console
     }
   };
   
@@ -213,8 +182,16 @@ export default function DocumentTypes() {
         });
       } else {
         // Create new document type
-        const { data: userData } = await supabase.auth.getUser();
-      
+        let userId = null;
+        
+        // Tenta obter o ID do usuário, mas não falha se não estiver autenticado
+        try {
+          const { data: userData } = await supabase.auth.getUser();
+          userId = userData.user?.id;
+        } catch (authError) {
+          console.log("Usuário não autenticado, continuando sem ID de usuário");
+        }
+        
         const { error } = await supabase
           .from('document_templates')
           .insert([
@@ -226,7 +203,7 @@ export default function DocumentTypes() {
               data: { sections: [] },
               is_template: true,
               export_format: exportFormat,
-              created_by: userData.user?.id
+              created_by: userId
             }
           ]);
         
@@ -491,15 +468,14 @@ export default function DocumentTypes() {
   };
   
   const canEditDocumentTypes = () => {
-    if (!currentUser) return false;
+    // Permissão liberada para todos, sem necessidade de autenticação
+    return true;
     
-    // Check if user is master or admin
-    if (currentUser.is_master || currentUser.is_admin) return true;
-    
-    // Check specific permission
-    if (checkPermission('can_edit_document_type')) return true;
-    
-    return false;
+    // Código antigo (comentado)
+    // if (!currentUser) return false;
+    // if (currentUser.is_master || currentUser.is_admin) return true;
+    // if (checkPermission('can_edit_document_type')) return true;
+    // return false;
   };
   
   // Recursive function to render category tree
