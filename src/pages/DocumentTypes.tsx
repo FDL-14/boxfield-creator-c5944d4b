@@ -533,7 +533,7 @@ export default function DocumentTypes() {
       <>
         {categories.map(category => (
           <React.Fragment key={category.id}>
-            <SelectItem value={category.id}>
+            <SelectItem value={String(category.id)}>
               {"—".repeat(depth)} {category.name}
             </SelectItem>
             {category.children && category.children.length > 0 && 
@@ -778,14 +778,14 @@ export default function DocumentTypes() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Categoria (opcional)</label>
               <Select 
-                value={selectedCategoryId || ""}
+                value={selectedCategoryId ? String(selectedCategoryId) : undefined}
                 onValueChange={setSelectedCategoryId}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a categoria" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Sem categoria</SelectItem>
+                  <SelectItem value="null">Sem categoria</SelectItem>
                   {renderCategoryOptions(documentCategoriesTree)}
                 </SelectContent>
               </Select>
@@ -864,14 +864,14 @@ export default function DocumentTypes() {
             <div className="space-y-2">
               <label className="text-sm font-medium">Categoria Pai (opcional)</label>
               <Select 
-                value={parentCategoryId || ""}
+                value={parentCategoryId ? String(parentCategoryId) : undefined}
                 onValueChange={setParentCategoryId}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione a categoria pai" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Raiz (Sem pai)</SelectItem>
+                  <SelectItem value="null">Raiz (Sem pai)</SelectItem>
                   {renderCategoryOptions(documentCategoriesTree)}
                 </SelectContent>
               </Select>
