@@ -9,6 +9,9 @@ import { useEffect } from "react";
 import { ensureMasterUserInitialized } from "@/integrations/supabase/client";
 import Index from "./pages/Index";
 import FormBuilder from "./pages/FormBuilder";
+import FormTypes from "./pages/FormTypes";
+import FormTemplates from "./pages/FormTemplates";
+import FormCreator from "./pages/FormCreator";
 import AnaliseRisco from "./pages/AnaliseRisco";
 import PermissaoTrabalho from "./pages/PermissaoTrabalho";
 import RelatoriosAnaliseRisco from "./pages/RelatoriosAnaliseRisco";
@@ -43,8 +46,10 @@ function AppInitializer() {
 const publicRoutes = [
   "/",
   "/auth",
-  "/document-types",
-  "/form-builder"
+  "/form-types",
+  "/form-builder",
+  "/form-templates",
+  "/form-creator"
 ];
 
 const App = () => {
@@ -57,6 +62,9 @@ const App = () => {
             <Routes>
               <Route path="/" element={<Index />} />
               <Route path="/form-builder" element={<FormBuilder />} />
+              <Route path="/form-types" element={<FormTypes />} />
+              <Route path="/form-templates" element={<FormTemplates />} />
+              <Route path="/form-creator" element={<FormCreator />} />
               <Route path="/analise-risco" element={<AnaliseRisco />} />
               <Route path="/permissao-trabalho" element={<PermissaoTrabalho />} />
               <Route path="/permissao-trabalho/quente" element={<PermissaoTrabalho />} />

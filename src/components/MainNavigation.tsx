@@ -22,6 +22,9 @@ import {
   Briefcase,
   FolderTree,
   LayoutGrid,
+  Settings,
+  Plus,
+  List,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -35,18 +38,18 @@ const MainNavigation: React.FC = () => {
         <NavigationMenuItem>
           <NavigationMenuTrigger>
             <FileEdit className="mr-2 h-4 w-4" />
-            Construtor de Formulário
+            Construtor de Formulários
           </NavigationMenuTrigger>
           <NavigationMenuContent>
-            <ul className="grid w-[400px] gap-3 p-4 md:w-[500px] md:grid-cols-2 lg:w-[600px]">
-              <li className="row-span-3">
+            <ul className="grid w-[500px] gap-3 p-4 md:w-[600px] md:grid-cols-2 lg:w-[700px]">
+              <li className="row-span-4">
                 <Link
                   to="/form-builder"
                   className="flex h-full w-full select-none flex-col justify-end rounded-md bg-gradient-to-b from-muted/50 to-muted p-6 no-underline outline-none focus:shadow-md"
                 >
                   <FileEdit className="h-6 w-6 text-primary" />
                   <div className="mb-2 mt-4 text-lg font-medium">
-                    Construtor de Formulário
+                    Construtor de Formulários
                   </div>
                   <p className="text-sm leading-tight text-muted-foreground">
                     Crie e gerencie campos personalizados para seus formulários
@@ -54,108 +57,110 @@ const MainNavigation: React.FC = () => {
                 </Link>
               </li>
               
-              {/* Document Types - Second Level */}
-              <li className="col-span-1">
-                <NavigationMenuItem className="w-full">
-                  <NavigationMenuTrigger className="w-full justify-start">
+              <li>
+                <Link
+                  to="/form-types"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Gerenciar Tipos de Formulários
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Configure e gerencie os tipos de formulários
+                  </p>
+                </Link>
+              </li>
+
+              <li>
+                <Link
+                  to="/form-templates"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
                     <FileText className="mr-2 h-4 w-4" />
-                    Tipos de Documentos
-                  </NavigationMenuTrigger>
-                  
-                  <NavigationMenuContent>
-                    <ul className="grid w-[400px] gap-3 p-4">
-                      {/* Third Level Items */}
-                      <li>
-                        <Link
-                          to="/document-types"
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
-                          <div className="text-sm font-medium leading-none flex items-center">
-                            <FileText className="mr-2 h-4 w-4" />
-                            Gerenciar Tipos de Documentos
-                          </div>
-                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Configure e gerencie os tipos de documentos
-                          </p>
-                        </Link>
-                      </li>
-                      <li>
-                        <Link
-                          to="/analise-risco"
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
-                          <div className="text-sm font-medium leading-none flex items-center">
-                            <ClipboardCheck className="mr-2 h-4 w-4" />
-                            Análise de Risco
-                          </div>
-                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Documentos para análise de riscos em atividades
-                          </p>
-                        </Link>
-                      </li>
-                      
-                      <li>
-                        <Link
-                          to="/permissao-trabalho"
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
-                          <div className="text-sm font-medium leading-none flex items-center">
-                            <ClipboardCheck className="mr-2 h-4 w-4" />
-                            Permissão de Trabalho
-                          </div>
-                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Documentos de permissão para atividades específicas
-                          </p>
-                        </Link>
-                      </li>
-                      
-                      <li>
-                        <Link
-                          to="/permissao-trabalho/quente"
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
-                          <div className="text-sm font-medium leading-none flex items-center">
-                            <Flame className="mr-2 h-4 w-4 text-orange-500" />
-                            Serviço a Quente
-                          </div>
-                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Permissão para trabalhos com geração de calor ou faíscas
-                          </p>
-                        </Link>
-                      </li>
-                      
-                      <li>
-                        <Link
-                          to="/permissao-trabalho/frio"
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
-                          <div className="text-sm font-medium leading-none flex items-center">
-                            <Snowflake className="mr-2 h-4 w-4 text-blue-500" />
-                            Serviço a Frio
-                          </div>
-                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Permissão para trabalhos sem geração de calor ou faíscas
-                          </p>
-                        </Link>
-                      </li>
-                      
-                      <li>
-                        <Link
-                          to="/document-creator/test"
-                          className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
-                        >
-                          <div className="text-sm font-medium leading-none flex items-center">
-                            <Save className="mr-2 h-4 w-4" />
-                            Teste de Salvar
-                          </div>
-                          <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
-                            Teste de funcionalidade de salvar documentos
-                          </p>
-                        </Link>
-                      </li>
-                    </ul>
-                  </NavigationMenuContent>
-                </NavigationMenuItem>
+                    Modelos de Formulários
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Visualize e gerencie modelos de formulários criados
+                  </p>
+                </Link>
+              </li>
+
+              <li>
+                <Link
+                  to="/form-creator"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <Plus className="mr-2 h-4 w-4" />
+                    Criar Novo Formulário
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Crie um novo formulário a partir de modelos
+                  </p>
+                </Link>
+              </li>
+              
+              {/* Specific Form Types */}
+              <li>
+                <Link
+                  to="/analise-risco"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <ClipboardCheck className="mr-2 h-4 w-4" />
+                    Análise de Risco
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Formulários para análise de riscos em atividades
+                  </p>
+                </Link>
+              </li>
+              
+              <li>
+                <Link
+                  to="/permissao-trabalho"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <ClipboardCheck className="mr-2 h-4 w-4" />
+                    Permissão de Trabalho
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Formulários de permissão para atividades específicas
+                  </p>
+                </Link>
+              </li>
+              
+              <li>
+                <Link
+                  to="/permissao-trabalho/quente"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <Flame className="mr-2 h-4 w-4 text-orange-500" />
+                    Serviço a Quente
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Permissão para trabalhos com geração de calor ou faíscas
+                  </p>
+                </Link>
+              </li>
+              
+              <li>
+                <Link
+                  to="/permissao-trabalho/frio"
+                  className="block select-none space-y-1 rounded-md p-3 leading-none no-underline outline-none transition-colors hover:bg-accent hover:text-accent-foreground focus:bg-accent focus:text-accent-foreground"
+                >
+                  <div className="text-sm font-medium leading-none flex items-center">
+                    <Snowflake className="mr-2 h-4 w-4 text-blue-500" />
+                    Serviço a Frio
+                  </div>
+                  <p className="line-clamp-2 text-sm leading-snug text-muted-foreground">
+                    Permissão para trabalhos sem geração de calor ou faíscas
+                  </p>
+                </Link>
               </li>
             </ul>
           </NavigationMenuContent>
