@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -8,22 +7,42 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { ArrowLeft, Download, FileSpreadsheet, Filter } from "lucide-react";
-import { DocumentService } from "@/services/documentService";
+import { getSavedForms } from "@/utils/formUtils";
 import { exportToExcel, generatePDF } from "@/utils/pdfUtils";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/integrations/supabase/client";
-import { toast } from "@/hooks/use-toast";
 
-interface DocumentData {
-  id: string;
-  title: string;
-  type: string;
-  created_at: string;
-  updated_at: string;
-  created_by: string;
-  data: any;
-  is_template: boolean;
+interface FormData {
+  id: number;
+  name: string;
+  date: string;
+  data: {
+    atividade: string;
+    local: string;
+    departamento: string;
+    responsavel: string;
+    data: string;
+    riscos: {
+      queda: boolean;
+      prensamento: boolean;
+      eletrico: boolean;
+      queimaduras: boolean;
+      ergonomico: boolean;
+      outros: boolean;
+      outrosTexto: string;
+    };
+    epi: {
+      capacete: boolean;
+      luvas: boolean;
+      oculos: boolean;
+      protetor: boolean;
+      calcado: boolean;
+      cinto: boolean;
+      outros: boolean;
+      outrosTexto: string;
+    };
+    medidas: string;
+  };
 }
 
 interface ChartData {
@@ -31,239 +50,210 @@ interface ChartData {
   value: number;
 }
 
-interface UserProfile {
-  id: string;
-  name: string;
-  email: string;
-}
-
 export default function RelatoriosAnaliseRisco() {
   const navigate = useNavigate();
-  const [documents, setDocuments] = useState<DocumentData[]>([]);
-  const [filteredDocuments, setFilteredDocuments] = useState<DocumentData[]>([]);
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [savedForms, setSavedForms] = useState<FormData[]>([]);
+  const [filteredForms, setFilteredForms] = useState<FormData[]>([]);
   const [filters, setFilters] = useState({
     startDate: "",
     endDate: "",
-    documentType: "",
-    createdBy: "",
-    isTemplate: ""
+    local: "",
+    departamento: "",
+    riscos: {
+      queda: false,
+      prensamento: false,
+      eletrico: false,
+      queimaduras: false,
+      ergonomico: false,
+      outros: false
+    }
   });
   const [showFilters, setShowFilters] = useState(false);
   
-  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
+  const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8'];
 
-  // Buscar documentos reais do banco de dados
   useEffect(() => {
-    const loadDocuments = async () => {
-      try {
-        setLoading(true);
-        
-        // Buscar documentos do Supabase
-        const { data: documentsData, error: documentsError } = await supabase
-          .from('document_templates')
-          .select(`
-            id,
-            title,
-            type,
-            created_at,
-            updated_at,
-            created_by,
-            data,
-            is_template,
-            is_deleted
-          `)
-          .eq('is_deleted', false)
-          .order('created_at', { ascending: false });
-
-        if (documentsError) {
-          console.error("Erro ao buscar documentos:", documentsError);
-          toast({
-            title: "Erro ao carregar documentos",
-            description: "Não foi possível carregar os documentos do banco de dados",
-            variant: "destructive"
-          });
-          return;
-        }
-
-        // Buscar informações dos usuários
-        const { data: usersData, error: usersError } = await supabase
-          .from('profiles')
-          .select('id, name, email');
-
-        if (usersError) {
-          console.error("Erro ao buscar usuários:", usersError);
-        }
-
-        setDocuments(documentsData || []);
-        setUsers(usersData || []);
-        setFilteredDocuments(documentsData || []);
-        
-        console.log(`${documentsData?.length || 0} documentos carregados do banco de dados`);
-      } catch (error) {
-        console.error("Erro ao carregar dados:", error);
-        toast({
-          title: "Erro",
-          description: "Erro ao carregar dados do banco",
-          variant: "destructive"
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadDocuments();
+    const forms = getSavedForms("analise-risco");
+    console.log("Loaded forms:", forms);
+    setSavedForms(forms);
+    setFilteredForms(forms);
   }, []);
 
-  // Aplicar filtros
   useEffect(() => {
-    if (documents.length === 0) return;
+    if (savedForms.length === 0) return;
     
-    let filtered = [...documents];
+    let filtered = [...savedForms];
     
     if (filters.startDate) {
-      filtered = filtered.filter(doc => {
-        const docDate = new Date(doc.created_at);
+      filtered = filtered.filter(form => {
+        const formDate = new Date(form.date);
         const startDate = new Date(filters.startDate);
-        return docDate >= startDate;
+        return formDate >= startDate;
       });
     }
     
     if (filters.endDate) {
-      filtered = filtered.filter(doc => {
-        const docDate = new Date(doc.created_at);
+      filtered = filtered.filter(form => {
+        const formDate = new Date(form.date);
         const endDate = new Date(filters.endDate);
         endDate.setHours(23, 59, 59);
-        return docDate <= endDate;
+        return formDate <= endDate;
       });
     }
     
-    if (filters.documentType) {
-      filtered = filtered.filter(doc => 
-        doc.type.toLowerCase().includes(filters.documentType.toLowerCase())
+    if (filters.local) {
+      filtered = filtered.filter(form => 
+        form.data.local.toLowerCase().includes(filters.local.toLowerCase())
       );
     }
     
-    if (filters.createdBy) {
-      filtered = filtered.filter(doc => doc.created_by === filters.createdBy);
+    if (filters.departamento) {
+      filtered = filtered.filter(form => 
+        form.data.departamento.toLowerCase().includes(filters.departamento.toLowerCase())
+      );
     }
     
-    if (filters.isTemplate !== "") {
-      const isTemplate = filters.isTemplate === "true";
-      filtered = filtered.filter(doc => doc.is_template === isTemplate);
+    const riscosKeys = Object.keys(filters.riscos) as Array<keyof typeof filters.riscos>;
+    const riscosAtivos = riscosKeys.filter(risco => filters.riscos[risco]);
+    
+    if (riscosAtivos.length > 0) {
+      filtered = filtered.filter(form => {
+        return riscosAtivos.some(risco => {
+          if (risco === 'outros') {
+            return form.data.riscos.outros;
+          }
+          return form.data.riscos[risco as keyof typeof form.data.riscos];
+        });
+      });
     }
     
-    setFilteredDocuments(filtered);
-  }, [filters, documents]);
+    setFilteredForms(filtered);
+  }, [filters, savedForms]);
 
-  // Dados para gráficos baseados em documentos reais
-  const documentTypeData = useMemo(() => {
-    const typeCounts: Record<string, number> = {};
+  const riskFrequencyData = useMemo(() => {
+    const riskCounts: Record<string, number> = {
+      'Queda': 0,
+      'Prensamento': 0,
+      'Choque Elétrico': 0,
+      'Queimaduras': 0,
+      'Ergonômico': 0,
+      'Outros': 0
+    };
     
-    filteredDocuments.forEach(doc => {
-      const type = doc.type || 'Sem tipo';
-      typeCounts[type] = (typeCounts[type] || 0) + 1;
+    filteredForms.forEach(form => {
+      if (form.data.riscos.queda) riskCounts['Queda']++;
+      if (form.data.riscos.prensamento) riskCounts['Prensamento']++;
+      if (form.data.riscos.eletrico) riskCounts['Choque Elétrico']++;
+      if (form.data.riscos.queimaduras) riskCounts['Queimaduras']++;
+      if (form.data.riscos.ergonomico) riskCounts['Ergonômico']++;
+      if (form.data.riscos.outros) riskCounts['Outros']++;
     });
     
-    return Object.entries(typeCounts)
+    return Object.entries(riskCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 8);
-  }, [filteredDocuments]);
+      .slice(0, 5);
+  }, [filteredForms]);
 
-  const documentsPerUserData = useMemo(() => {
-    const userCounts: Record<string, number> = {};
+  const activityByLocationData = useMemo(() => {
+    const locationCounts: Record<string, number> = {};
     
-    filteredDocuments.forEach(doc => {
-      const user = users.find(u => u.id === doc.created_by);
-      const userName = user ? user.name : 'Usuário desconhecido';
-      userCounts[userName] = (userCounts[userName] || 0) + 1;
+    filteredForms.forEach(form => {
+      const local = form.data.local || 'Não especificado';
+      locationCounts[local] = (locationCounts[local] || 0) + 1;
     });
     
-    return Object.entries(userCounts)
+    return Object.entries(locationCounts)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 10);
-  }, [filteredDocuments, users]);
+      .slice(0, 5);
+  }, [filteredForms]);
 
-  const documentsPerMonthData = useMemo(() => {
-    const monthCounts: Record<string, number> = {};
+  const topActivitiesData = useMemo(() => {
+    const activityCounts: Record<string, number> = {};
     
-    filteredDocuments.forEach(doc => {
-      const date = new Date(doc.created_at);
-      const monthKey = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, '0')}`;
-      monthCounts[monthKey] = (monthCounts[monthKey] || 0) + 1;
+    filteredForms.forEach(form => {
+      const activity = form.data.atividade || 'Não especificado';
+      activityCounts[activity] = (activityCounts[activity] || 0) + 1;
     });
     
-    return Object.entries(monthCounts)
+    return Object.entries(activityCounts)
       .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => a.name.localeCompare(b.name))
-      .slice(-12); // Últimos 12 meses
-  }, [filteredDocuments]);
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [filteredForms]);
 
-  const templateVsDocumentData = useMemo(() => {
-    const templateCount = filteredDocuments.filter(doc => doc.is_template).length;
-    const documentCount = filteredDocuments.filter(doc => !doc.is_template).length;
+  const departmentData = useMemo(() => {
+    const deptCounts: Record<string, number> = {};
     
-    return [
-      { name: 'Modelos', value: templateCount },
-      { name: 'Documentos', value: documentCount }
-    ].filter(item => item.value > 0);
-  }, [filteredDocuments]);
+    filteredForms.forEach(form => {
+      const dept = form.data.departamento || 'Não especificado';
+      deptCounts[dept] = (deptCounts[dept] || 0) + 1;
+    });
+    
+    return Object.entries(deptCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [filteredForms]);
 
-  const getUserName = (userId: string) => {
-    const user = users.find(u => u.id === userId);
-    return user ? user.name : 'Usuário desconhecido';
-  };
+  const epiFrequencyData = useMemo(() => {
+    const epiCounts: Record<string, number> = {
+      'Capacete': 0,
+      'Luvas': 0,
+      'Óculos': 0,
+      'Protetor Auricular': 0,
+      'Calçado de Segurança': 0,
+      'Cinto de Segurança': 0,
+      'Outros': 0
+    };
+    
+    filteredForms.forEach(form => {
+      if (form.data.epi.capacete) epiCounts['Capacete']++;
+      if (form.data.epi.luvas) epiCounts['Luvas']++;
+      if (form.data.epi.oculos) epiCounts['Óculos']++;
+      if (form.data.epi.protetor) epiCounts['Protetor Auricular']++;
+      if (form.data.epi.calcado) epiCounts['Calçado de Segurança']++;
+      if (form.data.epi.cinto) epiCounts['Cinto de Segurança']++;
+      if (form.data.epi.outros) epiCounts['Outros']++;
+    });
+    
+    return Object.entries(epiCounts)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+  }, [filteredForms]);
 
   const handleExportExcel = () => {
-    const dataToExport = filteredDocuments.map(doc => ({
-      'ID': doc.id,
-      'Título': doc.title,
-      'Tipo': doc.type,
-      'Criado por': getUserName(doc.created_by),
-      'Data de Criação': new Date(doc.created_at).toLocaleDateString('pt-BR'),
-      'Última Atualização': new Date(doc.updated_at).toLocaleDateString('pt-BR'),
-      'É Modelo': doc.is_template ? 'Sim' : 'Não'
+    const dataToExport = filteredForms.map(form => ({
+      Nome: form.name,
+      Data: new Date(form.date).toLocaleDateString(),
+      Atividade: form.data.atividade,
+      Local: form.data.local,
+      Departamento: form.data.departamento,
+      Responsavel: form.data.responsavel,
+      'Risco: Queda': form.data.riscos.queda ? 'Sim' : 'Não',
+      'Risco: Prensamento': form.data.riscos.prensamento ? 'Sim' : 'Não',
+      'Risco: Eletrico': form.data.riscos.eletrico ? 'Sim' : 'Não',
+      'Risco: Queimaduras': form.data.riscos.queimaduras ? 'Sim' : 'Não',
+      'Risco: Ergonômico': form.data.riscos.ergonomico ? 'Sim' : 'Não',
+      'Risco: Outros': form.data.riscos.outros ? form.data.riscos.outrosTexto : 'Não',
+      Medidas: form.data.medidas
     }));
     
-    exportToExcel(dataToExport, "relatorio-documentos");
-    
-    toast({
-      title: "Excel exportado",
-      description: "O relatório foi exportado para Excel com sucesso"
-    });
+    exportToExcel(dataToExport, "relatorio-analise-risco");
   };
 
   const handleExportPDF = async () => {
     const reportElement = document.getElementById('report-container');
-    const success = await generatePDF(reportElement, "relatorio-documentos");
+    const success = await generatePDF(reportElement, "relatorio-analise-risco");
     
     if (success) {
-      toast({
-        title: "PDF exportado",
-        description: "O relatório foi exportado para PDF com sucesso"
-      });
+      console.log("PDF generated successfully");
     } else {
-      toast({
-        title: "Erro ao exportar PDF",
-        description: "Não foi possível gerar o arquivo PDF",
-        variant: "destructive"
-      });
+      console.error("Failed to generate PDF");
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 p-6 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Carregando dados dos documentos...</p>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen bg-gray-50 p-6">
@@ -279,10 +269,10 @@ export default function RelatoriosAnaliseRisco() {
               >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <h1 className="text-3xl font-bold text-gray-900">Relatórios de Documentos</h1>
+              <h1 className="text-3xl font-bold text-gray-900">Relatórios de Análise de Risco</h1>
             </div>
             <p className="text-gray-500 mt-1">
-              Visualize e analise dados de {filteredDocuments.length} documentos do banco de dados
+              Visualize e analise dados de {filteredForms.length} documentos
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -319,7 +309,7 @@ export default function RelatoriosAnaliseRisco() {
               <CardTitle className="text-xl">Filtros</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <div>
                   <Label htmlFor="startDate" className="block mb-2">Data Inicial</Label>
                   <Input 
@@ -339,48 +329,94 @@ export default function RelatoriosAnaliseRisco() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="documentType" className="block mb-2">Tipo de Documento</Label>
+                  <Label htmlFor="local" className="block mb-2">Local</Label>
                   <Input 
-                    id="documentType"
-                    placeholder="Filtrar por tipo" 
-                    value={filters.documentType}
-                    onChange={e => setFilters({...filters, documentType: e.target.value})}
+                    id="local"
+                    placeholder="Filtrar por local" 
+                    value={filters.local}
+                    onChange={e => setFilters({...filters, local: e.target.value})}
                   />
                 </div>
                 <div>
-                  <Label htmlFor="createdBy" className="block mb-2">Criado por</Label>
-                  <Select 
-                    value={filters.createdBy}
-                    onValueChange={value => setFilters({...filters, createdBy: value})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos os usuários" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Todos os usuários</SelectItem>
-                      {users.map(user => (
-                        <SelectItem key={user.id} value={user.id}>
-                          {user.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="departamento" className="block mb-2">Departamento</Label>
+                  <Input 
+                    id="departamento"
+                    placeholder="Filtrar por departamento" 
+                    value={filters.departamento}
+                    onChange={e => setFilters({...filters, departamento: e.target.value})}
+                  />
                 </div>
-                <div>
-                  <Label htmlFor="isTemplate" className="block mb-2">Tipo</Label>
-                  <Select 
-                    value={filters.isTemplate}
-                    onValueChange={value => setFilters({...filters, isTemplate: value})}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Todos" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="">Todos</SelectItem>
-                      <SelectItem value="false">Documentos</SelectItem>
-                      <SelectItem value="true">Modelos</SelectItem>
-                    </SelectContent>
-                  </Select>
+              </div>
+              
+              <div className="mt-4">
+                <Label className="block mb-2">Riscos</Label>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="queda"
+                      checked={filters.riscos.queda}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, queda: checked === true}
+                      })}
+                    />
+                    <label htmlFor="queda" className="text-sm">Queda</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="prensamento"
+                      checked={filters.riscos.prensamento}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, prensamento: checked === true}
+                      })}
+                    />
+                    <label htmlFor="prensamento" className="text-sm">Prensamento</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="eletrico"
+                      checked={filters.riscos.eletrico}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, eletrico: checked === true}
+                      })}
+                    />
+                    <label htmlFor="eletrico" className="text-sm">Elétrico</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="queimaduras"
+                      checked={filters.riscos.queimaduras}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, queimaduras: checked === true}
+                      })}
+                    />
+                    <label htmlFor="queimaduras" className="text-sm">Queimaduras</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="ergonomico"
+                      checked={filters.riscos.ergonomico}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, ergonomico: checked === true}
+                      })}
+                    />
+                    <label htmlFor="ergonomico" className="text-sm">Ergonômico</label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="outros"
+                      checked={filters.riscos.outros}
+                      onCheckedChange={checked => setFilters({
+                        ...filters, 
+                        riscos: {...filters.riscos, outros: checked === true}
+                      })}
+                    />
+                    <label htmlFor="outros" className="text-sm">Outros</label>
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -388,42 +424,32 @@ export default function RelatoriosAnaliseRisco() {
         )}
 
         <div id="report-container" className="space-y-6">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg text-center">Total de Documentos</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-4xl font-bold text-center text-blue-600">{filteredDocuments.length}</p>
+                <p className="text-4xl font-bold text-center text-blue-600">{filteredForms.length}</p>
               </CardContent>
             </Card>
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg text-center">Tipos de Documentos</CardTitle>
+                <CardTitle className="text-lg text-center">Departamentos</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-4xl font-bold text-center text-green-600">
-                  {new Set(filteredDocuments.map(d => d.type)).size}
+                  {new Set(filteredForms.map(f => f.data.departamento)).size}
                 </p>
               </CardContent>
             </Card>
             <Card className="shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg text-center">Usuários Ativos</CardTitle>
+                <CardTitle className="text-lg text-center">Locais</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-4xl font-bold text-center text-orange-600">
-                  {new Set(filteredDocuments.map(d => d.created_by)).size}
-                </p>
-              </CardContent>
-            </Card>
-            <Card className="shadow-sm">
-              <CardHeader className="pb-2">
-                <CardTitle className="text-lg text-center">Modelos</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-4xl font-bold text-center text-purple-600">
-                  {filteredDocuments.filter(d => d.is_template).length}
+                  {new Set(filteredForms.map(f => f.data.local)).size}
                 </p>
               </CardContent>
             </Card>
@@ -432,18 +458,33 @@ export default function RelatoriosAnaliseRisco() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="text-xl">Documentos por Tipo</CardTitle>
+                <CardTitle className="text-xl">Distribuição de Riscos</CardTitle>
               </CardHeader>
               <CardContent className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <BarChart
-                    data={documentTypeData}
+                    data={riskFrequencyData}
                     margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
                   >
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
                     <YAxis />
-                    <ChartTooltip />
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <ChartContainer config={{}}>
+                              <ChartTooltipContent>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
+                                </div>
+                              </ChartTooltipContent>
+                            </ChartContainer>
+                          )
+                        }
+                        return null
+                      }}
+                    />
                     <Bar dataKey="value" fill="#8884d8" />
                   </BarChart>
                 </ResponsiveContainer>
@@ -452,54 +493,13 @@ export default function RelatoriosAnaliseRisco() {
 
             <Card className="shadow-sm">
               <CardHeader>
-                <CardTitle className="text-xl">Documentos por Usuário</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={documentsPerUserData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                    layout="vertical"
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" />
-                    <YAxis dataKey="name" type="category" width={150} />
-                    <ChartTooltip />
-                    <Bar dataKey="value" fill="#00C49F" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">Documentos por Mês</CardTitle>
-              </CardHeader>
-              <CardContent className="h-80">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart
-                    data={documentsPerMonthData}
-                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <ChartTooltip />
-                    <Bar dataKey="value" fill="#FFBB28" />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            <Card className="shadow-sm">
-              <CardHeader>
-                <CardTitle className="text-xl">Modelos vs Documentos</CardTitle>
+                <CardTitle className="text-xl">Distribuição por Local</CardTitle>
               </CardHeader>
               <CardContent className="h-80">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
                     <Pie
-                      data={templateVsDocumentData}
+                      data={activityByLocationData}
                       cx="50%"
                       cy="50%"
                       labelLine={false}
@@ -508,18 +508,104 @@ export default function RelatoriosAnaliseRisco() {
                       dataKey="value"
                       label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
                     >
-                      {templateVsDocumentData.map((entry, index) => (
+                      {activityByLocationData.map((entry, index) => (
                         <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                       ))}
                     </Pie>
-                    <ChartTooltip />
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <ChartContainer config={{}}>
+                              <ChartTooltipContent>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
+                                </div>
+                              </ChartTooltipContent>
+                            </ChartContainer>
+                          )
+                        }
+                        return null
+                      }}
+                    />
                   </PieChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">Principais Atividades</CardTitle>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={topActivitiesData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                    layout="vertical"
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis type="number" />
+                    <YAxis dataKey="name" type="category" width={150} />
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <ChartContainer config={{}}>
+                              <ChartTooltipContent>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
+                                </div>
+                              </ChartTooltipContent>
+                            </ChartContainer>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Bar dataKey="value" fill="#00C49F" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+
+            <Card className="shadow-sm">
+              <CardHeader>
+                <CardTitle className="text-xl">EPIs Utilizados</CardTitle>
+              </CardHeader>
+              <CardContent className="h-80">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={epiFrequencyData}
+                    margin={{ top: 20, right: 30, left: 20, bottom: 40 }}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" angle={-45} textAnchor="end" height={60} />
+                    <YAxis />
+                    <ChartTooltip
+                      content={({ active, payload }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <ChartContainer config={{}}>
+                              <ChartTooltipContent>
+                                <div className="flex flex-col">
+                                  <span className="font-medium">{payload[0].name}: {payload[0].value}</span>
+                                </div>
+                              </ChartTooltipContent>
+                            </ChartContainer>
+                          )
+                        }
+                        return null
+                      }}
+                    />
+                    <Bar dataKey="value" fill="#FF8042" />
+                  </BarChart>
                 </ResponsiveContainer>
               </CardContent>
             </Card>
           </div>
 
-          {filteredDocuments.length > 0 && (
+          {filteredForms.length > 0 && (
             <Card className="shadow-sm">
               <CardHeader>
                 <CardTitle className="text-xl">Lista de Documentos</CardTitle>
@@ -529,50 +615,28 @@ export default function RelatoriosAnaliseRisco() {
                   <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                       <tr>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Título</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Criado por</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nome</th>
                         <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Data</th>
-                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tipo</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Atividade</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Local</th>
+                        <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Departamento</th>
                       </tr>
                     </thead>
                     <tbody className="bg-white divide-y divide-gray-200">
-                      {filteredDocuments.slice(0, 50).map(doc => (
-                        <tr key={doc.id}>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{doc.title}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{doc.type}</td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{getUserName(doc.created_by)}</td>
+                      {filteredForms.map(form => (
+                        <tr key={form.id}>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{form.name}</td>
                           <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            {new Date(doc.created_at).toLocaleDateString('pt-BR')}
+                            {new Date(form.date).toLocaleDateString()}
                           </td>
-                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                            <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                              doc.is_template 
-                                ? 'bg-purple-100 text-purple-800' 
-                                : 'bg-blue-100 text-blue-800'
-                            }`}>
-                              {doc.is_template ? 'Modelo' : 'Documento'}
-                            </span>
-                          </td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{form.data.atividade}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{form.data.local}</td>
+                          <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{form.data.departamento}</td>
                         </tr>
                       ))}
                     </tbody>
                   </table>
-                  {filteredDocuments.length > 50 && (
-                    <p className="text-sm text-gray-500 mt-4 text-center">
-                      Mostrando primeiros 50 documentos de {filteredDocuments.length} total
-                    </p>
-                  )}
                 </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {filteredDocuments.length === 0 && !loading && (
-            <Card className="shadow-sm">
-              <CardContent className="py-12 text-center">
-                <p className="text-gray-500 text-lg">Nenhum documento encontrado com os filtros aplicados</p>
-                <p className="text-gray-400 mt-2">Tente ajustar os filtros ou criar novos documentos</p>
               </CardContent>
             </Card>
           )}

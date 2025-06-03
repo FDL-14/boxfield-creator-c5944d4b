@@ -5,20 +5,17 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { FileText, Plus, Pencil, Trash2, Save, FilePlus, FolderTree } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { FileText, Plus, Pencil, Trash2, Save, FilePlus } from "lucide-react";
+import { supabase, processUserProfile } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { DocumentService } from "@/services/documentService";
-import { AuthService } from "@/services/authService";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import SavedDocumentsDialog from "@/components/SavedDocumentsDialog";
 import MainHeader from "@/components/MainHeader";
-import { usePermissions } from "@/hooks/usePermissions";
 
 export default function DocumentTypes() {
   const { toast } = useToast();
   const navigate = useNavigate();
-  const { permissions, checkPermission, isMaster } = usePermissions();
   const [loading, setLoading] = useState(true);
   const [documentTypes, setDocumentTypes] = useState([]);
   const [formTemplates, setFormTemplates] = useState([]);
@@ -32,50 +29,35 @@ export default function DocumentTypes() {
   const [currentUser, setCurrentUser] = useState(null);
   const [showSavedDocsDialog, setShowSavedDocsDialog] = useState(false);
   const [selectedTemplateType, setSelectedTemplateType] = useState("custom");
-  const [documentCategoriesTree, setDocumentCategoriesTree] = useState([]);
-  const [selectedCategoryId, setSelectedCategoryId] = useState(null);
-  const [showCategoriesDialog, setShowCategoriesDialog] = useState(false);
-  const [categoryName, setCategoryName] = useState("");
-  const [categoryDescription, setCategoryDescription] = useState("");
-  const [editingCategoryId, setEditingCategoryId] = useState(null);
-  const [parentCategoryId, setParentCategoryId] = useState(null);
   
   useEffect(() => {
-    // Remova a verificação de autenticação obrigatória
-    // checkAuth();
+    checkAuth();
     loadDocumentTypes();
     loadFormBuilderTemplates();
-    loadDocumentCategories();
-    
-    // Tentativa de obter informações do usuário, mas não bloqueante
-    getOptionalUserInfo();
   }, []);
   
-  const getOptionalUserInfo = async () => {
-    try {
-      const { data } = await supabase.auth.getSession();
+  const checkAuth = async () => {
+    const { data } = await supabase.auth.getSession();
+    
+    if (!data.session) {
+      navigate('/auth');
+      return;
+    }
+    
+    // Get user profile info
+    const { data: profileData } = await supabase
+      .from('profiles')
+      .select('*, permissions:user_permissions(*)')
+      .eq('id', data.session.user.id)
+      .single();
       
-      if (data.session) {
-        // Se o usuário está autenticado, carregue o perfil, mas não redirecione se falhar
-        const { data: profileData } = await supabase
-          .from('profiles')
-          .select('*, permissions:user_permissions(*)')
-          .eq('id', data.session.user.id)
-          .maybeSingle();
-          
-        if (profileData) {
-          const processedProfile = {
-            ...profileData,
-            id: data.session.user.id
-          };
-          
-          setCurrentUser(processedProfile);
-        }
-      }
-      // Não redireciona se não houver sessão - permite acesso público
-    } catch (error) {
-      console.error("Error checking authentication:", error);
-      // Não mostra toast de erro, apenas registra no console
+    if (profileData) {
+      const processedProfile = processUserProfile({
+        ...profileData,
+        id: data.session.user.id
+      });
+      
+      setCurrentUser(processedProfile);
     }
   };
   
@@ -121,33 +103,6 @@ export default function DocumentTypes() {
     }
   };
   
-  const loadDocumentCategories = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('document_types')
-        .select('*')
-        .eq('is_deleted', false)
-        .order('name', { ascending: true });
-      
-      if (error) throw error;
-      
-      // Convert flat list to hierarchical structure
-      const buildTree = (items, parentId = null) => {
-        return items
-          .filter(item => item.parent_id === parentId)
-          .map(item => ({
-            ...item,
-            children: buildTree(items, item.id)
-          }));
-      };
-      
-      const tree = buildTree(data || []);
-      setDocumentCategoriesTree(tree);
-    } catch (error) {
-      console.error('Error loading document categories:', error);
-    }
-  };
-  
   const handleCreateNew = async () => {
     try {
       if (!title.trim()) {
@@ -168,7 +123,6 @@ export default function DocumentTypes() {
           .update({
             title,
             description,
-            document_type_id: selectedCategoryId,
             export_format: exportFormat,
             updated_at: new Date().toISOString()
           })
@@ -182,28 +136,19 @@ export default function DocumentTypes() {
         });
       } else {
         // Create new document type
-        let userId = null;
-        
-        // Tenta obter o ID do usuário, mas não falha se não estiver autenticado
-        try {
-          const { data: userData } = await supabase.auth.getUser();
-          userId = userData.user?.id;
-        } catch (authError) {
-          console.log("Usuário não autenticado, continuando sem ID de usuário");
-        }
-        
+        const { data: userData } = await supabase.auth.getUser();
+      
         const { error } = await supabase
           .from('document_templates')
           .insert([
             {
               title,
               description,
-              document_type_id: selectedCategoryId,
               type: selectedTemplateType,
               data: { sections: [] },
               is_template: true,
               export_format: exportFormat,
-              created_by: userId
+              created_by: userData.user?.id
             }
           ]);
         
@@ -216,7 +161,11 @@ export default function DocumentTypes() {
       }
       
       setShowDialog(false);
-      resetForm();
+      setTitle("");
+      setDescription("");
+      setExportFormat("PDF");
+      setSelectedTemplateType("custom");
+      setEditingId(null);
       loadDocumentTypes();
       loadFormBuilderTemplates();
       
@@ -225,76 +174,6 @@ export default function DocumentTypes() {
       toast({
         title: "Erro ao salvar",
         description: "Ocorreu um problema ao salvar o tipo de documento.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  
-  const handleSaveCategory = async () => {
-    try {
-      if (!categoryName.trim()) {
-        toast({
-          title: "Campo obrigatório",
-          description: "Por favor, informe um nome para a categoria.",
-          variant: "destructive"
-        });
-        return;
-      }
-      
-      setLoading(true);
-      
-      if (editingCategoryId) {
-        // Update existing category
-        const { error } = await supabase
-          .from('document_types')
-          .update({
-            name: categoryName,
-            description: categoryDescription,
-            parent_id: parentCategoryId,
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', editingCategoryId);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Categoria atualizada",
-          description: `${categoryName} foi atualizada com sucesso.`,
-        });
-      } else {
-        // Create new category
-        const { data: userData } = await supabase.auth.getUser();
-      
-        const { error } = await supabase
-          .from('document_types')
-          .insert([
-            {
-              name: categoryName,
-              description: categoryDescription,
-              parent_id: parentCategoryId,
-              created_by: userData.user?.id
-            }
-          ]);
-        
-        if (error) throw error;
-        
-        toast({
-          title: "Nova categoria",
-          description: `${categoryName} foi criada com sucesso.`,
-        });
-      }
-      
-      setShowCategoriesDialog(false);
-      resetCategoryForm();
-      loadDocumentCategories();
-      
-    } catch (error) {
-      console.error('Error saving category:', error);
-      toast({
-        title: "Erro ao salvar",
-        description: "Ocorreu um problema ao salvar a categoria.",
         variant: "destructive"
       });
     } finally {
@@ -317,25 +196,7 @@ export default function DocumentTypes() {
     setDescription(docType.description || "");
     setExportFormat(docType.export_format || "PDF");
     setSelectedTemplateType(docType.type || "custom");
-    setSelectedCategoryId(docType.document_type_id);
     setShowDialog(true);
-  };
-
-  const handleEditCategory = (category) => {
-    if (!canEditDocumentTypes()) {
-      toast({
-        title: "Permissão negada",
-        description: "Você não tem permissão para editar categorias de documento.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setEditingCategoryId(category.id);
-    setCategoryName(category.name);
-    setCategoryDescription(category.description || "");
-    setParentCategoryId(category.parent_id);
-    setShowCategoriesDialog(true);
   };
 
   const handleDelete = (docTypeId) => {
@@ -349,20 +210,6 @@ export default function DocumentTypes() {
     }
     
     setSelectedDocTypeId(docTypeId);
-    setDeleteDialogOpen(true);
-  };
-  
-  const handleDeleteCategory = (categoryId) => {
-    if (!canEditDocumentTypes()) {
-      toast({
-        title: "Permissão negada",
-        description: "Você não tem permissão para excluir categorias.",
-        variant: "destructive"
-      });
-      return;
-    }
-    
-    setSelectedDocTypeId(categoryId);
     setDeleteDialogOpen(true);
   };
 
@@ -402,41 +249,6 @@ export default function DocumentTypes() {
     }
   };
   
-  const confirmDeleteCategory = async () => {
-    if (!selectedDocTypeId) return;
-
-    try {
-      setLoading(true);
-      
-      // Mark category as deleted rather than actually deleting it
-      const { error } = await supabase
-        .from('document_types')
-        .update({ is_deleted: true })
-        .eq('id', selectedDocTypeId);
-      
-      if (error) throw error;
-      
-      toast({
-        title: "Categoria excluída",
-        description: "A categoria foi excluída com sucesso.",
-      });
-      
-      loadDocumentCategories();
-      setDeleteDialogOpen(false);
-      setSelectedDocTypeId(null);
-      
-    } catch (error) {
-      console.error('Error deleting category:', error);
-      toast({
-        title: "Erro ao excluir",
-        description: "Ocorreu um problema ao excluir a categoria.",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-  
   const handleCreateDocument = (templateId) => {
     navigate(`/document-creator/${templateId}`);
   };
@@ -451,117 +263,22 @@ export default function DocumentTypes() {
     // Implementation depends on what you want to do with the selected document
   };
   
-  const resetForm = () => {
-    setTitle("");
-    setDescription("");
-    setExportFormat("PDF");
-    setSelectedTemplateType("custom");
-    setEditingId(null);
-    setSelectedCategoryId(null);
-  };
-  
-  const resetCategoryForm = () => {
-    setCategoryName("");
-    setCategoryDescription("");
-    setEditingCategoryId(null);
-    setParentCategoryId(null);
-  };
-  
   const canEditDocumentTypes = () => {
-    // Permissão liberada para todos, sem necessidade de autenticação
-    return true;
+    if (!currentUser) return false;
     
-    // Código antigo (comentado)
-    // if (!currentUser) return false;
-    // if (currentUser.is_master || currentUser.is_admin) return true;
-    // if (checkPermission('can_edit_document_type')) return true;
-    // return false;
-  };
-  
-  // Recursive function to render category tree
-  const renderCategoryTree = (categories, depth = 0) => {
-    if (!categories || categories.length === 0) return null;
+    // Check if user is master or admin
+    if (currentUser.is_master || currentUser.is_admin) return true;
     
-    return (
-      <div className={`ml-${depth * 4}`}>
-        {categories.map(category => (
-          <div key={category.id} className="mb-2">
-            <div className="flex items-center justify-between p-2 bg-gray-50 rounded-md">
-              <div className="flex items-center">
-                <span className="mr-2">
-                  {category.children?.length > 0 ? "📁" : "📄"}
-                </span>
-                <span>{category.name}</span>
-              </div>
-              {canEditDocumentTypes() && (
-                <div className="flex space-x-2">
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleEditCategory(category)}
-                    className="h-8 w-8 p-0"
-                  >
-                    <Pencil className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    onClick={() => handleDeleteCategory(category.id)}
-                    className="h-8 w-8 p-0 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
-                </div>
-              )}
-            </div>
-            {category.children && category.children.length > 0 && (
-              <div className="ml-4 mt-2 pl-2 border-l-2 border-gray-200">
-                {renderCategoryTree(category.children, depth + 1)}
-              </div>
-            )}
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  // Recursive function to create category options for select
-  const renderCategoryOptions = (categories, depth = 0) => {
-    if (!categories || categories.length === 0) return null;
+    // Check specific permission
+    if (currentUser.permissions && currentUser.permissions.length > 0) {
+      return currentUser.permissions[0].can_edit_document_type === true;
+    }
     
-    return (
-      <>
-        {categories.map(category => (
-          <React.Fragment key={category.id}>
-            <SelectItem value={String(category.id)}>
-              {"—".repeat(depth)} {category.name}
-            </SelectItem>
-            {category.children && category.children.length > 0 && 
-              renderCategoryOptions(category.children, depth + 1)
-            }
-          </React.Fragment>
-        ))}
-      </>
-    );
+    return false;
   };
 
   // Render a document card
   const renderDocumentCard = (docType, isFormTemplate = false) => {
-    // Find category name for this document type if available
-    const findCategoryName = (categories, id) => {
-      for (const category of categories) {
-        if (category.id === id) return category.name;
-        if (category.children && category.children.length > 0) {
-          const found = findCategoryName(category.children, id);
-          if (found) return found;
-        }
-      }
-      return null;
-    };
-    
-    const categoryName = docType.document_type_id ? 
-      findCategoryName(documentCategoriesTree, docType.document_type_id) : null;
-    
     return (
       <Card key={docType.id} className="overflow-hidden border border-gray-200 hover:shadow-md transition-shadow">
         <CardContent className="p-6 flex flex-col h-full">
@@ -594,13 +311,6 @@ export default function DocumentTypes() {
               </div>
             </div>
             <h3 className="text-lg font-medium mb-2">{docType.title}</h3>
-            {categoryName && (
-              <div className="mb-2">
-                <span className="inline-flex items-center px-2 py-1 bg-gray-100 text-gray-700 text-xs rounded-md">
-                  Categoria: {categoryName}
-                </span>
-              </div>
-            )}
             <p className="text-sm text-gray-500 mb-4 line-clamp-2">
               {docType.description || "Sem descrição"}
             </p>
@@ -653,7 +363,11 @@ export default function DocumentTypes() {
       <div className="flex justify-between mb-6">
         <div className="flex gap-2">
           <Button onClick={() => {
-            resetForm();
+            setEditingId(null);
+            setTitle("");
+            setDescription("");
+            setExportFormat("PDF");
+            setSelectedTemplateType("custom");
             setShowDialog(true);
           }}>
             <Plus className="mr-2 h-4 w-4" />
@@ -669,26 +383,13 @@ export default function DocumentTypes() {
           </Button>
         </div>
 
-        <div className="flex gap-2">
-          <Button 
-            variant="outline" 
-            onClick={() => {
-              resetCategoryForm();
-              setShowCategoriesDialog(true);
-            }}
-          >
-            <FolderTree className="mr-2 h-4 w-4" />
-            Gerenciar Categorias
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/form-builder')}
-          >
-            <Plus className="mr-2 h-4 w-4" />
-            Ir para Construtor de Formulário
-          </Button>
-        </div>
+        <Button 
+          variant="outline" 
+          onClick={() => navigate('/form-builder')}
+        >
+          <Plus className="mr-2 h-4 w-4" />
+          Ir para Construtor de Formulário
+        </Button>
       </div>
       
       {loading ? (
@@ -729,7 +430,6 @@ export default function DocumentTypes() {
         </>
       )}
       
-      {/* Document Type Form Dialog */}
       <Dialog open={showDialog} onOpenChange={setShowDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -774,25 +474,9 @@ export default function DocumentTypes() {
                 rows={3}
               />
             </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Categoria (opcional)</label>
-              <Select 
-                value={selectedCategoryId ? String(selectedCategoryId) : undefined}
-                onValueChange={setSelectedCategoryId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="null">Sem categoria</SelectItem>
-                  {renderCategoryOptions(documentCategoriesTree)}
-                </SelectContent>
-              </Select>
-            </div>
 
             <div className="space-y-2">
-              <label className="text-sm font-medium">Formato de Exportação</label>
+              <label className="text-sm font-medium">Formato de Exporta��ão</label>
               <Select 
                 value={exportFormat}
                 onValueChange={setExportFormat}
@@ -815,7 +499,11 @@ export default function DocumentTypes() {
               variant="outline"
               onClick={() => {
                 setShowDialog(false);
-                resetForm();
+                setTitle("");
+                setDescription("");
+                setExportFormat("PDF");
+                setSelectedTemplateType("custom");
+                setEditingId(null);
               }}
               disabled={loading}
             >
@@ -831,109 +519,19 @@ export default function DocumentTypes() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-      
-      {/* Category Management Dialog */}
-      <Dialog open={showCategoriesDialog} onOpenChange={setShowCategoriesDialog}>
-        <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>
-              {editingCategoryId ? "Editar Categoria" : "Nova Categoria"}
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="space-y-4 py-4">
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Nome</label>
-              <Input
-                placeholder="Nome da categoria"
-                value={categoryName}
-                onChange={(e) => setCategoryName(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Descrição (opcional)</label>
-              <Textarea
-                placeholder="Descreva a categoria"
-                value={categoryDescription}
-                onChange={(e) => setCategoryDescription(e.target.value)}
-                rows={2}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Categoria Pai (opcional)</label>
-              <Select 
-                value={parentCategoryId ? String(parentCategoryId) : undefined}
-                onValueChange={setParentCategoryId}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Selecione a categoria pai" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="null">Raiz (Sem pai)</SelectItem>
-                  {renderCategoryOptions(documentCategoriesTree)}
-                </SelectContent>
-              </Select>
-            </div>
-            
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => {
-                  setShowCategoriesDialog(false);
-                  resetCategoryForm();
-                }}
-                disabled={loading}
-              >
-                Cancelar
-              </Button>
-              <Button
-                type="submit"
-                onClick={handleSaveCategory}
-                disabled={loading}
-              >
-                {loading ? 'Salvando...' : editingCategoryId ? 'Atualizar' : 'Criar'}
-              </Button>
-            </DialogFooter>
-          </div>
-          
-          {!editingCategoryId && (
-            <>
-              <div className="mt-8 mb-4">
-                <h3 className="text-lg font-medium">Categorias Existentes</h3>
-                <p className="text-sm text-gray-500">
-                  Gerencie suas categorias de documentos
-                </p>
-              </div>
-              
-              <div className="border rounded-md p-4 max-h-[300px] overflow-y-auto">
-                {documentCategoriesTree.length > 0 ? (
-                  renderCategoryTree(documentCategoriesTree)
-                ) : (
-                  <p className="text-center text-gray-500 py-4">
-                    Nenhuma categoria encontrada
-                  </p>
-                )}
-              </div>
-            </>
-          )}
-        </DialogContent>
-      </Dialog>
 
       {/* Delete confirmation dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Excluir Item</DialogTitle>
+            <DialogTitle>Excluir Tipo de Documento</DialogTitle>
             <DialogDescription>
-              Esta ação não pode ser desfeita. O item será permanentemente excluído.
+              Esta ação não pode ser desfeita. O tipo de documento será permanentemente excluído.
             </DialogDescription>
           </DialogHeader>
           
           <div className="py-4">
-            <p>Tem certeza que deseja excluir este item?</p>
+            <p>Tem certeza que deseja excluir este tipo de documento?</p>
           </div>
           
           <DialogFooter>

@@ -1,4 +1,6 @@
+
 import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,14 +9,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Users, PlusCircle, Pencil, Trash2, Building, Loader2 } from "lucide-react";
+import { Users, PlusCircle, Pencil, Trash2, Building, Phone, Mail, MapPin, Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import MainHeader from "@/components/MainHeader";
 
 export default function ClientsManager() {
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [clients, setClients] = useState<any[]>([]);
   const [companies, setCompanies] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -34,8 +36,16 @@ export default function ClientsManager() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   
   useEffect(() => {
+    checkAuth();
     loadData();
   }, []);
+  
+  const checkAuth = async () => {
+    const { data } = await supabase.auth.getSession();
+    if (!data.session) {
+      navigate('/auth');
+    }
+  };
   
   const loadData = async () => {
     setLoading(true);
@@ -228,16 +238,16 @@ export default function ClientsManager() {
   
   return (
     <div className="container mx-auto py-8">
-      <MainHeader 
-        title="Gerenciamento de Clientes" 
-        subtitle="Cadastre e gerencie todos os clientes" 
-        rightContent={
-          <Button onClick={() => handleOpenDialog()} className="flex items-center">
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Novo Cliente
-          </Button>
-        }
-      />
+      <div className="flex justify-between items-center mb-6">
+        <div>
+          <h1 className="text-2xl font-bold">Gerenciamento de Clientes</h1>
+          <p className="text-gray-500">Cadastre e gerencie todos os clientes</p>
+        </div>
+        <Button onClick={() => handleOpenDialog()} className="flex items-center">
+          <PlusCircle className="mr-2 h-4 w-4" />
+          Novo Cliente
+        </Button>
+      </div>
       
       {loading ? (
         <div className="flex justify-center my-12">

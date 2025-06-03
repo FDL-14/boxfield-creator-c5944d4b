@@ -87,7 +87,7 @@ export const UserService = {
         .from('user_permissions')
         .select('id')
         .eq('user_id', userId)
-        .maybeSingle();
+        .maybeSingle(); // Changed from potential single() to maybeSingle()
       
       let result;
       
@@ -218,7 +218,7 @@ export const UserService = {
         .from('user_permissions')
         .select(permission)
         .eq('user_id', userId)
-        .maybeSingle();
+        .maybeSingle(); // Changed from single() to maybeSingle()
       
       if (permError) return false;
       

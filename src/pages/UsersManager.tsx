@@ -5,12 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import MainHeader from "@/components/MainHeader";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useToast } from "@/hooks/use-toast";
 import { supabase, processUserProfile, cleanCPF, isMasterUser } from "@/integrations/supabase/client";
-import { AuthService } from "@/services/authService"; 
 import { User, PlusCircle, Pencil, Trash2, Shield, Mail, Key, Loader2, Check, X, RotateCw } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -156,84 +154,85 @@ export default function UsersManager() {
       const userId = data.session.user.id;
       setCurrentUserId(userId);
       
-      // First, try to directly fetch the profile
-      console.log("Attempting to fetch user profile for ID:", userId);
-      const { data: profileData, error: profileError } = await supabase
+      // Fetch the user profile - switched from single() to maybeSingle()
+      const { data: userProfile, error: profileError } = await supabase
         .from('profiles')
         .select('*, permissions:user_permissions(*)')
         .eq('id', userId)
         .maybeSingle();
         
-      if (profileError) {
-        console.error("Error fetching profile:", profileError);
-        throw profileError;
-      }
-      
-      // If profile exists, process it and continue
-      if (profileData) {
-        console.log("Profile found:", profileData);
-        const processedProfile = processUserProfile(profileData);
-        setCurrentUserProfile(processedProfile);
-        setAuthCheckComplete(true);
-        return;
-      }
-      
-      // Profile doesn't exist, try to initialize master user
-      console.log("Profile not found, attempting to initialize master user...");
-      
-      // Initialize the master user with multiple retries
-      let initResult = null;
-      const maxRetries = 3;
-      
-      for (let i = 0; i < maxRetries; i++) {
-        console.log(`Attempt ${i+1} to initialize master user...`);
-        initResult = await AuthService.initMasterUser();
+      // Handle case where the profile might not exist yet - create it dynamically
+      if (!userProfile || profileError) {
+        // Try to create a basic profile if one doesn't exist
+        const user = data.session.user;
+        const newProfile = {
+          id: userId,
+          name: user.user_metadata?.name || user.email || "Novo Usuário",
+          email: user.email,
+          cpf: user.user_metadata?.cpf,
+          is_admin: false,
+          is_master: false
+        };
         
-        if (initResult.success && initResult.profile) {
-          console.log(`Master user initialization successful on attempt ${i+1}:`, initResult);
-          break;
-        } else {
-          console.error(`Master user initialization failed on attempt ${i+1}:`, initResult.error);
-          // Wait a bit before retrying
-          if (i < maxRetries - 1) {
-            await new Promise(resolve => setTimeout(resolve, 1500 * (i + 1)));
-          }
+        // Create basic profile
+        const { error: createError } = await supabase
+          .from('profiles')
+          .insert(newProfile);
+          
+        if (createError) {
+          console.error("Error creating profile:", createError);
+          toast({
+            title: "Erro ao criar perfil",
+            description: "Não foi possível inicializar o perfil do usuário",
+            variant: "destructive"
+          });
+          navigate('/auth');
+          return;
         }
-      }
-      
-      if (!initResult?.success) {
-        throw new Error(`Failed to initialize master user after ${maxRetries} attempts: ${initResult?.error || "Unknown error"}`);
-      }
-      
-      // If we have a profile from initialization, use it directly
-      if (initResult.profile) {
-        const processedProfile = processUserProfile(initResult.profile);
+        
+        // Use processUserProfile to ensure profile has all required fields
+        const processedProfile = processUserProfile(newProfile);
         setCurrentUserProfile(processedProfile);
-        setAuthCheckComplete(true);
+      } else {
+        // Use the processUserProfile helper to ensure all required properties exist
+        const processedProfile = processUserProfile(userProfile);
+        setCurrentUserProfile(processedProfile);
+      }
+      
+      // Check if the current user is allowed to access the Users page
+      // If no permission exists yet, initialize from init-master-user function
+      const { data: permissionCheck } = await supabase.rpc('check_user_role', {
+        user_id: userId
+      });
+      
+      // If no permission is returned, try the initialization
+      if (!permissionCheck || permissionCheck.length === 0) {
+        console.log("No permissions found, trying master initialization");
+        await fetch(
+          "https://tsjdsbxgottssqqlzfxl.functions.supabase.co/init-master-user",
+          { method: "POST", headers: { "Content-Type": "application/json" } }
+        );
+      }
+      
+      // Verifica se é o usuário master por CPF
+      const isSpecialMaster = isMasterUser(currentUserProfile);
+      
+      // Check if user has permission to access this page
+      if (!isSpecialMaster && 
+          !currentUserProfile?.is_admin && 
+          !currentUserProfile?.is_master && 
+          (!currentUserProfile?.permissions || !currentUserProfile?.permissions[0]?.can_create_user)) {
+        toast({
+          title: "Acesso negado",
+          description: "Você não tem permissão para gerenciar usuários.",
+          variant: "destructive"
+        });
+        navigate('/');
         return;
       }
       
-      // Extra check - try to fetch the profile again after initialization
-      const { data: newProfile, error: newProfileError } = await supabase
-        .from('profiles')
-        .select('*, permissions:user_permissions(*)')
-        .eq('id', userId)
-        .maybeSingle();
-        
-      if (newProfileError) {
-        console.error("Error fetching profile after initialization:", newProfileError);
-        throw new Error(`Failed to fetch profile after initialization: ${newProfileError.message}`);
-      }
-      
-      if (!newProfile) {
-        console.error("Profile still not found after initialization and verification");
-        throw new Error("Profile still not found after initialization");
-      }
-      
-      const processedNewProfile = processUserProfile(newProfile);
-      setCurrentUserProfile(processedNewProfile);
+      // Authentication check is complete and user has permission
       setAuthCheckComplete(true);
-      
     } catch (error: any) {
       console.error("Error checking auth:", error);
       toast({
@@ -680,8 +679,8 @@ export default function UsersManager() {
   const hasUserManagementPermission = useCallback(() => {
     if (!currentUserProfile) return false;
     
-    // Check if user is master by CPF or is_master flag
-    if (currentUserProfile && isMasterUser(currentUserProfile)) {
+    // Check if user is master by CPF
+    if (isMasterUser(currentUserProfile)) {
       return true;
     }
     
@@ -719,7 +718,7 @@ export default function UsersManager() {
   
   return (
     <div className="container mx-auto py-8">
-      <MainHeader 
+      <Header 
         title="Gerenciamento de Usuários" 
         subtitle="Cadastre e gerencie todos os usuários do sistema" 
       />
